@@ -171,8 +171,9 @@ function buildSearchQuery(topic: Topic, agentType: string): string {
       break;
   }
 
-  // Add recency
-  modifiers.push('2024', 'latest', 'recent');
+  // Add recency - use current year
+  const currentYear = new Date().getFullYear();
+  modifiers.push(currentYear.toString(), 'latest', 'recent');
 
   return `${baseQuery} ${modifiers.join(' ')}`;
 }

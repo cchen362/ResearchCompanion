@@ -391,6 +391,186 @@ export interface DatabaseSchema {
   family: FamilyMember;
 }
 
+// ============= SMART DIGEST =============
+
+export type DigestTimeframe = 'daily' | 'weekly' | 'monthly' | 'all-time';
+export type DigestThemeCategory = 'treatment' | 'mechanism' | 'trial' | 'outcome' | 'diagnostic' | 'prevention';
+export type ExplanationMode = 'detailed' | 'simple';
+
+export interface SmartDigest {
+  id: string;
+  topicId: string;
+  generatedAt: number;
+  timeframe: DigestTimeframe;
+
+  // Executive Summary - The most important takeaway in 2-3 sentences
+  executiveSummary: string;
+
+  // Simplified version for non-medical users
+  laymanSummary?: string;
+
+  // Thematic grouping of related findings
+  themes: DigestTheme[];
+
+  // Key insights extracted from all findings
+  keyTakeaways: string[];
+
+  // Breakthrough discoveries if any
+  breakthroughs?: Breakthrough[];
+
+  // Conflicting or contradictory information
+  contradictions?: Contradiction[];
+
+  // Trend analysis
+  trends: {
+    emerging: TrendItem[];      // New or increasing research
+    declining: TrendItem[];      // Decreasing focus
+    stable: TrendItem[];         // Consistent areas
+  };
+
+  // Statistical overview
+  statistics: {
+    totalFindings: number;
+    newFindings: number;         // Since last digest
+    highRelevanceCount: number;
+    sourceCount: number;
+    avgConfidence: number;        // 0-1
+  };
+
+  // Top sources contributing to this digest
+  topSources: SourceSummary[];
+
+  // Related finding IDs for drill-down
+  allFindingIds: string[];
+
+  // User interaction data
+  userEngagement?: {
+    viewed: boolean;
+    viewedAt?: number;
+    expandedThemes?: string[];   // Theme IDs user expanded
+    followUpQuestions?: string[]; // Questions user asked
+  };
+}
+
+export interface DigestTheme {
+  id: string;
+  title: string;                 // e.g., "Combination Therapy Advances"
+  summary: string;                // 2-3 sentence theme summary
+  category: DigestThemeCategory;
+  importance: 'critical' | 'high' | 'medium' | 'low';
+  findingIds: string[];           // Related finding IDs
+  findingCount: number;
+
+  // Key entities within this theme
+  entities?: {
+    medications?: string[];
+    institutions?: string[];
+    researchers?: string[];
+  };
+
+  // Aggregated metrics for this theme
+  avgRelevance: number;           // 0-1
+  avgConfidence: 'high' | 'medium' | 'low';
+
+  // Visual indicator
+  icon?: string;                  // Icon name for UI
+  color?: string;                 // Theme color for UI
+}
+
+export interface Breakthrough {
+  id: string;
+  title: string;
+  description: string;
+  impact: 'paradigm-shift' | 'major' | 'moderate';
+  findingIds: string[];
+  date: number;
+  source: string;
+}
+
+export interface Contradiction {
+  id: string;
+  topic: string;                   // What's contradicted
+  findingA: {
+    id: string;
+    claim: string;
+    source: string;
+  };
+  findingB: {
+    id: string;
+    claim: string;
+    source: string;
+  };
+  explanation?: string;            // Why this might occur
+  requiresAttention: boolean;
+}
+
+export interface TrendItem {
+  topic: string;
+  changePercent?: number;          // % change from previous period
+  findingCount: number;
+  description?: string;
+}
+
+export interface SourceSummary {
+  name: string;
+  type: 'journal' | 'fda' | 'clinical_trial' | 'medical_site' | 'community';
+  findingCount: number;
+  avgCredibility: number;
+  topContributions: string[];      // Brief descriptions
+}
+
+// ============= CONVERSATIONAL INTERFACE =============
+
+export interface FindingsChat {
+  id: string;
+  topicId: string;
+  startedAt: number;
+  lastMessageAt: number;
+  messages: ChatMessage[];
+  context: ChatContext;
+  status: 'active' | 'archived';
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+
+  // Source citations embedded in response
+  citations?: SourceCitation[];
+
+  // Suggested follow-up questions
+  suggestedQuestions?: string[];
+
+  // Findings referenced in this message
+  referencedFindingIds?: string[];
+
+  // User feedback on response
+  feedback?: {
+    helpful: boolean;
+    rating?: number;              // 1-5
+    comment?: string;
+  };
+}
+
+export interface SourceCitation {
+  findingId: string;
+  text: string;                    // Display text e.g., "[PubMed Study, 2025]"
+  position: number;                // Character position in message
+}
+
+export interface ChatContext {
+  digest?: SmartDigest;             // Current digest being discussed
+  allFindings: string[];            // All finding IDs available
+  userProfile: {
+    knowledgeLevel: 'expert' | 'intermediate' | 'layman';
+    interests: string[];
+    previousTopics: string[];
+  };
+  conversationFocus?: string;       // Current topic focus
+}
+
 // ============= SEARCH & QUERY =============
 
 export interface SearchQuery {

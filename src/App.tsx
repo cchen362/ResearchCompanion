@@ -5,10 +5,11 @@ import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } fro
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
-import FindingsViewer from './components/FindingsViewer';
+import FindingsViewerEnhanced from './components/FindingsViewerEnhanced';
 import NotificationCenter from './components/NotificationCenter';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
+import ErrorBoundary from './components/ErrorBoundary';
 import type { Topic } from './types';
 import './App.css';
 
@@ -153,7 +154,9 @@ function App() {
             </nav>
 
             {/* Notification icon */}
-            <NotificationCenter />
+            <ErrorBoundary fallback={null}>
+              <NotificationCenter />
+            </ErrorBoundary>
           </div>
         </div>
       </header>
@@ -163,7 +166,7 @@ function App() {
         {currentView === 'dashboard' && <Dashboard />}
         {currentView === 'topics' && <TopicManager />}
         {currentView === 'agents' && <AgentMonitor />}
-        {currentView === 'findings' && <FindingsViewer />}
+        {currentView === 'findings' && <FindingsViewerEnhanced />}
         {currentView === 'timeline' && <Timeline />}
         {currentView === 'voice' && (
           <VoiceRecorder

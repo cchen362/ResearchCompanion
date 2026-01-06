@@ -2,7 +2,27 @@
   "permissions": {
     "allow": [
       "Bash(npm run dev:*)",
-      "Bash(start chrome http://localhost:5173/)"
+      "Bash(start chrome http://localhost:5173/)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:all:*)",
+      "Bash(start chrome http://localhost:5175/)",
+      "Bash(start chrome http://localhost:5176/)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(src/test.js)",
+      "Bash(start chrome http://localhost:5178/)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm update:*)",
+      "Bash(node test-digest.js:*)",
+      "Bash(npm view:*)",
+      "Bash(npm ls:*)",
+      "Bash(start chrome http://localhost:5177/)"
     ],
     "deny": [],
     "ask": []

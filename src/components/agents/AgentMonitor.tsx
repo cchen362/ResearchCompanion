@@ -54,6 +54,12 @@ export default function AgentMonitor() {
   const handleRunAllPending = async () => {
     const pendingAgents = await getAgentsToRun();
 
+    if (pendingAgents.length === 0) {
+      // No agents to run - show informative message
+      alert('No pending agents to run. Agents run automatically when scheduled.');
+      return;
+    }
+
     for (const agent of pendingAgents) {
       const topic = await getTopic(agent.topicId);
       if (topic) {
@@ -66,7 +72,7 @@ export default function AgentMonitor() {
     }
 
     await loadAgents();
-    alert(`Completed running ${pendingAgents.length} agents`);
+    alert(`Completed running ${pendingAgents.length} agent${pendingAgents.length > 1 ? 's' : ''}`);
   };
 
   const getStatusColor = (status: Agent['status']) => {
