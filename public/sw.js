@@ -154,6 +154,10 @@ self.addEventListener('message', (event) => {
 
   if (event.data && event.data.type === 'SCHEDULE_AGENT_CHECK') {
     scheduleAgentCheck(event.data.delay);
+    // Send response back to prevent timeout
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ success: true });
+    }
   }
 
   if (event.data && event.data.type === 'RUN_AGENTS_NOW') {

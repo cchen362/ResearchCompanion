@@ -3,12 +3,14 @@ import { getDB } from '@/utils/db/database';
 import { getAgentsToRun, setAgentStatus } from '@/utils/db/agents';
 import { runAgentWithAPI } from '@/services/agentRunner';
 import { getTopic } from '@/utils/db/topics';
+import AgentConfigModal from './AgentConfigModal';
 import type { Agent } from '@/types';
 
 export default function AgentMonitor() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [configuringAgent, setConfiguringAgent] = useState<Agent | null>(null);
 
   useEffect(() => {
     loadAgents();
@@ -133,7 +135,11 @@ export default function AgentMonitor() {
                   <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
                   <div>
                     <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
-                    <p className="text-xs text-gray-500">{agent.type.replace('_', ' ')}</p>
+                    <p className="text-xs text-gray-500">
+                      {agent.type.split('_').map(word =>
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                      ).join(' ')}
+                    </p>
                   </div>
                 </div>
                 <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(agent.status)}`}>
@@ -183,6 +189,7 @@ export default function AgentMonitor() {
                   {runningAgentId === agent.id ? 'Running...' : 'Run Now'}
                 </button>
                 <button
+                  onClick={() => setConfiguringAgent(agent)}
                   className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   Configure
@@ -215,6 +222,14 @@ export default function AgentMonitor() {
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <p className="text-gray-500">No agents configured yet. Add a topic to create agents automatically.</p>
         </div>
+      )}
+
+      {configuringAgent && (
+        <AgentConfigModal
+          agent={configuringAgent}
+          onClose={() => setConfiguringAgent(null)}
+          onUpdate={loadAgents}
+        />
       )}
     </div>
   );

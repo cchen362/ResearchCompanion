@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createTopic, getAllTopics, deleteTopic, updateTopic } from '@/utils/db/topics';
-import { createAgent } from '@/utils/db/agents';
+import { createAgent, getAgentsByTopic } from '@/utils/db/agents';
 import type { Topic, DiseaseProfile, PatientContext, AgentType } from '@/types';
 
 export default function TopicManager() {
@@ -8,6 +8,7 @@ export default function TopicManager() {
   const [showNewTopicForm, setShowNewTopicForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(true);
+  const [agentCounts, setAgentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadTopics();
@@ -17,6 +18,14 @@ export default function TopicManager() {
     try {
       const allTopics = await getAllTopics();
       setTopics(allTopics);
+
+      // Fetch agent counts for each topic
+      const counts: Record<string, number> = {};
+      for (const topic of allTopics) {
+        const agents = await getAgentsByTopic(topic.id);
+        counts[topic.id] = agents.length;
+      }
+      setAgentCounts(counts);
     } catch (error) {
       console.error('Error loading topics:', error);
     } finally {
@@ -110,7 +119,7 @@ export default function TopicManager() {
                           )}
                         </div>
                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                          <p>{topic.agents.length} active agents</p>
+                          <p>{agentCounts[topic.id] || 0} agents</p>
                         </div>
                       </div>
                     </div>
@@ -197,10 +206,11 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         await createAgent(
           topic.id,
           type,
-          `${type.replace('_', ' ')} Agent`,
-          `Monitoring ${type.replace('_', ' ')} for ${diseaseName}`,
+          `${type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent`,
+          `Monitoring ${type.split('_').map(w => w.toLowerCase()).join(' ')} for ${diseaseName}`,
           {
-            updateFrequency: progressionRate === 'rapid' ? 'daily' : 'weekly',
+            updateFrequency: progressionRate === 'rapid' ? 'hourly' :
+                           progressionRate === 'moderate' ? 'daily' : 'weekly',
             priority: 'medium',
             searchDepth: 'standard'
           }
@@ -274,7 +284,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               onChange={(e) => setProgressionRate(e.target.value as any)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
             >
-              <option value="rapid">Every 12 hours (Fast-changing conditions)</option>
+              <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
               <option value="slow">Weekly (Stable conditions)</option>
               <option value="variable">Adaptive (Let AI decide)</option>
@@ -421,7 +431,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               onChange={(e) => setProgressionRate(e.target.value as any)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
             >
-              <option value="rapid">Every 12 hours (Fast-changing conditions)</option>
+              <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
               <option value="slow">Weekly (Stable conditions)</option>
               <option value="variable">Adaptive (Let AI decide)</option>

@@ -24,8 +24,8 @@ export async function createAgent(
     updatedAt: Date.now()
   };
 
-  // Schedule first run based on config
-  agent.nextScheduledRun = calculateNextRun(agent);
+  // Schedule first run immediately (agents should run on creation)
+  agent.nextScheduledRun = Date.now();
 
   await db.add('agents', agent);
   return agent;
@@ -45,8 +45,7 @@ export async function getAgentsToRun(): Promise<Agent[]> {
 
   return allAgents.filter(agent =>
     agent.status !== 'running' &&
-    agent.nextScheduledRun &&
-    agent.nextScheduledRun <= now
+    (!agent.nextScheduledRun || agent.nextScheduledRun <= now)
   );
 }
 
@@ -226,6 +225,22 @@ export async function setAgentStatus(
   if (agent) {
     agent.status = status;
     agent.updatedAt = Date.now();
+    await db.put('agents', agent);
+  }
+}
+
+// Update agent configuration
+export async function updateAgentConfig(
+  agentId: string,
+  config: Partial<AgentConfig>
+): Promise<void> {
+  const db = await getDB();
+  const agent = await db.get('agents', agentId);
+
+  if (agent) {
+    agent.config = { ...agent.config, ...config };
+    agent.updatedAt = Date.now();
+    agent.nextScheduledRun = calculateNextRun(agent);
     await db.put('agents', agent);
   }
 }
