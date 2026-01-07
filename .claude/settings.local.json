@@ -23,7 +23,9 @@
       "Bash(npm view:*)",
       "Bash(npm ls:*)",
       "Bash(start chrome http://localhost:5177/)",
-      "Bash(ss:*)"
+      "Bash(ss:*)",
+      "Bash(start chrome http://localhost:5179/)",
+      "Bash(start chrome http://localhost:5180/)"
     ],
     "deny": [],
     "ask": []

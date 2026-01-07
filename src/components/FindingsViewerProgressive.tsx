@@ -18,7 +18,6 @@ import { FindingDetailDrawer } from './FindingDetailDrawer';
 import DigestSettings from './DigestSettings';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -540,10 +539,11 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
           </p>
         </Card>
       ) : (
-        <Tabs defaultValue={viewMode}>
-          <TabsContent value="digest" className="space-y-4">
-            {digest ? (
-              <>
+        <div>
+          {viewMode === 'digest' ? (
+            <div className="space-y-4">
+              {digest ? (
+                <>
                 {/* Show if digest is stale */}
                 {cachedDigest && digest.id === cachedDigest.id && (
                   <Alert className="border-yellow-200 bg-yellow-50">
@@ -572,6 +572,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 <DigestCard
                   digest={digest}
                   explanationMode={explanationMode}
+                  setExplanationMode={setExplanationMode}
                   onThemeClick={(themeId) => handleThemeClick(themeId, '')}
                   onViewSources={() => setShowSourceDrawer(true)}
                 />
@@ -580,6 +581,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 <ThemeAccordion
                   themes={digest.themes}
                   findings={findings}
+                  explanationMode={explanationMode}
                   onThemeExpand={(themeId) => setSelectedThemeId(themeId)}
                   onFindingClick={(findingId) => {
                     const finding = findings.find(f => f.id === findingId);
@@ -621,9 +623,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 )}
               </Card>
             )}
-          </TabsContent>
-
-          <TabsContent value="list" className="space-y-4">
+            </div>
+          ) : (
+            <div className="space-y-4">
             {visibleFindings.map((finding) => (
               <Card
                 key={finding.id}
@@ -662,8 +664,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Source Drawer */}
