@@ -3,6 +3,20 @@
 ## Executive Summary
 This document ensures coherent integration across all three phases of the Medical Research Companion PWA transformation, from immediate UX fixes through conversational AI to knowledge graph visualization.
 
+## Note: Strategic Alignment (Updated January 2025)
+After comprehensive codebase review, the development strategy has been aligned to focus on:
+1. **Phase 2**: Conversational Interface for research findings
+2. **Phase 3A**: Data Export & Analytics
+3. **Phase 3B**: Knowledge Graph Visualization
+
+Items deferred to future phases:
+- Wearable device integration (requires authentication infrastructure)
+- Healthcare provider integration (requires HIPAA compliance)
+- Community features (requires cloud sync infrastructure)
+- Multi-language support (future enhancement)
+
+See [claude.md](./claude.md) for detailed development guidelines and [README.md](./README.md) for updated roadmap.
+
 ## Phase Architecture Overview
 
 ```

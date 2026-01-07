@@ -192,25 +192,48 @@ Agents can be customized per topic:
 - ✅ Basic UI components
 - ✅ IndexedDB integration
 - ✅ Cost tracking
+- ✅ Backend API server
+- ✅ Real API integrations (PubMed, ClinicalTrials.gov)
+- ✅ Service Worker scheduling
+- ✅ Audio recording interface
+- ✅ Smart digest generation with AI analysis
 
-### Phase 2 (Next)
-- [ ] Backend API server
-- [ ] Real API integrations
-- [ ] Service Worker scheduling
-- [ ] Audio recording interface
-- [ ] Multi-language support
+### Phase 2: Conversational Interface (4-6 weeks)
+- [ ] Chat interface for research findings
+- [ ] Context-aware Q&A about medical research
+- [ ] Citation linking to specific findings
+- [ ] Suggested follow-up questions
+- [ ] Conversation history management
+- [ ] Streaming AI responses for real-time interaction
 
-### Phase 3 (Future)
-- [ ] Advanced pattern recognition
-- [ ] Predictive insights
-- [ ] Integration with wearables
-- [ ] Export to medical formats
+### Phase 3A: Data Export & Analytics (3-4 weeks)
+- [ ] PDF report generation with research summaries
+- [ ] CSV/Excel export for timeline and tracking data
+- [ ] FHIR-compatible medical record export
+- [ ] Symptom correlation charts
+- [ ] Treatment effectiveness visualization
+- [ ] Pattern analysis across timeline events
+
+### Phase 3B: Knowledge Graph Visualization (4-5 weeks)
+- [ ] Interactive knowledge graph of research findings
+- [ ] Relationship detection between medical concepts
+- [ ] Pattern highlighting and contradiction detection
+- [ ] 2D/3D graph visualization modes
+- [ ] Filter by theme, category, or time period
+- [ ] AI-powered relationship discovery
+
+### Future Enhancements
+- [ ] Multi-language support (starting with Spanish/Mandarin)
+- [ ] Enhanced symptom tracking with severity scales
+- [ ] Predictive insights based on timeline patterns
+- [ ] Advanced analytics dashboard
 
 ## 🐛 Known Issues
 
-1. Backend API server not yet implemented (mock data only)
+1. Web search using mock data (real API integration pending)
 2. Audio recording requires HTTPS in production
 3. Some agent features require API keys
+4. Conversational interface not yet implemented (Phase 2)
 
 ## 📝 License
 
