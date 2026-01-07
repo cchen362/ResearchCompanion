@@ -18,6 +18,9 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configure server timeout for long-running AI operations (5 minutes)
+app.set('timeout', 300000); // 5 minutes in milliseconds
+
 // Middleware - Allow all localhost ports for development
 app.use(cors({
   origin: (origin, callback) => {
@@ -55,7 +58,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log('📡 API endpoints available:');
   console.log('  - POST /api/parse-search-query');
@@ -63,7 +66,13 @@ app.listen(PORT, () => {
   console.log('  - POST /api/pubmed-search');
   console.log('  - POST /api/summarize');
   console.log('  - POST /api/transcribe');
-  console.log('  - POST /api/generate-digest');
+  console.log('  - POST /api/generate-digest (⏱️ 30-90s for AI processing)');
   console.log('  - POST /api/simplify-digest');
   console.log('  - POST /api/run-agent');
+  console.log('\n⚙️ Server timeout: 5 minutes (for long AI operations)');
 });
+
+// Set timeout for the HTTP server (5 minutes)
+server.timeout = 300000; // 5 minutes
+server.keepAliveTimeout = 310000; // Slightly longer than timeout
+server.headersTimeout = 320000; // Even longer to prevent premature closing

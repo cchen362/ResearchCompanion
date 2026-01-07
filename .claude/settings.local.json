@@ -22,7 +22,8 @@
       "Bash(node test-digest.js:*)",
       "Bash(npm view:*)",
       "Bash(npm ls:*)",
-      "Bash(start chrome http://localhost:5177/)"
+      "Bash(start chrome http://localhost:5177/)",
+      "Bash(ss:*)"
     ],
     "deny": [],
     "ask": []

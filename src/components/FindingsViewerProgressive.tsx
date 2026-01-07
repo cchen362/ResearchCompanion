@@ -1,0 +1,702 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getDB } from '@/utils/db/database';
+import { getTopic } from '@/utils/db/topics';
+import { digestQueueService } from '@/services/digestQueue.service';
+import { digestCacheService } from '@/services/digestCache.service';
+import type {
+  ResearchFinding,
+  Topic,
+  SmartDigest,
+  DigestTimeframe,
+  ExplanationMode,
+  DigestQueueItem
+} from '@/types';
+import { DigestCard } from './DigestCard';
+import { ThemeAccordion } from './ThemeAccordion';
+import { SourceDrawer } from './SourceDrawer';
+import { FindingDetailDrawer } from './FindingDetailDrawer';
+import DigestSettings from './DigestSettings';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import {
+  RefreshCw,
+  Calendar,
+  FileText,
+  Brain,
+  LayoutGrid,
+  List,
+  Loader2,
+  AlertCircle,
+  Settings,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  Sparkles,
+  AlertTriangle
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface FindingsViewerProgressiveProps {
+  topicId?: string;
+}
+
+// Component for showing digest generation progress
+function DigestProgress({ queueItem }: { queueItem: DigestQueueItem }) {
+  const getStageLabel = (stage: string) => {
+    switch (stage) {
+      case 'queued': return 'Waiting in queue';
+      case 'fetching': return 'Gathering research findings';
+      case 'analyzing': return 'Analyzing patterns and themes';
+      case 'generating': return 'Creating intelligent insights';
+      case 'validating': return 'Finalizing your digest';
+      default: return 'Processing';
+    }
+  };
+
+  const getIcon = () => {
+    switch (queueItem.status) {
+      case 'processing': return <Loader2 className="h-4 w-4 animate-spin" />;
+      case 'completed': return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'failed': return <XCircle className="h-4 w-4 text-red-500" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <Card className="mb-4 border-blue-200 bg-blue-50/50">
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-2 mb-3">
+          {getIcon()}
+          <span className="text-sm font-medium">
+            {queueItem.status === 'completed'
+              ? 'Digest ready!'
+              : queueItem.status === 'failed'
+              ? 'Generation failed'
+              : 'Generating new insights...'}
+          </span>
+          {queueItem.estimatedCompletionTime && queueItem.status === 'processing' && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              Est. {Math.ceil((queueItem.estimatedCompletionTime - Date.now()) / 1000)}s
+            </span>
+          )}
+        </div>
+
+        {queueItem.progress && queueItem.status === 'processing' && (
+          <>
+            <Progress value={queueItem.progress.percentage} className="mb-2" />
+            <p className="text-xs text-muted-foreground">
+              {getStageLabel(queueItem.progress.stage)}
+            </p>
+          </>
+        )}
+
+        {queueItem.error && (
+          <Alert className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              {queueItem.error}
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function FindingsViewerProgressive({ topicId }: FindingsViewerProgressiveProps) {
+  // Core state
+  const [findings, setFindings] = useState<ResearchFinding[]>([]);
+  const [visibleFindings, setVisibleFindings] = useState<ResearchFinding[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopicId, setSelectedTopicId] = useState<string>(topicId || '');
+  const [currentTopic, setCurrentTopic] = useState<Topic | null>(null);
+  const [digest, setDigest] = useState<SmartDigest | null>(null);
+  const [cachedDigest, setCachedDigest] = useState<SmartDigest | null>(null);
+
+  // Loading states (granular)
+  const [loadingTopics, setLoadingTopics] = useState(true);
+  const [loadingFindings, setLoadingFindings] = useState(false);
+  const [loadingDigest, setLoadingDigest] = useState(false);
+
+  // Queue state
+  const [queueItem, setQueueItem] = useState<DigestQueueItem | null>(null);
+  const [digestGeneration, setDigestGeneration] = useState<{
+    isGenerating: boolean;
+    progress: number;
+    message: string;
+  }>({ isGenerating: false, progress: 0, message: '' });
+
+  // UI state
+  const [viewMode, setViewMode] = useState<'digest' | 'list'>('digest');
+  const [digestTimeframe, setDigestTimeframe] = useState<DigestTimeframe>('weekly');
+  const [explanationMode, setExplanationMode] = useState<ExplanationMode>('simple');
+  const [showSourceDrawer, setShowSourceDrawer] = useState(false);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | undefined>();
+  const [selectedThemeName, setSelectedThemeName] = useState<string | undefined>();
+  const [selectedFinding, setSelectedFinding] = useState<ResearchFinding | null>(null);
+  const [showFindingDetail, setShowFindingDetail] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Pagination for findings
+  const [findingsPage, setFindingsPage] = useState(1);
+  const findingsPerPage = 20;
+
+  // Refs for infinite scroll
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Load topics on mount
+  useEffect(() => {
+    loadTopics();
+  }, []);
+
+  // Progressive loading when topic changes
+  useEffect(() => {
+    if (selectedTopicId) {
+      loadTopicDataProgressive(selectedTopicId);
+    }
+  }, [selectedTopicId, digestTimeframe]);
+
+  // Listen for digest completion events
+  useEffect(() => {
+    const handleDigestCompleted = async (event: CustomEvent) => {
+      const { queueItem: completedItem, digest: newDigest } = event.detail;
+      if (completedItem.topicId === selectedTopicId) {
+        setDigest(newDigest);
+        setQueueItem(null);
+        setDigestGeneration({ isGenerating: false, progress: 100, message: 'Complete!' });
+
+        // Save to cache
+        await digestCacheService.saveDigest(newDigest);
+      }
+    };
+
+    const handleDigestProgress = (event: CustomEvent) => {
+      const { queueItem: updatedItem } = event.detail;
+      if (updatedItem.topicId === selectedTopicId) {
+        setQueueItem(updatedItem);
+        if (updatedItem.progress) {
+          setDigestGeneration({
+            isGenerating: true,
+            progress: updatedItem.progress.percentage,
+            message: updatedItem.progress.message
+          });
+        }
+      }
+    };
+
+    const handleDigestFailed = (event: CustomEvent) => {
+      const { queueItem: failedItem } = event.detail;
+      if (failedItem.topicId === selectedTopicId) {
+        setQueueItem(failedItem);
+        setDigestGeneration({ isGenerating: false, progress: 0, message: 'Failed' });
+      }
+    };
+
+    window.addEventListener('digest-completed', handleDigestCompleted as any);
+    window.addEventListener('digest-progress', handleDigestProgress as any);
+    window.addEventListener('digest-failed', handleDigestFailed as any);
+
+    return () => {
+      window.removeEventListener('digest-completed', handleDigestCompleted as any);
+      window.removeEventListener('digest-progress', handleDigestProgress as any);
+      window.removeEventListener('digest-failed', handleDigestFailed as any);
+    };
+  }, [selectedTopicId]);
+
+  // Setup infinite scroll observer
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && visibleFindings.length < findings.length) {
+        loadMoreFindings();
+      }
+    });
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [visibleFindings, findings]);
+
+  const loadTopics = async () => {
+    try {
+      setLoadingTopics(true);
+      const db = await getDB();
+      const allTopics = await db.getAll('topics');
+      setTopics(allTopics);
+      if (!selectedTopicId && allTopics.length > 0) {
+        setSelectedTopicId(allTopics[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading topics:', error);
+    } finally {
+      setLoadingTopics(false);
+    }
+  };
+
+  const loadTopicDataProgressive = async (topicId: string) => {
+    try {
+      // Step 1: Load topic info immediately
+      const topic = await getTopic(topicId);
+      if (!topic) {
+        console.error('Topic not found:', topicId);
+        return;
+      }
+      setCurrentTopic(topic);
+
+      // Step 2: Load findings (fast)
+      setLoadingFindings(true);
+      const db = await getDB();
+      const topicFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+      topicFindings.sort((a, b) => b.timestamp - a.timestamp);
+      setFindings(topicFindings);
+
+      // Load first page of findings
+      setVisibleFindings(topicFindings.slice(0, findingsPerPage));
+      setFindingsPage(1);
+      setLoadingFindings(false);
+
+      // Step 3: Check for cached digest using cache service
+      setLoadingDigest(true);
+      const { digest: cachedDigest, isStale } = await digestCacheService.getCachedDigest(
+        topicId,
+        digestTimeframe
+      );
+
+      if (cachedDigest) {
+        setCachedDigest(cachedDigest);
+        setDigest(cachedDigest);
+        setLoadingDigest(false);
+
+        // Check if we should refresh the digest
+        const shouldRefresh = await digestCacheService.shouldRefreshDigest(
+          topicId,
+          digestTimeframe,
+          cachedDigest
+        );
+
+        if (shouldRefresh || isStale) {
+          // Queue background refresh if stale or needs update
+          const existingQueue = await digestQueueService.getQueueStatus(topicId);
+          if (!existingQueue) {
+            const newQueueItem = await digestQueueService.queueDigestGeneration(
+              topicId,
+              digestTimeframe,
+              topicFindings.map(f => f.id),
+              isStale ? 'high' : 'normal',
+              'system'
+            );
+            setQueueItem(newQueueItem);
+            setDigestGeneration({
+              isGenerating: true,
+              progress: 0,
+              message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
+            });
+          }
+        }
+      } else {
+        setCachedDigest(null);
+        setLoadingDigest(false);
+
+        // Step 4: Queue digest generation in background (non-blocking)
+        if (topicFindings.length > 0) {
+          const existingQueue = await digestQueueService.getQueueStatus(topicId);
+          if (!existingQueue) {
+            const newQueueItem = await digestQueueService.queueDigestGeneration(
+              topicId,
+              digestTimeframe,
+              topicFindings.map(f => f.id),
+              'normal',
+              'user'
+            );
+            setQueueItem(newQueueItem);
+            setDigestGeneration({
+              isGenerating: true,
+              progress: 0,
+              message: 'Queued for generation...'
+            });
+          } else {
+            setQueueItem(existingQueue);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading topic data:', error);
+      setLoadingFindings(false);
+      setLoadingDigest(false);
+    }
+  };
+
+  const loadMoreFindings = () => {
+    const nextPage = findingsPage + 1;
+    const startIndex = (nextPage - 1) * findingsPerPage;
+    const endIndex = startIndex + findingsPerPage;
+    const newVisibleFindings = findings.slice(0, endIndex);
+    setVisibleFindings(newVisibleFindings);
+    setFindingsPage(nextPage);
+  };
+
+  const handleRefreshDigest = async () => {
+    if (!selectedTopicId || findings.length === 0) return;
+
+    // Cancel existing queue item if any
+    if (queueItem) {
+      await digestQueueService.cancelQueueItem(queueItem.id);
+    }
+
+    // Queue new generation with high priority
+    const newQueueItem = await digestQueueService.queueDigestGeneration(
+      selectedTopicId,
+      digestTimeframe,
+      findings.map(f => f.id),
+      'high',
+      'user'
+    );
+
+    setQueueItem(newQueueItem);
+    setDigestGeneration({
+      isGenerating: true,
+      progress: 0,
+      message: 'Priority generation started...'
+    });
+  };
+
+  const handleTimeframeChange = async (newTimeframe: DigestTimeframe) => {
+    setDigestTimeframe(newTimeframe);
+    // This will trigger the useEffect to reload with new timeframe
+  };
+
+  const getFilteredFindings = (): ResearchFinding[] => {
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+
+    switch (digestTimeframe) {
+      case 'daily':
+        return findings.filter(f => f.timestamp > now - day);
+      case 'weekly':
+        return findings.filter(f => f.timestamp > now - (7 * day));
+      case 'monthly':
+        return findings.filter(f => f.timestamp > now - (30 * day));
+      default:
+        return findings;
+    }
+  };
+
+  const handleFindingClick = (finding: ResearchFinding) => {
+    setSelectedFinding(finding);
+    setShowFindingDetail(true);
+  };
+
+  const handleThemeClick = (themeId: string, themeName: string) => {
+    setSelectedThemeId(themeId);
+    setSelectedThemeName(themeName);
+    setShowSourceDrawer(true);
+  };
+
+  // Render loading state
+  if (loadingTopics) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Render no topics state
+  if (topics.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <CardTitle className="mb-2">No Research Topics</CardTitle>
+        <p className="text-muted-foreground">
+          Add a research topic to start tracking medical findings.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Topic Selector and Controls */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              <select
+                value={selectedTopicId}
+                onChange={(e) => setSelectedTopicId(e.target.value)}
+                className="text-lg font-semibold bg-transparent border-b border-gray-200 focus:border-primary outline-none"
+              >
+                {topics.map(topic => (
+                  <option key={topic.id} value={topic.id}>{topic.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Timeframe selector */}
+              <select
+                value={digestTimeframe}
+                onChange={(e) => handleTimeframeChange(e.target.value as DigestTimeframe)}
+                className="px-3 py-1 border rounded-md text-sm"
+              >
+                <option value="daily">Today</option>
+                <option value="weekly">This Week</option>
+                <option value="monthly">This Month</option>
+                <option value="all-time">All Time</option>
+              </select>
+
+              {/* View mode toggle */}
+              <div className="flex gap-1 p-1 bg-muted rounded-md">
+                <Button
+                  size="sm"
+                  variant={viewMode === 'digest' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('digest')}
+                  className="px-2 py-1"
+                >
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Digest
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  onClick={() => setViewMode('list')}
+                  className="px-2 py-1"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  List
+                </Button>
+              </div>
+
+              {/* Refresh button */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRefreshDigest}
+                disabled={digestGeneration.isGenerating}
+              >
+                <RefreshCw className={`h-4 w-4 ${digestGeneration.isGenerating ? 'animate-spin' : ''}`} />
+              </Button>
+
+              {/* Settings button */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats bar */}
+          <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <FileText className="h-4 w-4" />
+              {findings.length} findings
+            </span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              {getFilteredFindings().length} in period
+            </span>
+            {digest && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                Updated {formatDistanceToNow(digest.generatedAt)} ago
+              </span>
+            )}
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Progress indicator for digest generation */}
+      {queueItem && queueItem.status !== 'completed' && (
+        <DigestProgress queueItem={queueItem} />
+      )}
+
+      {/* Main content area */}
+      {loadingFindings ? (
+        <Card className="p-8">
+          <div className="flex items-center justify-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-muted-foreground">Loading research findings...</span>
+          </div>
+        </Card>
+      ) : findings.length === 0 ? (
+        <Card className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <CardTitle className="mb-2">No Findings Yet</CardTitle>
+          <p className="text-muted-foreground">
+            Research agents will start gathering findings for this topic.
+          </p>
+        </Card>
+      ) : (
+        <Tabs defaultValue={viewMode}>
+          <TabsContent value="digest" className="space-y-4">
+            {digest ? (
+              <>
+                {/* Show if digest is stale */}
+                {cachedDigest && digest.id === cachedDigest.id && (
+                  <Alert className="border-yellow-200 bg-yellow-50">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle>Cached Digest</AlertTitle>
+                    <AlertDescription>
+                      This digest was generated {formatDistanceToNow(digest.generatedAt)} ago.
+                      {queueItem ? ' A fresh digest is being generated...' : ' Click refresh to generate a new one.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Show if using client-side digest */}
+                {digest && digest.id.startsWith('digest_client_') && (
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                    <AlertTitle>Offline Mode</AlertTitle>
+                    <AlertDescription>
+                      Backend is unavailable. Showing basic digest generated locally.
+                      AI-powered insights will be available when the backend is restored.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Digest content */}
+                <DigestCard
+                  digest={digest}
+                  explanationMode={explanationMode}
+                  onThemeClick={(themeId) => handleThemeClick(themeId, '')}
+                  onViewSources={() => setShowSourceDrawer(true)}
+                />
+
+                {/* Themes */}
+                <ThemeAccordion
+                  themes={digest.themes}
+                  findings={findings}
+                  onThemeExpand={(themeId) => setSelectedThemeId(themeId)}
+                  onFindingClick={(findingId) => {
+                    const finding = findings.find(f => f.id === findingId);
+                    if (finding) handleFindingClick(finding);
+                  }}
+                  onViewSources={(themeId) => {
+                    const theme = digest.themes.find(t => t.id === themeId);
+                    if (theme) handleThemeClick(theme.id, theme.title);
+                  }}
+                />
+              </>
+            ) : (
+              <Card className="p-8 text-center">
+                {digestGeneration.isGenerating ? (
+                  <>
+                    <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+                    <CardTitle className="mb-2">Generating AI-Powered Insights</CardTitle>
+                    <p className="text-muted-foreground mb-4">
+                      Analyzing {getFilteredFindings().length} findings to create your personalized digest...
+                    </p>
+                    <Progress value={digestGeneration.progress} className="max-w-xs mx-auto" />
+                    <p className="text-xs text-muted-foreground mt-2">{digestGeneration.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This typically takes 30-90 seconds for thorough AI analysis (up to 2.5 minutes for complex topics)
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <CardTitle className="mb-2">No Digest Available</CardTitle>
+                    <p className="text-muted-foreground mb-4">
+                      Click refresh to generate an intelligent digest of your findings.
+                    </p>
+                    <Button onClick={handleRefreshDigest}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate Digest
+                    </Button>
+                  </>
+                )}
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="list" className="space-y-4">
+            {visibleFindings.map((finding) => (
+              <Card
+                key={finding.id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleFindingClick(finding)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start gap-2">
+                    <CardTitle className="text-base line-clamp-2">{finding.title}</CardTitle>
+                    <Badge variant={
+                      finding.relevanceScore > 0.8 ? 'default' :
+                      finding.relevanceScore > 0.5 ? 'secondary' : 'outline'
+                    }>
+                      {Math.round(finding.relevanceScore * 100)}%
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+                    <span>{finding.type}</span>
+                    <span>•</span>
+                    <span>{finding.source.name}</span>
+                    <span>•</span>
+                    <span>{formatDistanceToNow(finding.timestamp)} ago</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {finding.summary}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Load more indicator */}
+            {visibleFindings.length < findings.length && (
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Source Drawer */}
+      <SourceDrawer
+        isOpen={showSourceDrawer}
+        onClose={() => setShowSourceDrawer(false)}
+        findings={findings.filter(f =>
+          digest?.themes.find(t => t.id === selectedThemeId)?.findingIds.includes(f.id)
+        )}
+        selectedThemeId={selectedThemeId}
+        themeName={selectedThemeName}
+      />
+
+      {/* Finding Detail Drawer */}
+      {selectedFinding && (
+        <FindingDetailDrawer
+          finding={selectedFinding}
+          isOpen={showFindingDetail}
+          onClose={() => setShowFindingDetail(false)}
+        />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <DigestSettings
+              topicId={selectedTopicId}
+              onClose={() => setShowSettings(false)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

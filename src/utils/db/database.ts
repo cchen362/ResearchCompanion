@@ -11,7 +11,8 @@ import type {
   UserPreferences,
   FamilyMember,
   SmartDigest,
-  FindingsChat
+  FindingsChat,
+  DigestQueueItem
 } from '@/types';
 
 // Define the database schema
@@ -108,10 +109,20 @@ interface MedCompanionDB extends DBSchema {
       'by-status': string;
     };
   };
+  digestQueue: {
+    key: string;
+    value: DigestQueueItem;
+    indexes: {
+      'by-topic': string;
+      'by-status': string;
+      'by-priority': number;
+      'by-created': number;
+    };
+  };
 }
 
 const DB_NAME = 'MedicalCompanionDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance: IDBPDatabase<MedCompanionDB> | null = null;
 
@@ -203,6 +214,15 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
         chatsStore.createIndex('by-date', 'lastMessageAt');
         chatsStore.createIndex('by-status', 'status');
       }
+
+      // Digest Queue store (added in version 3)
+      if (!db.objectStoreNames.contains('digestQueue')) {
+        const queueStore = db.createObjectStore('digestQueue', { keyPath: 'id' });
+        queueStore.createIndex('by-topic', 'topicId');
+        queueStore.createIndex('by-status', 'status');
+        queueStore.createIndex('by-priority', 'priority');
+        queueStore.createIndex('by-created', 'createdAt');
+      }
     },
   });
 
@@ -257,7 +277,7 @@ export async function getStorageEstimate(): Promise<{
 export async function clearAllData(): Promise<void> {
   const db = await getDB();
   const stores = ['topics', 'agents', 'findings', 'timeline', 'audio',
-                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats'] as const;
+                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
 
   const tx = db.transaction(stores, 'readwrite');
   await Promise.all(stores.map(store => tx.objectStore(store).clear()));
@@ -270,7 +290,7 @@ export async function exportAllData(): Promise<Record<string, any[]>> {
   const data: Record<string, any[]> = {};
 
   const stores = ['topics', 'agents', 'findings', 'timeline', 'audio',
-                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats'] as const;
+                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
 
   for (const store of stores) {
     data[store] = await db.getAll(store);

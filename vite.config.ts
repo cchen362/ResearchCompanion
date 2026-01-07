@@ -79,7 +79,17 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        // Configure proxy timeout for long-running AI requests
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Set 3-minute timeout for proxy requests
+            proxyReq.setTimeout(180000);
+          });
+          proxy.on('error', (err) => {
+            console.error('Proxy error:', err);
+          });
+        }
       }
     }
   }

@@ -7,6 +7,9 @@ const router = Router();
  * Generate a smart digest from research findings
  */
 router.post('/generate-digest', async (req, res) => {
+  // Set a longer timeout for this specific route (3 minutes)
+  req.setTimeout(180000); // 3 minutes for AI processing
+
   try {
     const { findings, topic, timeframe } = req.body;
 
@@ -22,8 +25,14 @@ router.post('/generate-digest', async (req, res) => {
       });
     }
 
+    console.log(`📊 Starting digest generation for ${topic.name} (${findings.length} findings, ${timeframe} timeframe)`);
+    const startTime = Date.now();
+
     // Generate the smart digest using AI
     const digest = await generateSmartDigest(findings, topic, timeframe);
+
+    const duration = Date.now() - startTime;
+    console.log(`✅ Digest generated successfully in ${(duration / 1000).toFixed(1)}s`);
 
     res.json(digest);
   } catch (error) {

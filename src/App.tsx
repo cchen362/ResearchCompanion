@@ -5,7 +5,7 @@ import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } fro
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
-import FindingsViewerEnhanced from './components/FindingsViewerEnhanced';
+import FindingsViewerProgressive from './components/FindingsViewerProgressive';
 import NotificationCenter from './components/NotificationCenter';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
@@ -166,7 +166,7 @@ function App() {
         {currentView === 'dashboard' && <Dashboard />}
         {currentView === 'topics' && <TopicManager />}
         {currentView === 'agents' && <AgentMonitor />}
-        {currentView === 'findings' && <FindingsViewerEnhanced />}
+        {currentView === 'findings' && <FindingsViewerProgressive />}
         {currentView === 'timeline' && <Timeline />}
         {currentView === 'voice' && (
           <VoiceRecorder

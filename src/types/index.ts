@@ -397,6 +397,33 @@ export type DigestTimeframe = 'daily' | 'weekly' | 'monthly' | 'all-time';
 export type DigestThemeCategory = 'treatment' | 'mechanism' | 'trial' | 'outcome' | 'diagnostic' | 'prevention';
 export type ExplanationMode = 'detailed' | 'simple';
 
+// Digest Queue Status Types
+export type DigestQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type DigestPriority = 'high' | 'normal' | 'low';
+
+export interface DigestQueueItem {
+  id: string;
+  topicId: string;
+  timeframe: DigestTimeframe;
+  status: DigestQueueStatus;
+  priority: DigestPriority;
+  createdAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  attempts: number;
+  maxAttempts: number;
+  error?: string;
+  resultDigestId?: string; // ID of generated digest when completed
+  findingIds: string[]; // Findings to include in digest
+  requestedBy: 'user' | 'system' | 'background';
+  estimatedCompletionTime?: number;
+  progress?: {
+    stage: 'queued' | 'fetching' | 'analyzing' | 'generating' | 'validating';
+    percentage: number;
+    message: string;
+  };
+}
+
 export interface SmartDigest {
   id: string;
   topicId: string;
