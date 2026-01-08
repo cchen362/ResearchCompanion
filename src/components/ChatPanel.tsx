@@ -226,7 +226,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     // Fullscreen mode - clean white background
     <div
       ref={panelRef}
-      className="fixed inset-0 z-[10000] bg-background flex flex-col"
+      className="fixed inset-0 bg-white flex flex-col"
+      style={{ zIndex: 99999 }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
