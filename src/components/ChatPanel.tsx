@@ -13,13 +13,11 @@ import {
   X,
   Maximize2,
   Minimize2,
-  Settings,
   Download,
   Search,
   Plus,
-  ChevronLeft,
-  ChevronRight,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import type { Finding } from '../types';
 
@@ -51,11 +49,6 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   } = useFindingsStore();
 
   const {
-    chatPanelWidth,
-    chatViewMode,
-    showChatContext,
-    setChatPanelWidth,
-    toggleChatContext,
     showToast
   } = useUIStore();
 
@@ -64,6 +57,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [isMaximized, setIsMaximized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Load chats on mount
@@ -71,9 +65,17 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     loadChats(topicId);
   }, [topicId, loadChats]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Smart auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+      // Only auto-scroll if user is already near the bottom
+      if (isNearBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   }, [messages, streamingMessage]);
 
   // Get messages for active chat
@@ -154,6 +156,22 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     setSuggestedQuestions([]);
   };
 
+  // Clear chat messages
+  const handleClearChat = useCallback(() => {
+    if (!activeChatId) return;
+
+    if (window.confirm('Are you sure you want to clear all messages in this chat?')) {
+      // Clear messages from store
+      useChatStore.getState().clearMessages(activeChatId);
+      setSuggestedQuestions([]);
+
+      showToast({
+        type: 'success',
+        message: 'Chat cleared'
+      });
+    }
+  }, [activeChatId, showToast]);
+
   // Export chat
   const handleExportChat = async () => {
     if (!activeChatId) return;
@@ -189,29 +207,29 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   return (
     <div
       ref={panelRef}
-      className={`flex flex-col h-full ${isMaximized ? 'fixed inset-0 z-50 bg-white' : ''} ${className}`}
-      style={{ width: isMaximized ? '100%' : '100%' }}
+      className={`flex flex-col h-full min-w-[320px] ${isMaximized ? 'fixed inset-0 z-50 bg-background' : ''} ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold">{topicName}</h2>
+          <h2 className="font-semibold truncate max-w-[200px] md:max-w-none">{topicName}</h2>
           {activeChat && (
-            <Badge variant="outline" className="ml-2">
-              {chatMessages.length} messages
+            <Badge variant="outline" className="ml-2 hidden md:inline-flex">
+              {chatMessages.length}
             </Badge>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleChatContext}
-            title="Toggle context panel"
+            onClick={handleClearChat}
+            disabled={!activeChatId || chatMessages.length === 0}
+            title="Clear chat"
           >
-            {showChatContext ? <ChevronRight /> : <ChevronLeft />}
+            <Trash2 className="h-4 w-4" />
           </Button>
 
           <Button
@@ -262,36 +280,39 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         </div>
       )}
 
-      {/* Main content area */}
-      <div className="flex-1 flex">
-        {/* Messages area */}
-        <div className="flex-1 flex flex-col">
-          {!activeChat ? (
-            // No active chat - show start prompt
-            <div className="flex-1 flex flex-col items-center justify-center p-8">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Start a Conversation</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Ask questions about your research findings and get AI-powered insights
-              </p>
-              <Button onClick={handleStartChat} disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating chat...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Start New Chat
-                  </>
-                )}
-              </Button>
-            </div>
-          ) : (
-            // Active chat - show messages
-            <>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Main content area - no more context panel split */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {!activeChat ? (
+          // No active chat - show start prompt
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Start a Conversation</h3>
+            <p className="text-muted-foreground text-center mb-4 max-w-md">
+              Ask questions about your research findings and get AI-powered insights
+            </p>
+            <Button onClick={handleStartChat} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating chat...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Start New Chat
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          // Active chat - show messages with proper scrolling
+          <>
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-2 md:p-4 space-y-4"
+              style={{ maxHeight: 'calc(100vh - 200px)' }}
+            >
+              <div className="mx-auto max-w-full md:max-w-4xl lg:max-w-5xl">
                 {filteredMessages.length === 0 && !isStreaming ? (
                   <div className="text-center text-muted-foreground py-8">
                     {searchQuery
@@ -327,10 +348,12 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                 )}
                 <div ref={messagesEndRef} />
               </div>
+            </div>
 
-              {/* Suggested questions */}
-              {suggestedQuestions.length > 0 && !isStreaming && (
-                <div className="px-4 py-2 border-t">
+            {/* Suggested questions */}
+            {suggestedQuestions.length > 0 && !isStreaming && (
+              <div className="px-2 md:px-4 py-2 border-t bg-background/50">
+                <div className="max-w-4xl mx-auto">
                   <p className="text-sm text-muted-foreground mb-2">Suggested questions:</p>
                   <div className="flex flex-wrap gap-2">
                     {suggestedQuestions.map((question, index) => (
@@ -339,70 +362,26 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                         variant="outline"
                         size="sm"
                         onClick={() => handleSuggestedQuestion(question)}
-                        className="text-left"
+                        className="text-left text-xs md:text-sm"
                       >
                         {question}
                       </Button>
                     ))}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Input area */}
+            {/* Input area */}
+            <div className="border-t">
               <ChatInput
                 onSendMessage={handleSendMessage}
                 disabled={isLoading || isStreaming}
                 placeholder="Ask about your research findings..."
                 showTypingIndicator={isStreaming}
               />
-            </>
-          )}
-        </div>
-
-        {/* Context panel */}
-        {showChatContext && (
-          <div className="w-64 border-l p-4 overflow-y-auto">
-            <h3 className="font-semibold mb-3">Context</h3>
-
-            {/* Selected findings */}
-            {selectedFindings.size > 0 && (
-              <div className="mb-4">
-                <h4 className="text-sm font-medium mb-2">Selected Findings</h4>
-                <div className="space-y-2">
-                  {Array.from(selectedFindings).slice(0, 5).map(id => (
-                    <Card key={id} className="p-2">
-                      <p className="text-xs text-muted-foreground">Finding {id.substring(0, 8)}</p>
-                    </Card>
-                  ))}
-                  {selectedFindings.size > 5 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{selectedFindings.size - 5} more
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Conversation focus */}
-            {context.conversationFocus && (
-              <div className="mb-4">
-                <h4 className="text-sm font-medium mb-2">Focus</h4>
-                <Card className="p-2">
-                  <p className="text-sm">{context.conversationFocus}</p>
-                </Card>
-              </div>
-            )}
-
-            {/* Chat stats */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Statistics</h4>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p>Messages: {chatMessages.length}</p>
-                <p>Citations: {chatMessages.reduce((acc, msg) => acc + (msg.citations?.length || 0), 0)}</p>
-                <p>Started: {activeChat ? new Date(activeChat.createdAt).toLocaleDateString() : 'N/A'}</p>
-              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

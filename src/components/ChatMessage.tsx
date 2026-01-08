@@ -64,10 +64,36 @@ export function ChatMessage({
     return content;
   }, [message.content]);
 
+  // Convert markdown to plain text for copying
+  const convertToPlainText = (content: string): string => {
+    let plainText = content;
+
+    // Remove markdown syntax
+    plainText = plainText.replace(/\*\*(.*?)\*\*/g, '$1'); // Bold
+    plainText = plainText.replace(/\*(.*?)\*/g, '$1'); // Italic
+    plainText = plainText.replace(/`([^`]+)`/g, '$1'); // Inline code
+    plainText = plainText.replace(/```[\s\S]*?```/g, ''); // Code blocks
+    plainText = plainText.replace(/^- /gm, '• '); // Convert list markers to bullets
+    plainText = plainText.replace(/^#{1,6}\s+/gm, ''); // Remove heading markers
+    plainText = plainText.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Links to text only
+    plainText = plainText.replace(/\n\n\n+/g, '\n\n'); // Clean extra newlines
+
+    // Add citation references if present
+    if (message.citations && message.citations.length > 0) {
+      plainText += '\n\nReferences:\n';
+      message.citations.forEach((citation, index) => {
+        plainText += `[${index + 1}] ${citation.source || 'Source'}: ${citation.citationText || ''}\n`;
+      });
+    }
+
+    return plainText.trim();
+  };
+
   // Handle copy to clipboard
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      const plainText = convertToPlainText(message.content);
+      await navigator.clipboard.writeText(plainText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -100,7 +126,7 @@ export function ChatMessage({
 
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className}`}>
-      <Card className={`max-w-[80%] p-4 ${messageStyles[message.role]}`}>
+      <Card className={`max-w-full md:max-w-[85%] lg:max-w-3xl p-4 ${messageStyles[message.role]}`}>
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">
           <MessageIcon />
@@ -113,7 +139,7 @@ export function ChatMessage({
         </div>
 
         {/* Content */}
-        <div className="prose prose-sm dark:prose-invert max-w-none">
+        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words">
           {isStreaming ? (
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -192,20 +218,7 @@ export function ChatMessage({
           </div>
         )}
 
-        {/* Metadata */}
-        {message.metadata && (
-          <div className="mt-3 pt-3 border-t flex items-center gap-3 text-xs text-muted-foreground">
-            {message.metadata.model && (
-              <span>Model: {message.metadata.model}</span>
-            )}
-            {message.metadata.tokens && (
-              <span>Tokens: {message.metadata.tokens}</span>
-            )}
-            {message.metadata.processingTime && (
-              <span>Time: {message.metadata.processingTime}ms</span>
-            )}
-          </div>
-        )}
+        {/* Metadata - removed model name display, keeping only tokens/time for debugging if needed */}
 
         {/* Actions */}
         {message.role === 'assistant' && !isStreaming && (

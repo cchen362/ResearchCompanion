@@ -28,7 +28,8 @@
       "Bash(start chrome http://localhost:5180/)",
       "Bash(npm run:*)",
       "Bash(echo:*)",
-      "Bash(backend/src/services/ai.service.ts)"
+      "Bash(backend/src/services/ai.service.ts)",
+      "Bash(start chrome http://localhost:5183/)"
     ],
     "deny": [],
     "ask": []

@@ -193,7 +193,7 @@ export function ChatInput({
   const selectedCount = selectedFindings.size;
 
   return (
-    <div className={`border-t bg-background ${className}`}>
+    <div className={`bg-background ${className}`}>
       {/* Typing indicator */}
       {showTypingIndicator && (
         <div className="px-4 py-2 border-b">
@@ -258,12 +258,12 @@ export function ChatInput({
 
       {/* Input area */}
       <div
-        className={`p-4 ${isDragging ? 'bg-muted/50' : ''}`}
+        className={`p-2 md:p-4 ${isDragging ? 'bg-muted/50' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="flex gap-2 items-end">
+        <div className="flex gap-2 items-end max-w-5xl mx-auto">
           {/* Attachment button */}
           {allowAttachments && (
             <>
@@ -313,12 +313,14 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={disabled || isRecording}
-              className="w-full px-3 py-2 bg-background border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="w-full px-4 py-3 text-base bg-background border-2 border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 transition-colors"
               rows={1}
-              style={{ minHeight: '40px' }}
+              style={{ minHeight: '48px' }}
             />
-            {message.length > maxLength * 0.9 && (
-              <span className="absolute bottom-1 right-1 text-xs text-muted-foreground">
+            {message.length > 0 && (
+              <span className={`absolute bottom-2 right-2 text-xs ${
+                message.length > maxLength * 0.9 ? 'text-destructive' : 'text-muted-foreground'
+              }`}>
                 {message.length}/{maxLength}
               </span>
             )}
@@ -340,8 +342,8 @@ export function ChatInput({
         </div>
 
         {/* Help text */}
-        <div className="mt-2 text-xs text-muted-foreground">
-          Press Enter to send, Shift+Enter for new line
+        <div className="mt-2 text-xs text-muted-foreground text-center max-w-5xl mx-auto">
+          Press Enter to send • Shift+Enter for new line
           {allowAttachments && ' • Drag and drop files to attach'}
           {allowVoice && ' • Click mic to record audio'}
         </div>

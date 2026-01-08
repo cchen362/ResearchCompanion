@@ -323,8 +323,9 @@ class ChatService {
     }
 
     // Add recent high-relevance findings if we have room
-    if (findings.length < 10) {
-      const topicFindings = await findingsStore.getFindingsForDigest(topicId, 10 - findings.length);
+    // Increased from 10 to 20 for better context coverage
+    if (findings.length < 20) {
+      const topicFindings = await findingsStore.getFindingsForDigest(topicId, 20 - findings.length);
       findings.push(...topicFindings.filter(f => !findings.find(existing => existing.id === f.id)));
     }
 

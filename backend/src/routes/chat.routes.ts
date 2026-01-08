@@ -283,19 +283,34 @@ function buildSystemPrompt(context: any): string {
 You have access to research findings, clinical trials, and medical literature that the user has collected.
 
 Your responses should be:
-- Accurate and evidence-based
-- Clear and easy to understand
-- Supportive and empathetic
+- Accurate and evidence-based, drawing from the provided findings when available
+- Clear and easy to understand, avoiding unnecessary medical jargon
+- Supportive and empathetic while remaining factual
 - Focused on the user's specific questions
 
-When referencing research findings, use citations in the format [1], [2], etc.
+When you have limited information from the findings:
+- Be transparent about what information is available vs. what is missing
+- Provide specific, actionable suggestions for obtaining more information (e.g., "To get more details about this clinical trial, you could search for NCT12345 on ClinicalTrials.gov")
+- Share what IS known from the findings, even if incomplete
+- Suggest specific questions the user could explore or search terms to use
 
-Important: You are NOT providing medical advice. Encourage users to consult with healthcare professionals for medical decisions.`;
+When referencing research findings, use citations in the format [1], [2], etc. and briefly mention the source type (e.g., "According to the PubMed study [1]..." or "The clinical trial data [2] shows...").
+
+Important: You are NOT providing medical advice. Encourage users to consult with healthcare professionals for medical decisions. However, you CAN help interpret research findings and explain medical concepts.`;
 
   if (context.findings && context.findings.length > 0) {
     prompt += '\n\nAvailable research findings for reference:\n';
     context.findings.forEach((finding: any, index: number) => {
-      prompt += `\n[${index + 1}] ${finding.source}: ${finding.content.substring(0, 200)}...`;
+      const sourceInfo = finding.source || 'Unknown Source';
+      const title = finding.title || 'Untitled';
+      const content = finding.content || finding.summary || '';
+
+      prompt += `\n[${index + 1}] ${sourceInfo} - "${title}"`;
+      if (content) {
+        // Provide more context, up to 400 chars instead of 200
+        prompt += `\nContent: ${content.substring(0, 400)}${content.length > 400 ? '...' : ''}`;
+      }
+      prompt += '\n';
     });
   }
 

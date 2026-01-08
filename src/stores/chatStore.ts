@@ -26,6 +26,7 @@ interface ChatStore {
   addMessage: (chatId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => Promise<ChatMessage>;
   updateMessage: (chatId: string, messageId: string, updates: Partial<ChatMessage>) => Promise<void>;
   deleteMessage: (chatId: string, messageId: string) => Promise<void>;
+  clearMessages: (chatId: string) => void;
 
   // Actions - Streaming
   startStreaming: (partialMessage: Partial<ChatMessage>) => void;
@@ -373,6 +374,16 @@ export const useChatStore = create<ChatStore>()(
             console.error('Failed to delete message:', error);
             throw error;
           }
+        },
+
+        clearMessages: (chatId: string) => {
+          const { messages } = get();
+          const messagesMap = new Map(messages);
+          messagesMap.set(chatId, []);
+          set({ messages: messagesMap });
+
+          // Note: We're not updating the database here since this is meant to be
+          // a temporary UI clear. Messages will reload from DB if needed.
         },
 
         // Streaming
