@@ -64,14 +64,21 @@ export interface AgentLearningProfile {
 
 // ============= RESEARCH & FINDINGS =============
 
+// Aliases for backward compatibility and convenience
+export type Finding = ResearchFinding;
+export type ResearchAgent = Agent;
+export type DigestData = SmartDigest;
+
 export interface ResearchFinding {
   id: string;
   agentId: string;
+  agentType?: AgentType;  // Type of agent that found this
   topicId: string;
   type: 'treatment' | 'trial' | 'study' | 'guideline' | 'news';
   title: string;
   summary: string;
   details: string;
+  content?: string;  // Full content (alias for details for backward compat)
   source: ResearchSource;
   relevanceScore: number; // 0-1
   confidenceLevel: 'high' | 'medium' | 'low';
@@ -85,6 +92,8 @@ export interface ResearchFinding {
     institutions?: string[];
   };
   timestamp: number;
+  foundDate?: string;  // ISO date when finding was discovered
+  publishedAt?: string; // Original publication date
   userEngagement?: {
     viewed?: boolean;
     clicked?: boolean;
@@ -92,10 +101,26 @@ export interface ResearchFinding {
     shared?: boolean;
     notes?: string;
   };
+  // Additional clinical details
+  snippet?: string;
+  keyInsights?: string[];
+  clinicalRelevance?: string;
+  clinicalImplications?: string[];
+  limitations?: string[];
+  keywords?: string[];
+  metadata?: {
+    sampleSize?: number;
+    duration?: string;
+    studyType?: string;
+    evidenceLevel?: string;
+    digestReferences?: string[];  // Digest IDs that reference this finding
+    [key: string]: any;
+  };
 }
 
 export interface ResearchSource {
   name: string;
+  title?: string;  // Title of the source (alias for name for backward compat)
   url?: string;
   type: 'journal' | 'fda' | 'clinical_trial' | 'medical_site' | 'community';
   credibilityScore?: number;
@@ -551,24 +576,37 @@ export interface SourceSummary {
 export interface FindingsChat {
   id: string;
   topicId: string;
-  startedAt: number;
-  lastMessageAt: number;
-  messages: ChatMessage[];
+  title: string;                    // Chat title
+  startedAt?: number;               // Optional for backward compatibility
+  createdAt: string;                // ISO date string
+  lastMessageAt: string;            // ISO date string
+  messages?: ChatMessage[];         // Optional - stored separately
+  messageCount: number;             // Count of messages
   context: ChatContext;
   status: 'active' | 'archived';
 }
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: number;
+  timestamp: string;  // ISO date string
 
   // Source citations embedded in response
   citations?: SourceCitation[];
 
   // Suggested follow-up questions
   suggestedQuestions?: string[];
+
+  // Message metadata
+  metadata?: {
+    model?: string;
+    tokens?: number;
+    processingTime?: number;
+    error?: string;
+    topicId?: string;
+    timestamp?: string;
+  };
 
   // Findings referenced in this message
   referencedFindingIds?: string[];
@@ -583,17 +621,26 @@ export interface ChatMessage {
 
 export interface SourceCitation {
   findingId: string;
-  text: string;                    // Display text e.g., "[PubMed Study, 2025]"
-  position: number;                // Character position in message
+  text?: string;                    // Display text e.g., "[PubMed Study, 2025]"
+  position?: number;                // Character position in message
+  highlightStart?: number;          // Start position for highlighting
+  highlightEnd?: number;            // End position for highlighting
+  citationText?: string;            // Text to display in citation
+  citationNumber?: number;          // Citation number [1], [2], etc.
 }
 
 export interface ChatContext {
   digest?: SmartDigest;             // Current digest being discussed
-  allFindings: string[];            // All finding IDs available
-  userProfile: {
+  allFindings?: string[];           // All finding IDs available (optional)
+  currentFindings?: string[];        // Currently selected findings
+  expandedTopics?: string[];         // Expanded topic sections
+  recentInteractions?: string[];     // Recent user interactions
+  userPreferences?: Record<string, any>;  // User preference overrides
+  userProfile?: {
     knowledgeLevel: 'expert' | 'intermediate' | 'layman';
     interests: string[];
-    previousTopics: string[];
+    previousTopics?: string[];
+    focusArea?: string;
   };
   conversationFocus?: string;       // Current topic focus
 }

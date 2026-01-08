@@ -9,6 +9,7 @@ import searchRoutes from './routes/search.js';
 import transcribeRoute from './routes/transcribe.js';
 import digestRoutes from './routes/digest.routes.js';
 import agentRoute from './routes/agent.js';
+import chatRoutes from './routes/chat.routes.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +49,7 @@ app.use('/api', searchRoutes);
 app.use('/api', transcribeRoute);
 app.use('/api', digestRoutes);
 app.use('/api', agentRoute);
+app.use('/api/chat', chatRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -69,6 +71,10 @@ const server = app.listen(PORT, () => {
   console.log('  - POST /api/generate-digest (⏱️ 30-90s for AI processing)');
   console.log('  - POST /api/simplify-digest');
   console.log('  - POST /api/run-agent');
+  console.log('  - POST /api/chat/complete');
+  console.log('  - POST /api/chat/stream (Server-Sent Events)');
+  console.log('  - POST /api/chat/generate-title');
+  console.log('  - POST /api/chat/suggestions');
   console.log('\n⚙️ Server timeout: 5 minutes (for long AI operations)');
 });
 

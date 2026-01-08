@@ -10,6 +10,9 @@ import NotificationCenter from './components/NotificationCenter';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ChatPanel } from './components/ChatPanel';
+import { useUIStore } from './stores/uiStore';
+import { MessageSquare } from 'lucide-react';
 import type { Topic } from './types';
 import './App.css';
 
@@ -18,6 +21,9 @@ function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'timeline' | 'voice'>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+
+  const { chatPanelOpen, setChatPanelOpen } = useUIStore();
 
   useEffect(() => {
     // Initialize database and request persistent storage
@@ -153,10 +159,51 @@ function App() {
               </button>
             </nav>
 
-            {/* Notification icon */}
-            <ErrorBoundary fallback={null}>
-              <NotificationCenter />
-            </ErrorBoundary>
+            <div className="flex items-center space-x-4">
+              {/* Topic selector for chat */}
+              {topics.length > 1 && (
+                <select
+                  value={selectedTopic?.id || ''}
+                  onChange={(e) => {
+                    const topic = topics.find(t => t.id === e.target.value);
+                    setSelectedTopic(topic || null);
+                  }}
+                  className="text-sm border rounded-md px-2 py-1 bg-white"
+                  title="Select topic for chat"
+                >
+                  <option value="">Select Topic</option>
+                  {topics.map(topic => (
+                    <option key={topic.id} value={topic.id}>
+                      {topic.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Chat button */}
+              {topics.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (!selectedTopic && topics.length > 0) {
+                      setSelectedTopic(topics[0]);
+                    }
+                    setChatPanelOpen(!chatPanelOpen);
+                  }}
+                  className="relative p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+                  title="Open AI Chat"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  {chatPanelOpen && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full"></span>
+                  )}
+                </button>
+              )}
+
+              {/* Notification icon */}
+              <ErrorBoundary fallback={null}>
+                <NotificationCenter />
+              </ErrorBoundary>
+            </div>
           </div>
         </div>
       </header>
@@ -164,7 +211,14 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentView === 'dashboard' && <Dashboard />}
-        {currentView === 'topics' && <TopicManager />}
+        {currentView === 'topics' && (
+          <TopicManager
+            onTopicsChange={async () => {
+              const updatedTopics = await getAllTopics();
+              setTopics(updatedTopics);
+            }}
+          />
+        )}
         {currentView === 'agents' && <AgentMonitor />}
         {currentView === 'findings' && <FindingsViewerProgressive />}
         {currentView === 'timeline' && <Timeline />}
@@ -179,6 +233,18 @@ function App() {
           />
         )}
       </main>
+
+      {/* Chat Panel - Slide in from right */}
+      {chatPanelOpen && selectedTopic && (
+        <div className="fixed right-0 top-0 h-full z-40 shadow-2xl bg-white" style={{ width: '500px' }}>
+          <ChatPanel
+            topicId={selectedTopic.id}
+            topicName={selectedTopic.name}
+            onClose={() => setChatPanelOpen(false)}
+            className="h-full w-full"
+          />
+        </div>
+      )}
     </div>
   );
 }

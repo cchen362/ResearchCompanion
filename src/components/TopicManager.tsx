@@ -3,7 +3,11 @@ import { createTopic, getAllTopics, deleteTopic, updateTopic } from '@/utils/db/
 import { createAgent, getAgentsByTopic } from '@/utils/db/agents';
 import type { Topic, DiseaseProfile, PatientContext, AgentType } from '@/types';
 
-export default function TopicManager() {
+interface TopicManagerProps {
+  onTopicsChange?: () => void;
+}
+
+export default function TopicManager({ onTopicsChange }: TopicManagerProps = {}) {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [showNewTopicForm, setShowNewTopicForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
@@ -26,6 +30,11 @@ export default function TopicManager() {
         counts[topic.id] = agents.length;
       }
       setAgentCounts(counts);
+
+      // Notify parent component about topics change
+      if (onTopicsChange) {
+        onTopicsChange();
+      }
     } catch (error) {
       console.error('Error loading topics:', error);
     } finally {

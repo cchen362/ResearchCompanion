@@ -603,3 +603,14 @@ function getCategoryColor(category: string): string {
   };
   return colors[category] || 'gray';
 }
+
+// Export aiService object for use in other modules
+export const aiService = {
+  client: anthropic,
+  openai: openai,
+  parseSearchQuery,
+  summarizeResults,
+  transcribeAudio,
+  summarizeTranscription,
+  generateSmartDigest
+};

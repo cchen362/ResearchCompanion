@@ -127,4 +127,8 @@ export async function checkHealth() {
   return response.data;
 }
 
+// Named export for newer code
+export { api };
+
+// Default export for backward compatibility
 export default api;
