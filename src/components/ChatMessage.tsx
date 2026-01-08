@@ -34,34 +34,98 @@ export function ChatMessage({
   const [expanded, setExpanded] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
-  // Parse message content for better display
+  // Parse message content - clean display with proper HTML formatting
   const formattedContent = useMemo(() => {
     if (!message.content) return '';
 
     let content = message.content;
 
-    // Convert markdown-style formatting
-    // Bold text
-    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Remove emojis
+    content = content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
 
-    // Italic text
-    content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Process in order to maintain structure
 
-    // Code blocks
-    content = content.replace(/```([\s\S]*?)```/g, '<pre class="bg-muted p-2 rounded my-2"><code>$1</code></pre>');
+    // 1. Convert headings to styled divs (removes ## but keeps structure)
+    content = content.replace(/^#{1,6}\s+(.+)$/gm, (match, heading) => {
+      return `<h3 class="font-semibold text-base mt-4 mb-2 text-foreground uppercase tracking-wide">${heading}</h3>`;
+    });
 
-    // Inline code
-    content = content.replace(/`([^`]+)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
+    // 2. Convert bold text (removes ** but keeps emphasis)
+    content = content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>');
 
-    // Lists
-    content = content.replace(/^- (.+)$/gm, '<li>$1</li>');
-    content = content.replace(/(<li>.*<\/li>)/s, '<ul class="list-disc pl-5 my-2">$1</ul>');
+    // 3. Convert italic text (removes * but keeps emphasis)
+    content = content.replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>');
 
-    // Line breaks
-    content = content.replace(/\n\n/g, '</p><p class="mb-2">');
-    content = `<p class="mb-2">${content}</p>`;
+    // 4. Process lists properly
+    const lines = content.split('\n');
+    let processedContent = [];
+    let currentList = [];
+    let inList = false;
 
-    return content;
+    for (const line of lines) {
+      if (line.match(/^[\*\-]\s+/)) {
+        // List item
+        if (!inList) {
+          inList = true;
+          currentList = [];
+        }
+        currentList.push(line.replace(/^[\*\-]\s+/, '').trim());
+      } else {
+        // Not a list item
+        if (inList && currentList.length > 0) {
+          // Close the current list
+          const listHtml = `<ul class="my-3 space-y-2">${currentList.map(item =>
+            `<li class="flex items-start gap-2">
+              <span class="text-primary mt-1">•</span>
+              <span class="flex-1">${item}</span>
+            </li>`
+          ).join('')}</ul>`;
+          processedContent.push(listHtml);
+          currentList = [];
+          inList = false;
+        }
+        if (line.trim()) {
+          processedContent.push(line);
+        }
+      }
+    }
+
+    // Close any remaining list
+    if (inList && currentList.length > 0) {
+      const listHtml = `<ul class="my-3 space-y-2">${currentList.map(item =>
+        `<li class="flex items-start gap-2">
+          <span class="text-primary mt-1">•</span>
+          <span class="flex-1">${item}</span>
+        </li>`
+      ).join('')}</ul>`;
+      processedContent.push(listHtml);
+    }
+
+    content = processedContent.join('\n');
+
+    // 5. Handle code blocks
+    content = content.replace(/```([\s\S]*?)```/g, (match, code) => {
+      return `<pre class="bg-muted/30 p-3 rounded-md my-3 overflow-x-auto"><code class="text-sm font-mono">${code.trim()}</code></pre>`;
+    });
+
+    // 6. Handle inline code
+    content = content.replace(/`([^`]+)`/g, '<code class="bg-muted/50 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>');
+
+    // 7. Create paragraphs from double line breaks
+    const paragraphs = content.split(/\n\n+/);
+    content = paragraphs
+      .filter(p => p.trim())
+      .map(p => {
+        // Don't wrap if already contains block elements
+        if (p.includes('<ul') || p.includes('<h3') || p.includes('<pre') || p.includes('<div')) {
+          return p;
+        }
+        // Wrap in paragraph
+        return `<p class="text-base leading-relaxed mb-3">${p}</p>`;
+      })
+      .join('');
+
+    return content || '<p class="text-muted-foreground">No content</p>';
   }, [message.content]);
 
   // Convert markdown to plain text for copying

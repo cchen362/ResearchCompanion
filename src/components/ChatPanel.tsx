@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useChatStore } from '../stores/chatStore';
 import { useFindingsStore } from '../stores/findingsStore';
 import { useUIStore } from '../stores/uiStore';
@@ -204,10 +205,28 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       )
     : chatMessages;
 
-  return (
+  // Add escape key handler for fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMaximized) {
+        setIsMaximized(false);
+      }
+    };
+    if (isMaximized) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMaximized]);
+
+  const chatContent = isMaximized ? (
+    // Fullscreen mode - clean white background
     <div
       ref={panelRef}
-      className={`flex flex-col h-full min-w-[320px] ${isMaximized ? 'fixed inset-0 z-50 bg-background' : ''} ${className}`}
+      className="fixed inset-0 z-[10000] bg-background flex flex-col"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
@@ -290,7 +309,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             <p className="text-muted-foreground text-center mb-4 max-w-md">
               Ask questions about your research findings and get AI-powered insights
             </p>
-            <Button onClick={handleStartChat} disabled={isLoading}>
+            <Button onClick={handleStartChat} disabled={isLoading} className="mb-6">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -303,46 +322,119 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                 </>
               )}
             </Button>
+
+            {/* Suggested starting prompts */}
+            <div className="mt-4 max-w-lg">
+              <p className="text-xs text-muted-foreground mb-3 text-center">Or start with a question:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  'Summarize my research findings',
+                  'What are the key themes?',
+                  'Show contradictions',
+                  'Next research steps'
+                ].map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={async () => {
+                      await handleStartChat();
+                      // Small delay to ensure chat is created
+                      setTimeout(() => handleSendMessage(prompt), 500);
+                    }}
+                    disabled={isLoading}
+                    className="text-xs px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 bg-background/50 hover:bg-primary/5 text-foreground/70 hover:text-foreground transition-all disabled:opacity-50"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           // Active chat - show messages with proper scrolling
           <>
             <div
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-2 md:p-4 space-y-4"
-              style={{ maxHeight: 'calc(100vh - 200px)' }}
+              className="flex-1 overflow-y-auto p-3 md:p-6"
             >
-              <div className="mx-auto max-w-full md:max-w-4xl lg:max-w-5xl">
+              <div className="mx-auto max-w-full md:max-w-4xl lg:max-w-5xl space-y-4">
                 {filteredMessages.length === 0 && !isStreaming ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    {searchQuery
-                      ? 'No messages match your search'
-                      : 'No messages yet. Start the conversation!'}
+                  <div className="text-center py-8">
+                    {searchQuery ? (
+                      <p className="text-muted-foreground">No messages match your search</p>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground mb-6">No messages yet. Start the conversation!</p>
+                        {/* Initial conversation starters */}
+                        <div className="space-y-2 max-w-lg mx-auto">
+                          <p className="text-xs text-muted-foreground mb-3">Try asking:</p>
+                          {[
+                            'What are the latest research findings on this topic?',
+                            'Can you summarize the key themes from my research?',
+                            'What are the main contradictions in the findings?',
+                            'What should I research next based on current findings?'
+                          ].map((question, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleSendMessage(question)}
+                              className="w-full text-left px-3 py-2 text-sm text-foreground/80 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors"
+                            >
+                              <span className="opacity-60 mr-2">→</span>
+                              {question}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <>
-                    {filteredMessages.map((message) => (
-                      <ChatMessage
-                        key={message.id}
-                        message={message}
-                        onCitationClick={(findingId) => {
-                          // Handle citation click - could open finding detail
-                          console.log('Citation clicked:', findingId);
-                        }}
-                      />
-                    ))}
+                    {filteredMessages.map((message, index) => {
+                      const isLastAssistantMessage =
+                        message.role === 'assistant' &&
+                        index === filteredMessages.length - 1 &&
+                        !isStreaming;
+
+                      return (
+                        <div key={message.id} className={index > 0 ? 'mt-4' : ''}>
+                          <ChatMessage
+                            message={message}
+                            onCitationClick={(findingId) => {
+                              // Handle citation click - could open finding detail
+                              console.log('Citation clicked:', findingId);
+                            }}
+                          />
+
+                          {/* Inline suggested questions after last assistant message */}
+                          {isLastAssistantMessage && suggestedQuestions.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {suggestedQuestions.slice(0, 3).map((question, qIndex) => (
+                                <button
+                                  key={qIndex}
+                                  onClick={() => handleSuggestedQuestion(question)}
+                                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 bg-background/50 hover:bg-primary/5 text-foreground/70 hover:text-foreground transition-all"
+                                >
+                                  {question}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
 
                     {/* Streaming message */}
                     {isStreaming && streamingMessage && (
-                      <ChatMessage
-                        message={{
-                          ...streamingMessage,
-                          id: 'streaming',
-                          timestamp: new Date().toISOString(),
-                          role: 'assistant'
-                        } as any}
-                        isStreaming={true}
-                      />
+                      <div className={filteredMessages.length > 0 ? 'mt-4' : ''}>
+                        <ChatMessage
+                          message={{
+                            ...streamingMessage,
+                            id: 'streaming',
+                            timestamp: new Date().toISOString(),
+                            role: 'assistant'
+                          } as any}
+                          isStreaming={true}
+                        />
+                      </div>
                     )}
                   </>
                 )}
@@ -350,27 +442,240 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
               </div>
             </div>
 
-            {/* Suggested questions */}
-            {suggestedQuestions.length > 0 && !isStreaming && (
-              <div className="px-2 md:px-4 py-2 border-t bg-background/50">
-                <div className="max-w-4xl mx-auto">
-                  <p className="text-sm text-muted-foreground mb-2">Suggested questions:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedQuestions.map((question, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSuggestedQuestion(question)}
-                        className="text-left text-xs md:text-sm"
-                      >
-                        {question}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+
+            {/* Input area */}
+            <div className="border-t">
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                disabled={isLoading || isStreaming}
+                placeholder="Ask about your research findings..."
+                showTypingIndicator={isStreaming}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  ) : (
+    // Normal mode - in sidebar
+    <div
+      ref={panelRef}
+      className={`flex flex-col h-full min-w-[320px] ${className || ''}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-background">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold truncate max-w-[200px] md:max-w-none">{topicName}</h2>
+          {activeChat && (
+            <Badge variant="outline" className="ml-2 hidden md:inline-flex">
+              {chatMessages.length}
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClearChat}
+            disabled={!activeChatId || chatMessages.length === 0}
+            title="Clear chat"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleExportChat}
+            disabled={!activeChatId || chatMessages.length === 0}
+            title="Export chat"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMaximized(!isMaximized)}
+            title={isMaximized ? 'Restore' : 'Maximize'}
+          >
+            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              title="Close chat"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Search bar */}
+      {chatMessages.length > 5 && (
+        <div className="px-4 py-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-4 py-1 text-sm border rounded-md"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Main content area - no more context panel split */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {!activeChat ? (
+          // No active chat - show start prompt
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Start a Conversation</h3>
+            <p className="text-muted-foreground text-center mb-4 max-w-md">
+              Ask questions about your research findings and get AI-powered insights
+            </p>
+            <Button onClick={handleStartChat} disabled={isLoading} className="mb-6">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating chat...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Start New Chat
+                </>
+              )}
+            </Button>
+
+            {/* Suggested starting prompts */}
+            <div className="mt-4 max-w-lg">
+              <p className="text-xs text-muted-foreground mb-3 text-center">Or start with a question:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  'Summarize my research findings',
+                  'What are the key themes?',
+                  'Show contradictions',
+                  'Next research steps'
+                ].map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={async () => {
+                      await handleStartChat();
+                      // Small delay to ensure chat is created
+                      setTimeout(() => handleSendMessage(prompt), 500);
+                    }}
+                    disabled={isLoading}
+                    className="text-xs px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 bg-background/50 hover:bg-primary/5 text-foreground/70 hover:text-foreground transition-all disabled:opacity-50"
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          // Active chat - show messages with proper scrolling
+          <>
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-3 md:p-6"
+            >
+              <div className="mx-auto max-w-full md:max-w-4xl lg:max-w-5xl space-y-4">
+                {filteredMessages.length === 0 && !isStreaming ? (
+                  <div className="text-center py-8">
+                    {searchQuery ? (
+                      <p className="text-muted-foreground">No messages match your search</p>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground mb-6">No messages yet. Start the conversation!</p>
+                        {/* Initial conversation starters */}
+                        <div className="space-y-2 max-w-lg mx-auto">
+                          <p className="text-xs text-muted-foreground mb-3">Try asking:</p>
+                          {[
+                            'What are the latest research findings on this topic?',
+                            'Can you summarize the key themes from my research?',
+                            'What are the main contradictions in the findings?',
+                            'What should I research next based on current findings?'
+                          ].map((question, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleSendMessage(question)}
+                              className="w-full text-left px-3 py-2 text-sm text-foreground/80 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors"
+                            >
+                              <span className="opacity-60 mr-2">→</span>
+                              {question}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {filteredMessages.map((message, index) => {
+                      const isLastAssistantMessage =
+                        message.role === 'assistant' &&
+                        index === filteredMessages.length - 1 &&
+                        !isStreaming;
+
+                      return (
+                        <div key={message.id} className={index > 0 ? 'mt-4' : ''}>
+                          <ChatMessage
+                            message={message}
+                            onCitationClick={(findingId) => {
+                              // Handle citation click - could open finding detail
+                              console.log('Citation clicked:', findingId);
+                            }}
+                          />
+
+                          {/* Inline suggested questions after last assistant message */}
+                          {isLastAssistantMessage && suggestedQuestions.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {suggestedQuestions.slice(0, 3).map((question, qIndex) => (
+                                <button
+                                  key={qIndex}
+                                  onClick={() => handleSuggestedQuestion(question)}
+                                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 bg-background/50 hover:bg-primary/5 text-foreground/70 hover:text-foreground transition-all"
+                                >
+                                  {question}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Streaming message */}
+                    {isStreaming && streamingMessage && (
+                      <div className={filteredMessages.length > 0 ? 'mt-4' : ''}>
+                        <ChatMessage
+                          message={{
+                            ...streamingMessage,
+                            id: 'streaming',
+                            timestamp: new Date().toISOString(),
+                            role: 'assistant'
+                          } as any}
+                          isStreaming={true}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
 
             {/* Input area */}
             <div className="border-t">
@@ -386,4 +691,22 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       </div>
     </div>
   );
+
+  // Render both the placeholder and portal when maximized
+  if (isMaximized) {
+    const portalRoot = document.getElementById('portal-root');
+
+    return (
+      <>
+        {/* Placeholder to keep parent container happy but hidden */}
+        <div className="hidden" />
+
+        {/* Fullscreen content via portal */}
+        {portalRoot && createPortal(chatContent, portalRoot)}
+      </>
+    );
+  }
+
+  // Normal mode - render in place
+  return chatContent;
 }
