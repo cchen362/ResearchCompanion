@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { ExportMenu } from './ExportMenu';
 import {
   RefreshCw,
   Calendar,
@@ -36,7 +37,8 @@ import {
   XCircle,
   Zap,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  BarChart3
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -442,6 +444,31 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Export button */}
+              {currentTopic && findings.length > 0 && (
+                <ExportMenu
+                  topic={currentTopic}
+                  findings={findings}
+                  digest={digest}
+                  timeline={[]}
+                />
+              )}
+
+              {/* Analytics button */}
+              {currentTopic && findings.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // For now, show an alert since we don't have routing
+                    alert('Analytics view coming soon! This will show correlations, patterns, and knowledge graph.');
+                  }}
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
+              )}
+
               {/* Timeframe selector */}
               <select
                 value={digestTimeframe}

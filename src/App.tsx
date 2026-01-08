@@ -11,6 +11,7 @@ import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanel';
+import { AnalyticsView } from './components/AnalyticsView';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
 import type { Topic } from './types';
@@ -18,7 +19,7 @@ import './App.css';
 
 function App() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'timeline' | 'voice'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'timeline' | 'voice' | 'analytics'>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -157,6 +158,16 @@ function App() {
               >
                 Voice
               </button>
+              <button
+                onClick={() => setCurrentView('analytics')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  currentView === 'analytics'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Analytics
+              </button>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -232,6 +243,7 @@ function App() {
             }}
           />
         )}
+        {currentView === 'analytics' && <AnalyticsView />}
       </main>
 
       {/* Chat Panel - Slide in from right */}
