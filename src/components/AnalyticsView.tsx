@@ -61,7 +61,9 @@ export function AnalyticsView() {
 
       // Load findings
       const findingsTx = db.transaction('findings', 'readonly');
-      const findingsIndex = findingsTx.objectStore('findings').index('topicId');
+      const findingsStore = findingsTx.objectStore('findings');
+      // Use the correct index name 'by-topic'
+      const findingsIndex = findingsStore.index('by-topic');
       const loadedFindings = await findingsIndex.getAll(topicId);
       setFindings(loadedFindings);
 

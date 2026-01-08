@@ -85,7 +85,8 @@ class AnalyticsService {
     // Group symptoms by time windows
     const timeWindows: Map<string, TimelineEvent[]> = new Map();
     symptomEvents.forEach(event => {
-      const windowKey = startOfDay(event.date).toISOString();
+      const eventDate = new Date(event.date);
+      const windowKey = startOfDay(eventDate).toISOString();
       if (!timeWindows.has(windowKey)) {
         timeWindows.set(windowKey, []);
       }
@@ -95,7 +96,9 @@ class AnalyticsService {
     // Analyze co-occurrences
     symptomEvents.forEach((event1, i) => {
       symptomEvents.slice(i + 1).forEach(event2 => {
-        const daysDiff = Math.abs(differenceInDays(event1.date, event2.date));
+        const date1 = new Date(event1.date);
+        const date2 = new Date(event2.date);
+        const daysDiff = Math.abs(differenceInDays(date1, date2));
 
         if (daysDiff <= windowDays) {
           const key = [event1.description, event2.description].sort().join('::');
@@ -185,18 +188,20 @@ class AnalyticsService {
     const effectiveness: TreatmentEffectiveness[] = [];
 
     treatments.forEach(treatment => {
-      const treatmentDate = treatment.date;
+      const treatmentDate = new Date(treatment.date);
 
       // Find symptoms before and after treatment
-      const beforeSymptoms = symptomEvents.filter(s =>
-        differenceInDays(treatmentDate, s.date) <= 30 &&
-        differenceInDays(treatmentDate, s.date) >= 0
-      );
+      const beforeSymptoms = symptomEvents.filter(s => {
+        const symptomDate = new Date(s.date);
+        const daysDiff = differenceInDays(treatmentDate, symptomDate);
+        return daysDiff <= 30 && daysDiff >= 0;
+      });
 
-      const afterSymptoms = symptomEvents.filter(s =>
-        differenceInDays(s.date, treatmentDate) <= 30 &&
-        differenceInDays(s.date, treatmentDate) > 0
-      );
+      const afterSymptoms = symptomEvents.filter(s => {
+        const symptomDate = new Date(s.date);
+        const daysDiff = differenceInDays(symptomDate, treatmentDate);
+        return daysDiff <= 30 && daysDiff > 0;
+      });
 
       // Calculate symptom changes
       const symptomChanges: TreatmentEffectiveness['symptomChanges'] = [];
@@ -230,7 +235,7 @@ class AnalyticsService {
             improvement: Math.max(0, improvement),
             daysToImprovement: afterSymptoms.find(s => s.description === symptom)
               ? differenceInDays(
-                  afterSymptoms.find(s => s.description === symptom)!.date,
+                  new Date(afterSymptoms.find(s => s.description === symptom)!.date),
                   treatmentDate
                 )
               : 0
@@ -239,14 +244,17 @@ class AnalyticsService {
       });
 
       // Identify breakthroughs from findings
+      const treatmentTimestamp = treatmentDate.getTime();
+      const thirtyDaysLater = treatmentTimestamp + 30 * 24 * 60 * 60 * 1000;
+
       const breakthroughs = findings
         .filter(f =>
-          f.timestamp >= treatmentDate &&
-          f.timestamp <= new Date(treatmentDate.getTime() + 30 * 24 * 60 * 60 * 1000) &&
+          f.timestamp >= treatmentTimestamp &&
+          f.timestamp <= thirtyDaysLater &&
           f.relevanceScore >= 8
         )
         .map(f => ({
-          date: f.timestamp,
+          date: new Date(f.timestamp),
           description: f.title,
           impact: f.relevanceScore >= 9 ? 'major' as const : 'moderate' as const
         }));
@@ -279,11 +287,13 @@ class AnalyticsService {
     symptomEvents: TimelineEvent[]
   ): string[] {
     // New symptoms that appeared after treatment
-    const afterTreatment = symptomEvents.filter(s =>
-      differenceInDays(s.date, treatment.date) <= 14 &&
-      differenceInDays(s.date, treatment.date) > 0 &&
-      s.severity && ['moderate', 'severe'].includes(s.severity)
-    );
+    const treatmentDate = new Date(treatment.date);
+    const afterTreatment = symptomEvents.filter(s => {
+      const symptomDate = new Date(s.date);
+      const daysDiff = differenceInDays(symptomDate, treatmentDate);
+      return daysDiff <= 14 && daysDiff > 0 &&
+        s.severity && ['moderate', 'severe'].includes(s.severity);
+    });
 
     return [...new Set(afterTreatment.map(s => s.description))];
   }
@@ -294,7 +304,7 @@ class AnalyticsService {
   detectPatterns(events: TimelineEvent[]): PatternAnalysis {
     const symptomEvents = events
       .filter(e => e.type === 'symptom')
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const patterns: PatternAnalysis['patterns'] = [];
     const triggers: PatternAnalysis['triggers'] = [];
@@ -306,7 +316,7 @@ class AnalyticsService {
       if (!symptomFrequency.has(event.description)) {
         symptomFrequency.set(event.description, []);
       }
-      symptomFrequency.get(event.description)!.push(event.date);
+      symptomFrequency.get(event.description)!.push(new Date(event.date));
     });
 
     symptomFrequency.forEach((dates, symptom) => {
@@ -337,7 +347,7 @@ class AnalyticsService {
     symptomFrequency.forEach((dates, symptom) => {
       const severities = symptomEvents
         .filter(e => e.description === symptom && e.severity)
-        .map(e => ({ date: e.date, severity: this.severityToNumber(e.severity) }));
+        .map(e => ({ date: new Date(e.date), severity: this.severityToNumber(e.severity) }));
 
       if (severities.length >= 3) {
         const firstHalf = severities.slice(0, Math.floor(severities.length / 2));
@@ -363,9 +373,11 @@ class AnalyticsService {
     const windowSize = 3; // days
 
     for (let i = 0; i < symptomEvents.length; i++) {
-      const window = symptomEvents.filter(e =>
-        Math.abs(differenceInDays(e.date, symptomEvents[i].date)) <= windowSize
-      );
+      const currentEventDate = new Date(symptomEvents[i].date);
+      const window = symptomEvents.filter(e => {
+        const eventDate = new Date(e.date);
+        return Math.abs(differenceInDays(eventDate, currentEventDate)) <= windowSize;
+      });
 
       if (window.length >= 2) {
         const clusterKey = window
@@ -389,23 +401,25 @@ class AnalyticsService {
     });
 
     // Detect triggers (events followed by symptoms)
-    const allEvents = events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const allEvents = events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const triggerCandidates = allEvents.filter(e =>
       e.type === 'treatment' || e.type === 'diagnosis' || e.tags?.includes('trigger')
     );
 
     triggerCandidates.forEach(trigger => {
-      const followingSymptoms = symptomEvents.filter(s =>
-        differenceInDays(s.date, trigger.date) <= 7 &&
-        differenceInDays(s.date, trigger.date) > 0
-      );
+      const triggerDate = new Date(trigger.date);
+      const followingSymptoms = symptomEvents.filter(s => {
+        const symptomDate = new Date(s.date);
+        const daysDiff = differenceInDays(symptomDate, triggerDate);
+        return daysDiff <= 7 && daysDiff > 0;
+      });
 
       if (followingSymptoms.length > 0) {
         triggers.push({
           trigger: trigger.description,
           relatedSymptoms: [...new Set(followingSymptoms.map(s => s.description))],
           averageDelayDays: followingSymptoms.reduce((sum, s) =>
-            sum + differenceInDays(s.date, trigger.date), 0
+            sum + differenceInDays(new Date(s.date), triggerDate), 0
           ) / followingSymptoms.length,
           confidence: Math.min(0.9, followingSymptoms.length / 5)
         });
@@ -431,20 +445,22 @@ class AnalyticsService {
     );
 
     improvements.forEach(improvement => {
-      const relevantFindings = findings.filter(f =>
-        Math.abs(differenceInDays(f.timestamp, improvement.date)) <= 30 &&
-        f.relevanceScore >= 8
-      );
+      const improvementDate = new Date(improvement.date);
+      const relevantFindings = findings.filter(f => {
+        const findingDate = new Date(f.timestamp);
+        return Math.abs(differenceInDays(findingDate, improvementDate)) <= 30 &&
+          f.relevanceScore >= 8;
+      });
 
       if (relevantFindings.length > 0) {
         insights.push({
           type: 'breakthrough',
-          title: `Potential breakthrough around ${improvement.date.toLocaleDateString()}`,
+          title: `Potential breakthrough around ${improvementDate.toLocaleDateString()}`,
           description: `High-relevance research findings coincide with reported improvement in ${improvement.description}`,
           relatedFindings: relevantFindings.map(f => f.id),
           confidence: Math.min(0.95, relevantFindings.length / 3),
           temporalContext: {
-            when: improvement.date,
+            when: improvementDate,
             relevantEvents: [improvement]
           }
         });

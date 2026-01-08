@@ -68,6 +68,7 @@ export interface AgentLearningProfile {
 export type Finding = ResearchFinding;
 export type ResearchAgent = Agent;
 export type DigestData = SmartDigest;
+export type ResearchTopic = Topic;
 
 export interface ResearchFinding {
   id: string;
@@ -200,7 +201,17 @@ export type TimelineEventType =
   | 'milestone'
   | 'hospitalization'
   | 'treatment_start'
-  | 'treatment_end';
+  | 'treatment_end'
+  | 'treatment' // Generic treatment event
+  | 'diagnosis' // Diagnosis event
+  | 'medication' // Generic medication event
+  | 'test_result' // Test result (alias for lab_result)
+  | 'procedure' // Medical procedure
+  | 'note' // General note
+  | 'outcome' // Treatment outcome
+  | 'doctor_visit' // Doctor visit (alias for appointment)
+  | 'voice_note' // Voice note recording
+  | 'research_finding'; // Research finding linked to timeline
 
 export interface TimelineEvent {
   id: string;
@@ -218,6 +229,12 @@ export interface TimelineEvent {
     actionItems?: string[];
   };
   linkedTopicId?: string;
+  topicId?: string; // Alternative field name for topic association
+  tags?: string[]; // Tags for categorization
+  data?: any; // Additional data
+  notes?: string; // Additional notes
+  endDate?: number; // End date for treatments
+  timestamp?: number; // Alternative timestamp field
   createdAt: number;
   createdBy: string; // User ID
 }

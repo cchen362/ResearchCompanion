@@ -16,7 +16,7 @@ export interface KnowledgeNode {
   importance: number; // 0-10
   confidence?: number; // 0-1
   sourceIds?: string[]; // References to findings or events
-  timestamp?: Date;
+  timestamp?: number; // Unix timestamp in milliseconds
 }
 
 export interface KnowledgeEdge {
@@ -251,7 +251,7 @@ class KnowledgeGraphService {
         },
         importance: breakthrough.impact === 'high' ? 10 : breakthrough.impact === 'medium' ? 7 : 5,
         confidence: breakthrough.confidence || 0.8,
-        timestamp: breakthrough.date ? new Date(breakthrough.date) : undefined
+        timestamp: breakthrough.date ? new Date(breakthrough.date).getTime() : undefined
       };
 
       this.nodes.set(breakthroughId, node);
@@ -354,10 +354,10 @@ class KnowledgeGraphService {
     // Add temporal relationships
     const sortedNodes = Array.from(this.nodes.values())
       .filter(n => n.timestamp)
-      .sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+      .sort((a, b) => a.timestamp! - b.timestamp!);
 
     for (let i = 0; i < sortedNodes.length - 1; i++) {
-      const timeDiff = sortedNodes[i + 1].timestamp!.getTime() - sortedNodes[i].timestamp!.getTime();
+      const timeDiff = sortedNodes[i + 1].timestamp! - sortedNodes[i].timestamp!;
       const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
 
       if (daysDiff <= 7) { // Within a week
@@ -378,7 +378,7 @@ class KnowledgeGraphService {
     treatments.forEach(treatment => {
       outcomes.forEach(outcome => {
         if (treatment.timestamp && outcome.timestamp) {
-          const timeDiff = outcome.timestamp.getTime() - treatment.timestamp.getTime();
+          const timeDiff = outcome.timestamp - treatment.timestamp;
           const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
 
           if (daysDiff > 0 && daysDiff <= 30) { // Outcome after treatment within 30 days
