@@ -13,10 +13,18 @@ import {
   Clock,
   FileText,
   BookOpen,
-  Brain
+  Brain,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 
 interface DigestCardProps {
   digest: SmartDigest;
@@ -152,32 +160,55 @@ export function DigestCard({
               </p>
             </div>
 
-            {/* Statistics Bar */}
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="p-2 bg-background/50 rounded">
-                <div className="text-2xl font-bold text-primary">
-                  {Math.round(digest.statistics.avgConfidence * 100)}%
-                </div>
-                <div className="text-xs text-muted-foreground">Avg Confidence</div>
-              </div>
-              <div className="p-2 bg-background/50 rounded">
-                <div className="text-2xl font-bold">
-                  {digest.statistics.highRelevanceCount}
-                </div>
-                <div className="text-xs text-muted-foreground">High Relevance</div>
-              </div>
-              <div className="p-2 bg-background/50 rounded">
-                <div className="text-2xl font-bold">
-                  {digest.statistics.sourceCount}
-                </div>
-                <div className="text-xs text-muted-foreground">Sources</div>
-              </div>
-              <div className="p-2 bg-background/50 rounded">
-                <div className="text-2xl font-bold">
-                  {digest.themes.length}
-                </div>
-                <div className="text-xs text-muted-foreground">Themes</div>
-              </div>
+            {/* Statistics Bar - Only show meaningful metrics */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-3 bg-background/50 rounded cursor-help">
+                      <div className="text-2xl font-bold text-primary">
+                        {digest.statistics.totalFindings}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Total Findings</div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Total number of research findings collected for this topic</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-3 bg-background/50 rounded cursor-help">
+                      <div className="text-2xl font-bold">
+                        {digest.statistics.sourceCount}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Unique Sources</div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Number of different journals, databases, and research sources</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-3 bg-background/50 rounded cursor-help">
+                      <div className="text-2xl font-bold">
+                        {digest.themes.length}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Key Themes</div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Major research themes identified across all findings</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </CardContent>
@@ -311,90 +342,92 @@ export function DigestCard({
         </Card>
       )}
 
-      {/* Research Trends */}
-      <Card>
-        <CardHeader
-          className="cursor-pointer"
-          onClick={() => toggleSection('trends')}
-        >
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Research Trends
-            </CardTitle>
-            {expandedSections.has('trends') ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </div>
-        </CardHeader>
-        {expandedSections.has('trends') && (
-          <CardContent>
-            <div className="space-y-4">
-              {/* Emerging Trends */}
-              {digest.trends.emerging.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    Emerging Research
-                  </h4>
-                  <div className="space-y-1">
-                    {digest.trends.emerging.map((trend, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-green-50/50 dark:bg-green-950/20 rounded"
-                      >
-                        <span className="text-sm">{trend.topic}</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {trend.findingCount} findings
-                          </Badge>
-                          {trend.changePercent && (
-                            <span className="text-xs text-green-600">
-                              +{trend.changePercent}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Declining Trends */}
-              {digest.trends.declining.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                    Declining Focus
-                  </h4>
-                  <div className="space-y-1">
-                    {digest.trends.declining.map((trend, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-red-50/50 dark:bg-red-950/20 rounded"
-                      >
-                        <span className="text-sm">{trend.topic}</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {trend.findingCount} findings
-                          </Badge>
-                          {trend.changePercent && (
-                            <span className="text-xs text-red-600">
-                              {trend.changePercent}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      {/* Research Trends - Only show if there's actual data */}
+      {(digest.trends.emerging.length > 0 || digest.trends.declining.length > 0) && (
+        <Card>
+          <CardHeader
+            className="cursor-pointer"
+            onClick={() => toggleSection('trends')}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Research Trends
+              </CardTitle>
+              {expandedSections.has('trends') ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
               )}
             </div>
-          </CardContent>
-        )}
-      </Card>
+          </CardHeader>
+          {expandedSections.has('trends') && (
+            <CardContent>
+              <div className="space-y-4">
+                {/* Emerging Trends */}
+                {digest.trends.emerging.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      Emerging Research
+                    </h4>
+                    <div className="space-y-1">
+                      {digest.trends.emerging.map((trend, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-green-50/50 dark:bg-green-950/20 rounded"
+                        >
+                          <span className="text-sm">{trend.topic}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {trend.findingCount} findings
+                            </Badge>
+                            {trend.changePercent && (
+                              <span className="text-xs text-green-600">
+                                +{trend.changePercent}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Declining Trends */}
+                {digest.trends.declining.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      Declining Focus
+                    </h4>
+                    <div className="space-y-1">
+                      {digest.trends.declining.map((trend, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-red-50/50 dark:bg-red-950/20 rounded"
+                        >
+                          <span className="text-sm">{trend.topic}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {trend.findingCount} findings
+                            </Badge>
+                            {trend.changePercent && (
+                              <span className="text-xs text-red-600">
+                                {trend.changePercent}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* View All Sources Button */}
       <div className="flex justify-center">

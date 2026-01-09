@@ -38,6 +38,7 @@ import {
   Zap,
   Sparkles,
   AlertTriangle,
+  Info,
   BarChart3
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -551,19 +552,42 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
       {/* Main content area */}
       {loadingFindings ? (
-        <Card className="p-8">
-          <div className="flex items-center justify-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-muted-foreground">Loading research findings...</span>
+        <Card className="p-12 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="relative">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="absolute inset-0 blur-lg bg-primary/20 animate-pulse"></div>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Loading Research Findings</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                We're gathering the latest research data for your topic. This typically takes just a moment...
+              </p>
+            </div>
           </div>
         </Card>
       ) : findings.length === 0 ? (
-        <Card className="p-8 text-center">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <CardTitle className="mb-2">No Findings Yet</CardTitle>
-          <p className="text-muted-foreground">
-            Research agents will start gathering findings for this topic.
-          </p>
+        <Card className="p-12 bg-gradient-to-br from-gray-50/50 to-slate-50/50 dark:from-gray-950/20 dark:to-slate-950/20">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="relative">
+              <FileText className="h-16 w-16 text-muted-foreground/50" />
+              <Sparkles className="h-6 w-6 text-primary absolute -top-1 -right-1 animate-pulse" />
+            </div>
+            <div className="text-center space-y-3 max-w-md">
+              <h3 className="text-xl font-semibold">Ready to Start Research</h3>
+              <p className="text-muted-foreground">
+                Your research agents are ready to begin gathering medical findings for this topic.
+              </p>
+              <div className="flex flex-col gap-2 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Tip:</span> Research agents run automatically in the background
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Findings will appear here as they're discovered
+                </p>
+              </div>
+            </div>
+          </div>
         </Card>
       ) : (
         <div>
@@ -636,17 +660,29 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                     </p>
                   </>
                 ) : (
-                  <>
-                    <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <CardTitle className="mb-2">No Digest Available</CardTitle>
-                    <p className="text-muted-foreground mb-4">
-                      Click refresh to generate an intelligent digest of your findings.
-                    </p>
-                    <Button onClick={handleRefreshDigest}>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Generate Digest
-                    </Button>
-                  </>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Brain className="h-16 w-16 mx-auto text-primary/30" />
+                      <Info className="h-6 w-6 text-primary absolute -top-1 -right-1 animate-bounce" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <CardTitle className="text-xl">Ready to Generate Insights</CardTitle>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Transform your {getFilteredFindings().length} research findings into an AI-powered digest with key themes, breakthroughs, and actionable insights.
+                      </p>
+                    </div>
+                    <div className="flex justify-center">
+                      <Button onClick={handleRefreshDigest} size="lg" className="gap-2">
+                        <Sparkles className="h-5 w-5" />
+                        Generate AI Digest
+                      </Button>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Takes 30-90 seconds • Uses advanced AI analysis
+                      </p>
+                    </div>
+                  </div>
                 )}
               </Card>
             )}
@@ -672,7 +708,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                   <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
                     <span>{finding.type}</span>
                     <span>•</span>
-                    <span>{finding.source.name}</span>
+                    <span>{finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type}</span>
                     <span>•</span>
                     <span>{formatDistanceToNow(finding.timestamp)} ago</span>
                   </div>

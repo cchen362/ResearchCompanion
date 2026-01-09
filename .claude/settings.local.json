@@ -32,7 +32,9 @@
       "Bash(start chrome http://localhost:5183/)",
       "Bash(start chrome http://localhost:5184/)",
       "Bash(start chrome http://localhost:5185/)",
-      "Bash(start chrome http://localhost:5186/)"
+      "Bash(start chrome http://localhost:5186/)",
+      "Bash(start chrome file:///C:/Users/cchen362/OneDrive/Desktop/medical-companion-pwa/clear-cache.html)",
+      "Bash(start chrome http://localhost:5187/)"
     ],
     "deny": [],
     "ask": []
