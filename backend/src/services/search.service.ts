@@ -92,12 +92,15 @@ export class SearchService {
           const articleSummary = article.title || 'Untitled';
           const publicationInfo = `Published in ${article.source || 'Unknown Journal'} on ${article.sortpubdate || 'Unknown Date'}`;
 
+          // Add unique identifier to details to prevent duplication
+          const uniqueDetails = `${articleSummary}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`;
+
           articles.push({
             id: `pubmed_${article.uid}`,
             title: article.title || 'Untitled',
             snippet: publicationInfo,
             summary: articleSummary,
-            details: `${articleSummary}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}`,
+            details: uniqueDetails,
             source: {
               type: 'pubmed',
               name: article.source || 'PubMed',
@@ -169,16 +172,26 @@ export class SearchService {
         const briefSummary = identificationModule.briefSummary?.textBlock || 'No summary available';
         const detailedDescription = protocolSection.descriptionModule?.detailedDescription?.textBlock || '';
 
+        // Improved sponsor name extraction with multiple fallbacks
+        const sponsorName = sponsorModule?.leadSponsor?.name ||
+                          sponsorModule?.responsibleParty?.investigatorFullName ||
+                          sponsorModule?.collaborators?.[0]?.name ||
+                          'ClinicalTrials.gov';
+
+        // Add unique identifier to details to prevent duplication
+        const uniqueDetails = `${detailedDescription || briefSummary}\n\n───────────\nTrial ID: ${identificationModule.nctId}\nSponsor: ${sponsorName}`;
+
         return {
           id: `trial_${identificationModule.nctId}`,
           title: identificationModule.briefTitle || identificationModule.officialTitle || 'Untitled Trial',
           snippet: briefSummary.substring(0, 200) + (briefSummary.length > 200 ? '...' : ''),
           summary: briefSummary,
-          details: detailedDescription || briefSummary,
+          details: uniqueDetails,
           source: {
             type: 'clinical_trial',
-            name: sponsorModule.leadSponsor?.name || 'ClinicalTrials.gov',
-            displayName: sponsorModule.leadSponsor?.name || 'ClinicalTrials.gov',
+            name: sponsorName,
+            displayName: sponsorName,
+            journal: 'ClinicalTrials.gov Registry', // Add fallback field for display
             url: `https://clinicaltrials.gov/study/${identificationModule.nctId}`
           },
           type: 'trial', // Changed from 'clinical_trial' to match frontend enum
@@ -221,13 +234,18 @@ export class SearchService {
         const drugName = result.openfda?.brand_name?.[0] || result.openfda?.generic_name?.[0] || 'FDA Drug';
         const purpose = result.purpose?.[0] || result.description?.[0] || 'FDA drug information';
         const indication = result.indications_and_usage?.[0] || '';
+        const manufacturer = result.openfda?.manufacturer_name?.[0] || 'Not specified';
+        const fdaId = result.id || result.application_number || `FDA-${Date.now()}`;
+
+        // Add unique identifier to details to prevent duplication
+        const uniqueDetails = `${drugName}\n\n${purpose}\n\n${indication ? `Indications: ${indication}` : ''}\n\nManufacturer: ${manufacturer}\n\n───────────\nFDA Reference: ${fdaId}`;
 
         return {
-          id: `fda_${result.id || Date.now()}`,
+          id: `fda_${fdaId}`,
           title: `${drugName} - FDA Information`,
           snippet: purpose.substring(0, 200) + (purpose.length > 200 ? '...' : ''),
           summary: purpose,
-          details: `${drugName}\n\n${purpose}\n\n${indication ? `Indications: ${indication}` : ''}\n\nManufacturer: ${result.openfda?.manufacturer_name?.[0] || 'Not specified'}`,
+          details: uniqueDetails,
           source: {
             type: 'fda',
             name: 'FDA',
@@ -287,13 +305,17 @@ export class SearchService {
 
       return results.map((result: any) => {
         const hostname = new URL(result.url).hostname.replace('www.', '');
+        const webId = result.url.substring(result.url.lastIndexOf('/') + 1).slice(0, 20) || `web-${Date.now()}`;
+
+        // Add unique identifier to details to prevent duplication
+        const uniqueDetails = `${result.title}\n\n${result.description}\n\nSource: ${hostname}\nPublished: ${result.age || 'Recently'}\n\n───────────\nWeb ID: ${webId}`;
 
         return {
           id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title: result.title,
           snippet: result.description.substring(0, 200) + (result.description.length > 200 ? '...' : ''),
           summary: result.description,
-          details: `${result.title}\n\n${result.description}\n\nSource: ${hostname}\nPublished: ${result.age || 'Recently'}`,
+          details: uniqueDetails,
           source: {
             type: 'web',
             name: hostname,

@@ -56,14 +56,18 @@ export async function runAgent(agent: Agent, topic: Topic): Promise<ResearchFind
     await setAgentStatus(agent.id, 'running');
 
     // Call backend to execute real medical research
-    const response = await fetch(`${API_BASE}/agent/run-agent`, {
+    console.log('Calling agent API at:', `${API_BASE}/run-agent`);
+    const response = await fetch(`${API_BASE}/run-agent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent, topic })
     });
 
     if (!response.ok) {
-      throw new Error('Agent execution failed');
+      const errorText = await response.text();
+      console.error('Agent API failed:', response.status, errorText);
+      alert(`Failed to run agent: ${response.status} - ${errorText}`);
+      throw new Error(`Agent execution failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -115,6 +119,18 @@ async function processFindings(
 
     if (existingTitles.has(finding.title.toLowerCase())) {
       continue; // Skip duplicate title
+    }
+
+    // Ensure details are unique and non-empty
+    if (!finding.details || finding.details.trim().length === 0) {
+      finding.details = finding.summary || 'No details available';
+    }
+
+    // Add a timestamp if details might be duplicated across findings
+    const existingWithSameDetails = processedFindings.find(pf => pf.details === finding.details);
+    if (existingWithSameDetails) {
+      // Append a unique identifier to make it distinct
+      finding.details += `\n\n[Retrieved: ${new Date().toISOString()}]`;
     }
 
     // Set required fields

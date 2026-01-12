@@ -41,7 +41,15 @@
       "Bash(python -m json.tool:*)",
       "Bash(start chrome http://localhost:5190/)",
       "Bash(start chrome file:///C:/Users/cchen362/OneDrive/Desktop/medical-companion-pwa/clear-findings.html)",
-      "Bash(node test-agent-response.js:*)"
+      "Bash(node test-agent-response.js:*)",
+      "Bash(start chrome http://localhost:5191/)",
+      "Bash(cmd /c \"taskkill /PID 375760 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 375760 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 381820 -Force\")",
+      "Bash(dir /B /O-D c:Userscchen362OneDriveDesktopmedical-companion-pwabackenddist 2)",
+      "Bash(dir /B \"c:\\Users\\cchen362\\OneDrive\\Desktop\\medical-companion-pwa\\backend\" 2)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 397264 -Force\")"
     ],
     "deny": [],
     "ask": []

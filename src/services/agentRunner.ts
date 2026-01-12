@@ -92,7 +92,7 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
           type: determineType(agent.type),
           title: result.title || result.briefTitle || 'Untitled',
           summary: result.snippet || result.abstract || result.briefSummary || '',
-          details: summary,
+          details: result.details || result.description || result.snippet || result.abstract || summary,
           source: {
             name: sourceName,
             url: sourceUrl,

@@ -350,7 +350,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
     }
 
     // The tool input already contains our structured data
-    let digestData = toolUse.input;
+    let digestData = toolUse.input as any;
     console.log('Tool input keys:', Object.keys(digestData));
     console.log('Raw digest data sample:', JSON.stringify({
       hasExecutiveSummary: !!digestData.executiveSummary,
@@ -540,7 +540,16 @@ Focus on practical, actionable information that helps with treatment decisions.`
     // If tools approach fails, try the simple approach
     try {
       console.log('Attempting fallback to simple digest...');
-      const simpleDigest = await generateSimpleDigest(findings, topic, timeframe, findingsText);
+      // Re-create findingsText for fallback
+      const fallbackFindingsText = findings.map((f, idx) =>
+        `[Finding ${idx + 1}]
+Type: ${f.type}
+Title: ${f.title}
+Summary: ${f.summary}
+Source: ${f.source.name} (${f.source.type})`
+      ).join('\n\n───────────\n\n');
+
+      const simpleDigest = await generateSimpleDigest(findings, topic, timeframe, fallbackFindingsText);
 
       // Generate ID and stats for the simple digest
       const digestId = `digest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

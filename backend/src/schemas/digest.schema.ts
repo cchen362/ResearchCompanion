@@ -65,7 +65,7 @@ export const SmartDigestSchema = z.object({
 
 // Convert Zod schema to JSON Schema format for Claude API
 export const digestJSONSchema = {
-  type: 'object',
+  type: 'object' as const,
   properties: {
     executiveSummary: {
       type: 'string',

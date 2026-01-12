@@ -24,7 +24,7 @@ const ChatRequestSchema = z.object({
     currentFindings: z.array(z.string()).optional(),
     expandedTopics: z.array(z.string()).optional(),
     recentInteractions: z.array(z.string()).optional(),
-    userPreferences: z.record(z.any()).optional(),
+    userPreferences: z.record(z.string(), z.any()).optional(),
     conversationFocus: z.string().optional()
   }),
   stream: z.boolean().optional()
