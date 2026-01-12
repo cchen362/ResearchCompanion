@@ -89,18 +89,23 @@ export class SearchService {
       for (const pmid of pmids) {
         const article = results[pmid];
         if (article && article.uid) {
+          const articleSummary = article.title || 'Untitled';
+          const publicationInfo = `Published in ${article.source || 'Unknown Journal'} on ${article.sortpubdate || 'Unknown Date'}`;
+
           articles.push({
             id: `pubmed_${article.uid}`,
             title: article.title || 'Untitled',
-            snippet: article.sortpubdate ? `Published: ${article.sortpubdate}` : '',
+            snippet: publicationInfo,
+            summary: articleSummary,
+            details: `${articleSummary}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}`,
             source: {
               type: 'pubmed',
-              name: 'PubMed',
+              name: article.source || 'PubMed',
               displayName: article.source || 'PubMed',
               journal: article.fulljournalname || article.source,
               url: `https://pubmed.ncbi.nlm.nih.gov/${article.uid}/`
             },
-            type: 'research',
+            type: 'study', // Changed from 'research' to match frontend enum
             publishedAt: article.sortpubdate || new Date().toISOString(),
             metadata: {
               pmid: article.uid,
@@ -132,11 +137,13 @@ export class SearchService {
     location?: string
   ): Promise<any[]> {
     try {
+      // Use correct API v2 parameters
+      // See: https://clinicaltrials.gov/api/v2/studies
       const params: any = {
+        'filter.overallStatus': status,
         'query.cond': condition,
-        'query.status': status,
-        pageSize: 10,
-        format: 'json'
+        'pageSize': 10,
+        'format': 'json'
       };
 
       if (location) {
@@ -159,17 +166,22 @@ export class SearchService {
         const sponsorModule = protocolSection.sponsorCollaboratorsModule || {};
         const locationsModule = protocolSection.contactsLocationsModule || {};
 
+        const briefSummary = identificationModule.briefSummary?.textBlock || 'No summary available';
+        const detailedDescription = protocolSection.descriptionModule?.detailedDescription?.textBlock || '';
+
         return {
           id: `trial_${identificationModule.nctId}`,
           title: identificationModule.briefTitle || identificationModule.officialTitle || 'Untitled Trial',
-          snippet: identificationModule.briefSummary?.textBlock || 'No summary available',
+          snippet: briefSummary.substring(0, 200) + (briefSummary.length > 200 ? '...' : ''),
+          summary: briefSummary,
+          details: detailedDescription || briefSummary,
           source: {
             type: 'clinical_trial',
-            name: 'ClinicalTrials.gov',
+            name: sponsorModule.leadSponsor?.name || 'ClinicalTrials.gov',
             displayName: sponsorModule.leadSponsor?.name || 'ClinicalTrials.gov',
             url: `https://clinicaltrials.gov/study/${identificationModule.nctId}`
           },
-          type: 'clinical_trial',
+          type: 'trial', // Changed from 'clinical_trial' to match frontend enum
           publishedAt: statusModule.studyFirstPostDateStruct?.date || new Date().toISOString(),
           metadata: {
             nctId: identificationModule.nctId,
@@ -205,24 +217,32 @@ export class SearchService {
 
       const results = response.data?.results || [];
 
-      return results.map((result: any) => ({
-        id: `fda_${result.id || Date.now()}`,
-        title: result.openfda?.brand_name?.[0] || result.openfda?.generic_name?.[0] || 'FDA Announcement',
-        snippet: result.purpose?.[0] || result.description?.[0] || 'FDA drug information',
-        source: {
-          type: 'fda',
-          name: 'FDA',
-          displayName: 'U.S. Food and Drug Administration',
-          url: `https://www.fda.gov/`
-        },
-        type: 'regulatory',
-        publishedAt: result.effective_time || new Date().toISOString(),
-        metadata: {
-          manufacturer: result.openfda?.manufacturer_name?.[0],
-          indication: result.indications_and_usage?.[0],
-          studyType: 'Regulatory Approval'
-        }
-      }));
+      return results.map((result: any) => {
+        const drugName = result.openfda?.brand_name?.[0] || result.openfda?.generic_name?.[0] || 'FDA Drug';
+        const purpose = result.purpose?.[0] || result.description?.[0] || 'FDA drug information';
+        const indication = result.indications_and_usage?.[0] || '';
+
+        return {
+          id: `fda_${result.id || Date.now()}`,
+          title: `${drugName} - FDA Information`,
+          snippet: purpose.substring(0, 200) + (purpose.length > 200 ? '...' : ''),
+          summary: purpose,
+          details: `${drugName}\n\n${purpose}\n\n${indication ? `Indications: ${indication}` : ''}\n\nManufacturer: ${result.openfda?.manufacturer_name?.[0] || 'Not specified'}`,
+          source: {
+            type: 'fda',
+            name: 'FDA',
+            displayName: 'U.S. Food and Drug Administration',
+            url: `https://www.fda.gov/`
+          },
+          type: 'treatment', // Changed from 'regulatory' to match frontend enum
+          publishedAt: result.effective_time || new Date().toISOString(),
+          metadata: {
+            manufacturer: result.openfda?.manufacturer_name?.[0],
+            indication: result.indications_and_usage?.[0],
+            studyType: 'Regulatory Approval'
+          }
+        };
+      });
     } catch (error) {
       console.error('FDA search error:', error);
       return [];
@@ -265,23 +285,29 @@ export class SearchService {
 
       const results = response.data?.web?.results || [];
 
-      return results.map((result: any) => ({
-        id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        title: result.title,
-        snippet: result.description,
-        source: {
-          type: 'web',
-          name: new URL(result.url).hostname.replace('www.', ''),
-          displayName: result.meta_url?.hostname || new URL(result.url).hostname,
-          url: result.url
-        },
-        type: 'article',
-        publishedAt: result.age || new Date().toISOString(),
-        metadata: {
-          studyType: 'Web Article',
-          favicon: result.meta_url?.favicon
-        }
-      }));
+      return results.map((result: any) => {
+        const hostname = new URL(result.url).hostname.replace('www.', '');
+
+        return {
+          id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: result.title,
+          snippet: result.description.substring(0, 200) + (result.description.length > 200 ? '...' : ''),
+          summary: result.description,
+          details: `${result.title}\n\n${result.description}\n\nSource: ${hostname}\nPublished: ${result.age || 'Recently'}`,
+          source: {
+            type: 'web',
+            name: hostname,
+            displayName: hostname,
+            url: result.url
+          },
+          type: 'news', // Changed from 'article' to match frontend enum
+          publishedAt: result.age || new Date().toISOString(),
+          metadata: {
+            studyType: 'Web Article',
+            favicon: result.meta_url?.favicon
+          }
+        };
+      });
     } catch (error: any) {
       console.error('Brave Search API error:', error.response?.data || error.message);
       return [];

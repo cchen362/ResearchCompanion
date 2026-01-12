@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Findings - Medical Companion PWA</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #b91c1c;
+        }
+        button.safe {
+            background: #059669;
+        }
+        button.safe:hover {
+            background: #047857;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f0f9ff;
+            border: 1px solid #0284c7;
+            display: none;
+        }
+        .status.show {
+            display: block;
+        }
+        .status.success {
+            background: #f0fdf4;
+            border-color: #16a34a;
+        }
+        .status.error {
+            background: #fef2f2;
+            border-color: #dc2626;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0284c7;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Findings Database</h1>
+        <div class="warning">
+            <strong>⚠️ Warning:</strong> This utility will help you clear findings from your browser's IndexedDB.
+            Make sure you understand what you're clearing before proceeding.
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat">
+                <div class="stat-value" id="findingsCount">-</div>
+                <div class="stat-label">Total Findings</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="topicsCount">-</div>
+                <div class="stat-label">Topics</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="agentsCount">-</div>
+                <div class="stat-label">Agents</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="unknownCount">-</div>
+                <div class="stat-label">Unknown Sources</div>
+            </div>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="analyzeData()">📊 Analyze Current Data</button>
+            <button onclick="clearAllFindings()" style="background: #dc2626">🗑️ Clear All Findings</button>
+            <button onclick="clearUnknownSourceFindings()" style="background: #f59e0b">🔍 Clear Unknown Source Findings Only</button>
+            <button onclick="window.location.href='http://localhost:5190'" class="safe">🏠 Back to App</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <h3 style="margin-top: 30px;">Sample Finding Structure:</h3>
+        <pre id="sampleData">Click "Analyze Current Data" to see a sample finding...</pre>
+    </div>
+
+    <script>
+        const DB_NAME = 'MedicalCompanionDB';
+        const DB_VERSION = 3;
+
+        async function getDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onerror = () => {
+                    console.error('Database error:', request.error);
+                    reject(request.error);
+                };
+
+                request.onsuccess = () => {
+                    console.log('Database opened successfully');
+                    resolve(request.result);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    console.log('Database upgrade needed');
+                    const db = event.target.result;
+
+                    // Create object stores if they don't exist
+                    if (!db.objectStoreNames.contains('findings')) {
+                        const findingsStore = db.createObjectStore('findings', { keyPath: 'id' });
+                        findingsStore.createIndex('by-topic', 'topicId');
+                    }
+
+                    if (!db.objectStoreNames.contains('topics')) {
+                        const topicsStore = db.createObjectStore('topics', { keyPath: 'id' });
+                        topicsStore.createIndex('by-date', 'updatedAt');
+                    }
+
+                    if (!db.objectStoreNames.contains('agents')) {
+                        const agentsStore = db.createObjectStore('agents', { keyPath: 'id' });
+                        agentsStore.createIndex('by-topic', 'topicId');
+                    }
+                };
+            });
+        }
+
+        async function analyzeData() {
+            const status = document.getElementById('status');
+            const sampleData = document.getElementById('sampleData');
+
+            try {
+                status.className = 'status show';
+                status.innerHTML = '🔍 Analyzing database...';
+
+                const db = await getDB();
+
+                // Get all findings - handle each store separately to avoid transaction errors
+                let findings = [];
+                let topics = [];
+                let agents = [];
+
+                try {
+                    const findingsTx = db.transaction(['findings'], 'readonly');
+                    const findingsStore = findingsTx.objectStore('findings');
+                    findings = await new Promise((resolve, reject) => {
+                        const request = findingsStore.getAll();
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (e) {
+                    console.log('No findings store or empty');
+                }
+
+                try {
+                    const topicsTx = db.transaction(['topics'], 'readonly');
+                    const topicsStore = topicsTx.objectStore('topics');
+                    topics = await new Promise((resolve, reject) => {
+                        const request = topicsStore.getAll();
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (e) {
+                    console.log('No topics store or empty');
+                }
+
+                try {
+                    const agentsTx = db.transaction(['agents'], 'readonly');
+                    const agentsStore = agentsTx.objectStore('agents');
+                    agents = await new Promise((resolve, reject) => {
+                        const request = agentsStore.getAll();
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (e) {
+                    console.log('No agents store or empty');
+                }
+
+                // Count unknown sources
+                const unknownCount = findings.filter(f =>
+                    !f.source?.displayName ||
+                    f.source?.name === 'Unknown Source' ||
+                    f.source?.displayName === 'Unknown Source'
+                ).length;
+
+                // Update stats
+                document.getElementById('findingsCount').textContent = findings.length;
+                document.getElementById('topicsCount').textContent = topics.length;
+                document.getElementById('agentsCount').textContent = agents.length;
+                document.getElementById('unknownCount').textContent = unknownCount;
+
+                // Show sample finding
+                if (findings.length > 0) {
+                    const sample = findings[findings.length - 1]; // Get most recent
+                    sampleData.textContent = JSON.stringify(sample, null, 2);
+
+                    // Analyze structure issues
+                    const issues = [];
+                    if (!sample.summary) issues.push('Missing summary field');
+                    if (!sample.details) issues.push('Missing details field');
+                    if (!sample.source?.displayName) issues.push('Missing source.displayName');
+                    if (sample.type === 'clinical_trial') issues.push('Type is "clinical_trial" instead of "trial"');
+                    if (sample.type === 'research') issues.push('Type is "research" instead of "study"');
+
+                    if (issues.length > 0) {
+                        status.className = 'status show error';
+                        status.innerHTML = `
+                            <strong>⚠️ Data Structure Issues Found:</strong><br>
+                            ${issues.map(i => `• ${i}`).join('<br>')}
+                            <br><br>
+                            <strong>Recommendation:</strong> Clear findings and re-run agents to get properly formatted data.
+                        `;
+                    } else {
+                        status.className = 'status show success';
+                        status.innerHTML = `✅ Data structure looks correct! Found ${findings.length} findings.`;
+                    }
+                } else {
+                    sampleData.textContent = 'No findings in database';
+                    status.className = 'status show';
+                    status.innerHTML = '📭 No findings found in database.';
+                }
+
+            } catch (error) {
+                status.className = 'status show error';
+                status.innerHTML = `❌ Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function clearAllFindings() {
+            if (!confirm('⚠️ This will delete ALL findings from your database. Are you sure?')) {
+                return;
+            }
+
+            const status = document.getElementById('status');
+
+            try {
+                status.className = 'status show';
+                status.innerHTML = '🗑️ Clearing all findings...';
+
+                const db = await getDB();
+
+                // Check if findings store exists before trying to clear it
+                if (db.objectStoreNames.contains('findings')) {
+                    const tx = db.transaction(['findings'], 'readwrite');
+                    const store = tx.objectStore('findings');
+
+                    await new Promise((resolve, reject) => {
+                        const request = store.clear();
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+
+                    status.className = 'status show success';
+                    status.innerHTML = '✅ All findings have been cleared successfully!';
+                } else {
+                    status.className = 'status show';
+                    status.innerHTML = '📭 No findings store found in database.';
+                }
+
+                // Re-analyze
+                setTimeout(analyzeData, 1000);
+
+            } catch (error) {
+                status.className = 'status show error';
+                status.innerHTML = `❌ Error clearing findings: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function clearUnknownSourceFindings() {
+            if (!confirm('⚠️ This will delete all findings with "Unknown Source". Continue?')) {
+                return;
+            }
+
+            const status = document.getElementById('status');
+
+            try {
+                status.className = 'status show';
+                status.innerHTML = '🔍 Removing Unknown Source findings...';
+
+                const db = await getDB();
+                const tx = db.transaction(['findings'], 'readwrite');
+                const store = tx.objectStore('findings');
+
+                const findings = await new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+
+                let deletedCount = 0;
+                for (const finding of findings) {
+                    if (!finding.source?.displayName ||
+                        finding.source?.name === 'Unknown Source' ||
+                        finding.source?.displayName === 'Unknown Source') {
+                        await new Promise((resolve, reject) => {
+                            const request = store.delete(finding.id);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => reject(request.error);
+                        });
+                        deletedCount++;
+                    }
+                }
+
+                status.className = 'status show success';
+                status.innerHTML = `✅ Removed ${deletedCount} findings with Unknown Source!`;
+
+                // Re-analyze
+                setTimeout(analyzeData, 1000);
+
+            } catch (error) {
+                status.className = 'status show error';
+                status.innerHTML = `❌ Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Auto-analyze on load
+        window.addEventListener('load', () => {
+            setTimeout(analyzeData, 500);
+        });
+    </script>
+</body>
+</html>

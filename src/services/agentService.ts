@@ -117,8 +117,9 @@ async function processFindings(
       continue; // Skip duplicate title
     }
 
-    // Set agent ID
+    // Set required fields
     finding.agentId = agent.id;
+    finding.topicId = topic.id;
     finding.timestamp = Date.now();
 
     // Store finding

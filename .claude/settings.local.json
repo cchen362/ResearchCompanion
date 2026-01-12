@@ -39,7 +39,9 @@
       "Bash(git grep:*)",
       "Bash(timeout:*)",
       "Bash(python -m json.tool:*)",
-      "Bash(start chrome http://localhost:5190/)"
+      "Bash(start chrome http://localhost:5190/)",
+      "Bash(start chrome file:///C:/Users/cchen362/OneDrive/Desktop/medical-companion-pwa/clear-findings.html)",
+      "Bash(node test-agent-response.js:*)"
     ],
     "deny": [],
     "ask": []
