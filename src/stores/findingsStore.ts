@@ -24,7 +24,6 @@ interface FindingsStore {
     topicId?: string;
     agentType?: ResearchAgent['type'];
     dateRange?: { start: Date; end: Date };
-    relevanceThreshold?: number;
     sources?: string[];
     searchQuery?: string;
   };
@@ -115,7 +114,11 @@ export const useFindingsStore = create<FindingsStore>()(
           allFindings.sort((a, b) => {
             const dateCompare = new Date(b.foundDate).getTime() - new Date(a.foundDate).getTime();
             if (dateCompare !== 0) return dateCompare;
-            return (b.relevanceScore || 0) - (a.relevanceScore || 0);
+            // Sort by priority as fallback (high > medium > low)
+            const priorityOrder = ['high', 'medium', 'low'];
+            const priorityA = priorityOrder.indexOf(a.priority || 'medium');
+            const priorityB = priorityOrder.indexOf(b.priority || 'medium');
+            return priorityA - priorityB;
           });
 
           // Create maps for efficient access
@@ -237,11 +240,6 @@ export const useFindingsStore = create<FindingsStore>()(
           // Apply filters
           if (filters.agentType) {
             allFindings = allFindings.filter(f => f.agentType === filters.agentType);
-          }
-          if (filters.relevanceThreshold) {
-            allFindings = allFindings.filter(f =>
-              (f.relevanceScore || 0) >= filters.relevanceThreshold!
-            );
           }
           if (filters.searchQuery) {
             const query = filters.searchQuery.toLowerCase();
@@ -471,12 +469,14 @@ export const useFindingsStore = create<FindingsStore>()(
 
           const findings = await index.getAll(topicId);
 
-          // Sort by relevance and date
+          // Sort by priority and date
           findings.sort((a, b) => {
-            const relevanceA = a.relevanceScore || 0;
-            const relevanceB = b.relevanceScore || 0;
-            if (relevanceA !== relevanceB) {
-              return relevanceB - relevanceA;
+            // Sort by priority first (high > medium > low)
+            const priorityOrder = ['high', 'medium', 'low'];
+            const priorityA = priorityOrder.indexOf(a.priority || 'medium');
+            const priorityB = priorityOrder.indexOf(b.priority || 'medium');
+            if (priorityA !== priorityB) {
+              return priorityA - priorityB;
             }
             return new Date(b.foundDate).getTime() - new Date(a.foundDate).getTime();
           });

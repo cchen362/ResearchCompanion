@@ -75,7 +75,7 @@ class ChatService {
             id: f.id,
             title: f.title || f.summary || 'Untitled Finding',
             content: (f.content || f.details || f.summary || '').substring(0, 500), // Truncate for context
-            relevanceScore: f.relevanceScore || 0,
+            priority: f.priority || 'medium',
             source: f.source?.displayName || f.source?.title || f.source?.name || 'Unknown Source'
           })),
           previousMessages: await this.getRecentMessages(request.chatId, 5)
@@ -322,7 +322,7 @@ class ChatService {
       findings.push(...contextual);
     }
 
-    // Add recent high-relevance findings if we have room
+    // Add recent findings if we have room
     // Increased from 10 to 20 for better context coverage
     if (findings.length < 20) {
       const topicFindings = await findingsStore.getFindingsForDigest(topicId, 20 - findings.length);
@@ -424,7 +424,7 @@ class ChatService {
   private getDefaultQuestions(topicId: string): string[] {
     return [
       'What are the latest research findings?',
-      'Can you explain the key themes in my research?',
+      'What patterns emerge from my research?',
       'What contradictions have been found in the research?',
       'What are the most promising treatments?',
       'Are there any relevant clinical trials?'

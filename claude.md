@@ -607,6 +607,101 @@ const handleSearch = useCallback(async (query) => {
 }, []);
 ```
 
+## Critical Debugging Lessons Learned
+
+### The "Unknown Source" Investigation (January 2025)
+
+**Problem**: Clinical trial findings showed "Unknown Source" while treatment findings displayed correctly.
+
+**Root Cause**: Frontend was destroying backend's complete data structure.
+
+#### What Went Wrong
+
+```typescript
+// ❌ BAD: agentRunner.ts was destroying the backend's source object
+const finding = {
+  source: {
+    name: sourceName,      // Only preserved 4 fields
+    url: sourceUrl,
+    type: determineSourceType(result),
+    publishDate: result.publishedAt
+  }
+  // Lost: displayName, journal, and other backend fields!
+}
+```
+
+#### The Fix
+
+```typescript
+// ✅ GOOD: Preserve the complete backend object
+const finding = {
+  source: result.source ? {
+    ...result.source,  // Keep ALL backend fields
+    // Only override if missing:
+    name: result.source.name || fallbackName,
+    displayName: result.source.displayName || result.source.name || fallbackName
+  } : {
+    // Fallback construction only if no source provided
+  }
+}
+```
+
+#### Key Lessons
+
+1. **Don't Destroy Data Structures**: When receiving objects from backend, preserve them completely using spread operator
+2. **Trace the Complete Data Flow**: Check what backend sends vs what frontend receives vs what gets stored
+3. **Avoid Band-Aid Fixes**: Don't mask symptoms (like defaulting to "Research Database") - fix the root cause
+4. **Check for Type-Specific Bugs**: If one type works but another doesn't, compare their data flow paths
+5. **Use Debug Logging**: Add `console.log` at critical points to see actual data structure
+
+### Debugging Best Practices
+
+#### 1. Systematic Investigation
+
+```typescript
+// Add debug logging at each transformation point
+console.log('1. Backend sends:', response.data);
+console.log('2. Frontend receives:', searchResults);
+console.log('3. Frontend transforms:', finding);
+console.log('4. Stored in DB:', storedFinding);
+console.log('5. UI displays:', displayedFinding);
+```
+
+#### 2. Check Build Artifacts
+
+```bash
+# Always verify TypeScript compilation is current
+ls -la backend/dist/routes/*.js
+# Compare timestamps with source files
+ls -la backend/src/routes/*.ts
+
+# If stale, rebuild:
+cd backend && npm run build
+```
+
+#### 3. Clear Test Data
+
+```javascript
+// Clear IndexedDB when testing fixes
+await indexedDB.deleteDatabase('MedicalCompanionDB');
+console.log('✅ Database cleared!');
+location.reload();
+```
+
+#### 4. Identify Active vs Dead Code
+
+Before fixing, verify which code path is actually executing:
+- Check component imports (`import { service } from ...`)
+- Add console.log to confirm execution
+- Search for all references to ensure it's used
+
+#### 5. Compare Working vs Broken Features
+
+If treatments work but trials don't:
+1. Compare their data structures at each point
+2. Look for type-specific handling
+3. Check for missing fields or different processing
+
 ## Performance Monitoring
 
 ### Key Metrics to Track
@@ -715,10 +810,14 @@ Closes #123
 ## Version History
 
 - **v1.0.0** - Initial Phase 1 implementation
+- **v1.0.1** - Fixed "Unknown Source" issue for clinical trials
+  - Root cause: Frontend was destroying backend's source object structure
+  - Solution: Preserve complete backend objects using spread operator
+  - Lesson: Always trace complete data flow when debugging
 - **v2.0.0** (Planned) - Conversational interface
 - **v3.0.0** (Planned) - Knowledge graph visualization
 
 ---
 
-*Last Updated: January 2025*
+*Last Updated: January 12, 2025*
 *Maintained by: Development Team*

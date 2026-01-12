@@ -125,9 +125,9 @@ export class DigestCacheService {
       return true;
     }
 
-    // Check if any high-relevance findings were added
-    const highRelevanceNew = newFindings.filter(f => f.relevanceScore > 0.8);
-    if (highRelevanceNew.length > 0 && config.autoRefresh) {
+    // Check if any high-priority findings were added
+    const highPriorityNew = newFindings.filter(f => f.priority === 'high');
+    if (highPriorityNew.length > 0 && config.autoRefresh) {
       return true;
     }
 

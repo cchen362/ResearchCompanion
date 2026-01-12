@@ -330,7 +330,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
               <div className="flex flex-wrap justify-center gap-2">
                 {[
                   'Summarize my research findings',
-                  'What are the key themes?',
+                  'What are the main patterns?',
                   'Show contradictions',
                   'Next research steps'
                 ].map((prompt, index) => (
@@ -370,7 +370,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                           <p className="text-xs text-muted-foreground mb-3">Try asking:</p>
                           {[
                             'What are the latest research findings on this topic?',
-                            'Can you summarize the key themes from my research?',
+                            'Can you identify patterns in my research?',
                             'What are the main contradictions in the findings?',
                             'What should I research next based on current findings?'
                           ].map((question, index) => (
@@ -564,7 +564,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
               <div className="flex flex-wrap justify-center gap-2">
                 {[
                   'Summarize my research findings',
-                  'What are the key themes?',
+                  'What are the main patterns?',
                   'Show contradictions',
                   'Next research steps'
                 ].map((prompt, index) => (
@@ -604,7 +604,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                           <p className="text-xs text-muted-foreground mb-3">Try asking:</p>
                           {[
                             'What are the latest research findings on this topic?',
-                            'Can you summarize the key themes from my research?',
+                            'Can you identify patterns in my research?',
                             'What are the main contradictions in the findings?',
                             'What should I research next based on current findings?'
                           ].map((question, index) => (

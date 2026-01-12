@@ -375,9 +375,9 @@ export class DigestQueueService {
           statistics: digestData.statistics || {
             totalFindings: findings.length,
             newFindings: 0,
-            highRelevanceCount: findings.filter(f => f.relevanceScore > 0.8).length,
+            highPriorityCount: findings.filter(f => f.priority === 'high').length,
             sourceCount: new Set(findings.map(f => f.source.name)).size,
-            avgConfidence: findings.reduce((sum, f) => sum + f.relevanceScore, 0) / findings.length
+            mediumPriorityCount: findings.filter(f => f.priority === 'medium').length
           },
           topSources: digestData.topSources || [],
           allFindingIds: findings.map(f => f.id)
@@ -418,7 +418,12 @@ export class DigestQueueService {
     timeframe: DigestTimeframe
   ): SmartDigest {
     const now = Date.now();
-    const sortedFindings = [...findings].sort((a, b) => b.relevanceScore - a.relevanceScore);
+    const priorityOrder = ['high', 'medium', 'low'];
+    const sortedFindings = [...findings].sort((a, b) => {
+      const priorityA = priorityOrder.indexOf(a.priority || 'medium');
+      const priorityB = priorityOrder.indexOf(b.priority || 'medium');
+      return priorityA - priorityB;
+    });
     const topFindings = sortedFindings.slice(0, 5);
 
     // Group findings by type
@@ -434,10 +439,10 @@ export class DigestQueueService {
       title: `${type.charAt(0).toUpperCase() + type.slice(1)} Updates`,
       summary: `${typeFindings.length} findings related to ${type}`,
       category: 'treatment' as const,
-      importance: typeFindings.some(f => f.relevanceScore > 0.8) ? 'high' as const : 'medium' as const,
+      importance: typeFindings.some(f => f.priority === 'high') ? 'high' as const : 'medium' as const,
       findingIds: typeFindings.map(f => f.id),
       findingCount: typeFindings.length,
-      avgRelevance: typeFindings.reduce((sum, f) => sum + f.relevanceScore, 0) / typeFindings.length,
+      highPriorityCount: typeFindings.filter(f => f.priority === 'high').length,
       avgConfidence: 'medium' as const
     }));
 
@@ -458,9 +463,9 @@ export class DigestQueueService {
       statistics: {
         totalFindings: findings.length,
         newFindings: findings.filter(f => f.isNew).length,
-        highRelevanceCount: findings.filter(f => f.relevanceScore > 0.8).length,
+        highPriorityCount: findings.filter(f => f.priority === 'high').length,
         sourceCount: new Set(findings.map(f => f.source.name)).size,
-        avgConfidence: findings.reduce((sum, f) => sum + f.relevanceScore, 0) / findings.length
+        mediumPriorityCount: findings.filter(f => f.priority === 'medium').length
       },
       topSources: [],
       allFindingIds: findings.map(f => f.id)
