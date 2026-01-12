@@ -227,9 +227,9 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
       statistics: {
         totalFindings: topicFindings.length,
         newFindings: topicFindings.filter(f => f.isNew).length,
-        highRelevanceCount: topicFindings.filter(f => f.relevanceScore > 0.7).length,
+        highPriorityCount: topicFindings.filter(f => f.priority === 'high' || f.priority === 'critical').length,
         sourceCount: calculateUniqueStudies(topicFindings),
-        avgConfidence: calculateAvgConfidence(topicFindings)
+        journalCount: topicFindings.filter(f => f.source.type === 'journal' || f.source.type === 'pubmed').length
       },
       topSources: extractTopSources(topicFindings),
       allFindingIds: topicFindings.map(f => f.id)
@@ -254,28 +254,26 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
       category: type as any,
       importance: (groupFindings.length > 5 ? 'high' : 'medium') as 'high' | 'medium',
       findingIds: groupFindings.map(f => f.id),
-      findingCount: groupFindings.length,
-      avgRelevance: groupFindings.reduce((sum, f) => sum + f.relevanceScore, 0) / groupFindings.length,
-      avgConfidence: getMostCommonConfidence(groupFindings)
+      findingCount: groupFindings.length
     }));
   };
 
-  const getMostCommonConfidence = (findings: ResearchFinding[]) => {
-    const counts = findings.reduce((acc, f) => {
-      acc[f.confidenceLevel] = (acc[f.confidenceLevel] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as any || 'medium';
-  };
 
   const extractKeyTakeaways = (findings: ResearchFinding[]) => {
     // Generate more meaningful takeaways from the findings
     const takeaways: string[] = [];
 
-    // Sort by relevance and get top findings
+    // Sort by date and priority, get top findings
     const topFindings = findings
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .sort((a, b) => {
+        // First sort by priority if available
+        const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+        const aPriority = priorityOrder[a.priority || 'medium'];
+        const bPriority = priorityOrder[b.priority || 'medium'];
+        if (aPriority !== bPriority) return bPriority - aPriority;
+        // Then by timestamp (newer first)
+        return b.timestamp - a.timestamp;
+      })
       .slice(0, 7);
 
     topFindings.forEach(f => {
@@ -288,7 +286,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         takeaways.push(f.snippet.substring(0, 150));
       } else {
         // Last resort: use title with source info
-        takeaways.push(`${f.title} (${f.source.name})`);
+        takeaways.push(`${f.title} (${f.source.displayName || f.source.name})`);
       }
     });
 
@@ -309,25 +307,18 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         uniqueStudies.add(`trial:${f.metadata.trialId}`);
       } else {
         // Fallback: use URL or title+source as unique identifier
-        uniqueStudies.add(f.url || `${f.source.name}:${f.title.substring(0, 30)}`);
+        uniqueStudies.add(f.url || `${f.source.displayName || f.source.name}:${f.title.substring(0, 30)}`);
       }
     });
     return uniqueStudies.size;
   };
 
-  const calculateAvgConfidence = (findings: ResearchFinding[]) => {
-    const confidenceMap = { high: 1, medium: 0.5, low: 0.25 };
-    const sum = findings.reduce((acc, f) =>
-      acc + (confidenceMap[f.confidenceLevel as keyof typeof confidenceMap] || 0.5), 0
-    );
-    return sum / findings.length;
-  };
 
   const extractTopSources = (findings: ResearchFinding[]) => {
     const sourceMap = new Map<string, any>();
 
     findings.forEach(f => {
-      const source = f.source.name;
+      const source = f.source.displayName || f.source.name;
       if (!sourceMap.has(source)) {
         sourceMap.set(source, {
           name: source,
@@ -581,11 +572,11 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
                     </div>
                     <p className="text-muted-foreground mb-4">{finding.summary}</p>
                     <div className="flex items-center gap-4 text-sm">
-                      <Badge variant="secondary">
-                        {finding.confidenceLevel} confidence
-                      </Badge>
-                      <span>Relevance: {Math.round(finding.relevanceScore * 100)}%</span>
-                      <span>{finding.source.name}</span>
+                      <span className="font-medium">{finding.source.displayName || finding.source.name}</span>
+                      <span>{finding.type}</span>
+                      {finding.metadata?.studyType && (
+                        <Badge variant="secondary">{finding.metadata.studyType}</Badge>
+                      )}
                     </div>
                   </div>
                 </div>

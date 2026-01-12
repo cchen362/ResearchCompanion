@@ -115,14 +115,8 @@ export default function Dashboard() {
                       <h4 className="text-sm font-medium text-gray-900">{finding.title}</h4>
                       <p className="mt-1 text-sm text-gray-600 line-clamp-2">{finding.summary}</p>
                       <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                        <span className={`px-2 py-1 rounded-full ${
-                          finding.confidenceLevel === 'high' ? 'bg-green-100 text-green-800' :
-                          finding.confidenceLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {finding.confidenceLevel} confidence
-                        </span>
-                        <span>{finding.source.name}</span>
+                        <span className="font-medium">{finding.source.displayName || finding.source.name}</span>
+                        <span>{finding.type}</span>
                         <span>{new Date(finding.timestamp).toLocaleDateString()}</span>
                       </div>
                     </div>

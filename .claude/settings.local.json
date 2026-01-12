@@ -34,7 +34,12 @@
       "Bash(start chrome http://localhost:5185/)",
       "Bash(start chrome http://localhost:5186/)",
       "Bash(start chrome file:///C:/Users/cchen362/OneDrive/Desktop/medical-companion-pwa/clear-cache.html)",
-      "Bash(start chrome http://localhost:5187/)"
+      "Bash(start chrome http://localhost:5187/)",
+      "Bash(nul)",
+      "Bash(git grep:*)",
+      "Bash(timeout:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(start chrome http://localhost:5190/)"
     ],
     "deny": [],
     "ask": []

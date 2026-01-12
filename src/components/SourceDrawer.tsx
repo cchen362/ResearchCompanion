@@ -43,7 +43,7 @@ export function SourceDrawer({
 }: SourceDrawerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'relevance' | 'confidence'>('relevance');
+  const [sortBy, setSortBy] = useState<'date' | 'type'>('date');
   const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -75,14 +75,8 @@ export function SourceDrawer({
     switch (sortBy) {
       case 'date':
         return b.timestamp - a.timestamp;
-      case 'relevance':
-        return b.relevanceScore - a.relevanceScore;
-      case 'confidence':
-        const confOrder = { high: 3, medium: 2, low: 1 };
-        return (
-          confOrder[b.confidenceLevel as keyof typeof confOrder] -
-          confOrder[a.confidenceLevel as keyof typeof confOrder]
-        );
+      case 'type':
+        return a.type.localeCompare(b.type);
       default:
         return 0;
     }
@@ -215,9 +209,8 @@ export function SourceDrawer({
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-3 py-1 text-sm border rounded-md bg-background"
               >
-                <option value="relevance">Sort by Relevance</option>
                 <option value="date">Sort by Date</option>
-                <option value="confidence">Sort by Confidence</option>
+                <option value="type">Sort by Type</option>
               </select>
 
               <Button variant="outline" size="sm" onClick={exportFindings}>
@@ -261,14 +254,6 @@ export function SourceDrawer({
                                   Conflicting
                                 </Badge>
                               )}
-                              <Badge
-                                className={cn(
-                                  'text-xs',
-                                  getConfidenceColor(finding.confidenceLevel)
-                                )}
-                              >
-                                {finding.confidenceLevel} confidence
-                              </Badge>
                             </div>
                             <h3
                               className="font-semibold text-sm cursor-pointer hover:text-primary"
@@ -313,29 +298,28 @@ export function SourceDrawer({
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
-                            {finding.source.name}
+                            {finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type || 'Research Source'}
                           </div>
-                          {finding.source.publishDate && (
+                          {finding.publishedAt && (
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(finding.source.publishDate).toLocaleDateString()}
+                              {new Date(finding.publishedAt).toLocaleDateString()}
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <Star className="h-3 w-3" />
-                            {Math.round(finding.relevanceScore * 100)}% relevant
-                          </div>
                         </div>
 
                         {/* Expanded Content */}
                         {isExpanded && (
                           <div className="pt-3 border-t space-y-3">
-                            <div>
-                              <h4 className="text-sm font-medium mb-1">Full Details</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {finding.details}
-                              </p>
-                            </div>
+                            {finding.details && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Full Details</h4>
+                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                  {/* Remove markdown formatting for now */}
+                                  {finding.details.replace(/[#*`_]/g, '').trim()}
+                                </p>
+                              </div>
+                            )}
 
                             {finding.extractedEntities && (
                               <div>

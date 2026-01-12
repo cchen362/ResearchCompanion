@@ -251,12 +251,12 @@ class AnalyticsService {
         .filter(f =>
           f.timestamp >= treatmentTimestamp &&
           f.timestamp <= thirtyDaysLater &&
-          f.relevanceScore >= 8
+          (f.priority === 'critical' || f.priority === 'high')
         )
         .map(f => ({
           date: new Date(f.timestamp),
           description: f.title,
-          impact: f.relevanceScore >= 9 ? 'major' as const : 'moderate' as const
+          impact: f.priority === 'critical' ? 'major' as const : 'moderate' as const
         }));
 
       // Calculate overall effectiveness
@@ -449,7 +449,7 @@ class AnalyticsService {
       const relevantFindings = findings.filter(f => {
         const findingDate = new Date(f.timestamp);
         return Math.abs(differenceInDays(findingDate, improvementDate)) <= 30 &&
-          f.relevanceScore >= 8;
+          (f.priority === 'critical' || f.priority === 'high');
       });
 
       if (relevantFindings.length > 0) {
@@ -505,8 +505,9 @@ class AnalyticsService {
 
     findingsByTheme.forEach((themeFindings, theme) => {
       if (themeFindings.length >= 3) {
-        const avgRelevance = themeFindings.reduce((sum, f) => sum + f.relevanceScore, 0) / themeFindings.length;
-        if (avgRelevance >= 7) {
+        // Check if majority are high priority instead of using deprecated relevanceScore
+        const highPriorityCount = themeFindings.filter(f => f.priority === 'critical' || f.priority === 'high').length;
+        if (highPriorityCount >= themeFindings.length * 0.6) {  // 60% or more are high priority
           insights.push({
             type: 'confirmation',
             title: `Strong consensus on ${theme}`,

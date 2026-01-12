@@ -77,22 +77,6 @@ export type FindingCategory =
   | 'epidemiology';    // Disease prevalence and patterns
 
 /**
- * Quality score for source reliability (0-100)
- * 0-30: Low quality (blogs, unverified sources)
- * 31-70: Medium quality (reputable media, preprints)
- * 71-100: High quality (peer-reviewed journals, clinical guidelines)
- */
-export type SourceQualityScore = number;
-
-/**
- * Confidence level with clear criteria:
- * - high: Peer-reviewed, randomized controlled trials, meta-analyses
- * - medium: Observational studies, case reports, expert opinions
- * - low: Preliminary data, anecdotal evidence, unverified sources
- */
-export type ConfidenceLevel = 'high' | 'medium' | 'low';
-
-/**
  * Priority level for findings:
  * - critical: Immediately actionable, safety-critical information
  * - high: Important for treatment decisions
@@ -120,18 +104,13 @@ export interface ResearchFinding {
   details: string;
   content?: string;  // Full content (alias for details for backward compat)
 
-  // Source and quality
+  // Source information
   source: ResearchSource;
-  sourceQuality?: SourceQualityScore; // 0-100 score for source reliability
 
   // Categorization and tagging
   category?: FindingCategory;  // Category for classification
   tags?: string[];  // Descriptive tags for filtering and grouping
   priority?: FindingPriority;  // Priority level for display
-
-  // Scoring and confidence
-  relevanceScore: number; // 0-10 scale (displayed as 0-10 in UI)
-  confidenceLevel: ConfidenceLevel; // With clear criteria
 
   // Status flags
   isNew: boolean;  // New within last 7 days
@@ -174,14 +153,12 @@ export interface ResearchSource {
   name: string;
   title?: string;  // Title of the source (alias for name for backward compat)
   url?: string;
-  type: 'journal' | 'fda' | 'clinical_trial' | 'medical_site' | 'community' | 'pubmed' | 'guidelines' | 'research_paper';
+  type: 'journal' | 'fda' | 'clinical_trial' | 'medical_site' | 'community' | 'pubmed' | 'guidelines' | 'research_paper' | 'web';
 
-  // Quality and credibility
-  credibilityScore?: number; // Deprecated - use sourceQuality in ResearchFinding instead
-  sourceQuality?: SourceQualityScore; // 0-100 quality score
+  // Source characteristics (factual information only)
   credibility?: 'peer-reviewed' | 'preprint' | 'news' | 'blog' | 'unknown';
-  impactFactor?: number; // Journal impact factor
-  citationCount?: number; // Number of citations
+  impactFactor?: number; // Journal impact factor (factual metric)
+  citationCount?: number; // Number of citations (factual metric)
 
   // Metadata
   publishDate?: string;

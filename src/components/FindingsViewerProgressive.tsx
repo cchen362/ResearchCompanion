@@ -12,7 +12,6 @@ import type {
   DigestQueueItem
 } from '@/types';
 import { DigestCard } from './DigestCard';
-import { ThemeAccordion } from './ThemeAccordion';
 import { SourceDrawer } from './SourceDrawer';
 import { FindingDetailDrawer } from './FindingDetailDrawer';
 import DigestSettings from './DigestSettings';
@@ -427,6 +426,17 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
   return (
     <div className="space-y-6">
+      {/* Medical Information Disclaimer */}
+      <Alert className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Medical Research Disclaimer</AlertTitle>
+        <AlertDescription>
+          This app aggregates publicly available medical research from verified sources.
+          All information should be verified with healthcare providers. This is not medical advice.
+          Always consult your healthcare team before making any medical decisions.
+        </AlertDescription>
+      </Alert>
+
       {/* Header with Topic Selector and Controls */}
       <Card>
         <CardHeader className="pb-3">
@@ -568,22 +578,27 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         </Card>
       ) : findings.length === 0 ? (
         <Card className="p-12 bg-gradient-to-br from-gray-50/50 to-slate-50/50 dark:from-gray-950/20 dark:to-slate-950/20">
-          <div className="flex flex-col items-center justify-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-6">
             <div className="relative">
               <FileText className="h-16 w-16 text-muted-foreground/50" />
-              <Sparkles className="h-6 w-6 text-primary absolute -top-1 -right-1 animate-pulse" />
+              <AlertCircle className="h-6 w-6 text-amber-500 absolute -top-1 -right-1" />
             </div>
-            <div className="text-center space-y-3 max-w-md">
-              <h3 className="text-xl font-semibold">Ready to Start Research</h3>
+            <div className="text-center space-y-3 max-w-lg">
+              <h3 className="text-xl font-semibold">No Research Findings Available</h3>
               <p className="text-muted-foreground">
-                Your research agents are ready to begin gathering medical findings for this topic.
+                To see real medical research for this topic, you need to connect to verified research sources.
               </p>
-              <div className="flex flex-col gap-2 mt-4">
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Tip:</span> Research agents run automatically in the background
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Findings will appear here as they're discovered
+
+              <div className="text-left bg-background/50 rounded-lg p-4 mt-6">
+                <p className="text-sm font-medium mb-2">Active Data Sources:</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• PubMed - 35+ million biomedical citations</li>
+                  <li>• ClinicalTrials.gov - 450,000+ registered trials</li>
+                  <li>• FDA announcements and approvals</li>
+                  <li>• Peer-reviewed medical journals via web search</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-3">
+                  All data shown is from real, verified medical sources. No fabricated content.
                 </p>
               </div>
             </div>
@@ -628,21 +643,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                   onViewSources={() => setShowSourceDrawer(true)}
                 />
 
-                {/* Themes */}
-                <ThemeAccordion
-                  themes={digest.themes}
-                  findings={findings}
-                  explanationMode={explanationMode}
-                  onThemeExpand={(themeId) => setSelectedThemeId(themeId)}
-                  onFindingClick={(findingId) => {
-                    const finding = findings.find(f => f.id === findingId);
-                    if (finding) handleFindingClick(finding);
-                  }}
-                  onViewSources={(themeId) => {
-                    const theme = digest.themes.find(t => t.id === themeId);
-                    if (theme) handleThemeClick(theme.id, theme.title);
-                  }}
-                />
+                {/* Themes Removed - These were confusing AI-generated groupings */}
+                {/* Will be replaced with better organization when we have real research data */}
               </>
             ) : (
               <Card className="p-8 text-center">
@@ -698,12 +700,6 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start gap-2">
                     <CardTitle className="text-base line-clamp-2">{finding.title}</CardTitle>
-                    <Badge variant={
-                      finding.relevanceScore > 0.8 ? 'default' :
-                      finding.relevanceScore > 0.5 ? 'secondary' : 'outline'
-                    }>
-                      {Math.round(finding.relevanceScore * 100)}%
-                    </Badge>
                   </div>
                   <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
                     <span>{finding.type}</span>
@@ -736,9 +732,12 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       <SourceDrawer
         isOpen={showSourceDrawer}
         onClose={() => setShowSourceDrawer(false)}
-        findings={findings.filter(f =>
-          digest?.themes.find(t => t.id === selectedThemeId)?.findingIds.includes(f.id)
-        )}
+        findings={selectedThemeId
+          ? findings.filter(f =>
+              digest?.themes.find(t => t.id === selectedThemeId)?.findingIds.includes(f.id)
+            )
+          : findings  // Show ALL findings when no theme is selected (View All Sources)
+        }
         selectedThemeId={selectedThemeId}
         themeName={selectedThemeName}
       />

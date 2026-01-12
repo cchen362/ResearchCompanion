@@ -76,7 +76,7 @@ class ChatService {
             title: f.title || f.summary || 'Untitled Finding',
             content: (f.content || f.details || f.summary || '').substring(0, 500), // Truncate for context
             relevanceScore: f.relevanceScore || 0,
-            source: f.source?.title || f.source?.name || 'Unknown Source'
+            source: f.source?.displayName || f.source?.title || f.source?.name || 'Unknown Source'
           })),
           previousMessages: await this.getRecentMessages(request.chatId, 5)
         },

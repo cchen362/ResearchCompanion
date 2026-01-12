@@ -24,6 +24,13 @@ The Medical Companion PWA is a research-focused medical information companion th
 - **Structured Output**: Zod schema validation for AI responses
 - **Fallback Mechanisms**: Graceful degradation if AI services unavailable
 
+### 4. Facts, Not Scores™ Principle
+- **No Arbitrary Metrics**: System displays only factual, verifiable information
+- **No Mock Data**: Only real medical research from trusted sources
+- **Transparent Attribution**: Every piece of information clearly attributed to its source
+- **Factual Metadata Only**: Study type, participant count, publication date - never invented scores
+- **Trust Through Transparency**: Users can verify every claim through source links
+
 ## Technology Stack
 
 ### Frontend
@@ -40,6 +47,11 @@ The Medical Companion PWA is a research-focused medical information companion th
 - **AI Services**:
   - Anthropic SDK 0.71.2
   - OpenAI SDK 6.15.0
+- **Medical Data Sources**:
+  - PubMed API for peer-reviewed research
+  - ClinicalTrials.gov API for active trials
+  - FDA API for drug approvals and announcements
+  - Brave Search API for supplementary web research
 - **Validation**: Zod 4.3.5 for runtime type safety
 - **API Design**: RESTful with structured error handling
 

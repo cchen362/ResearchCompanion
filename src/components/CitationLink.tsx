@@ -111,12 +111,7 @@ export function CitationLink({ citation, onClose, className = '' }: CitationLink
                   {format(new Date(finding.foundDate), 'MMM dd, yyyy')}
                 </Badge>
 
-                {finding.relevanceScore && (
-                  <Badge variant="secondary">
-                    <Star className="h-3 w-3 mr-1" />
-                    {Math.round(finding.relevanceScore * 100)}% relevant
-                  </Badge>
-                )}
+                {/* relevanceScore display removed - deprecated metric */}
 
                 <Badge variant="outline">
                   {finding.agentType.replace(/_/g, ' ')}

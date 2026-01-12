@@ -274,8 +274,7 @@ Type: ${f.type}
 Title: ${f.title}
 Summary: ${f.summary}
 Source: ${f.source.name} (${f.source.type})
-Confidence: ${f.confidenceLevel}
-Relevance: ${Math.round(f.relevanceScore * 100)}%
+${f.priority ? `Priority: ${f.priority}` : ''}
 Date: ${f.source.publishDate || new Date(f.timestamp).toISOString()}
 ${f.extractedEntities?.medications ? `Medications: ${f.extractedEntities.medications.join(', ')}` : ''}
 ${f.isContradictory ? 'NOTE: This finding contradicts other research' : ''}`
@@ -423,12 +422,12 @@ Focus on practical, actionable information that helps with treatment decisions.`
     const allFindingIds = findings.map(f => f.id);
     const totalFindings = findings.length;
     const newFindings = findings.filter(f => f.isNew).length;
-    const highRelevanceCount = findings.filter(f => f.relevanceScore > 0.7).length;
+    // Use priority instead of deprecated relevanceScore
+    const highPriorityCount = findings.filter(f => f.priority === 'critical' || f.priority === 'high').length;
 
-    // Calculate average confidence
-    const confidenceMap = { high: 1, medium: 0.5, low: 0.25 };
-    const avgConfidence = findings.reduce((sum, f) =>
-      sum + (confidenceMap[f.confidenceLevel as keyof typeof confidenceMap] || 0.5), 0
+    // Calculate source quality average (using sourceQuality instead of deprecated confidenceLevel)
+    const avgSourceQuality = findings.reduce((sum, f) =>
+      sum + (f.sourceQuality || f.source?.sourceQuality || 50), 0
     ) / findings.length;
 
     // Calculate unique studies count properly
@@ -528,10 +527,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
       statistics: {
         totalFindings,
         newFindings,
-        highRelevanceCount,
+        highRelevanceCount: highPriorityCount,  // Now based on priority, not deprecated relevanceScore
         sourceCount: uniqueStudies.size,  // Now counts actual unique studies
-        platformCount: sourceMap.size,     // Number of different platforms
-        avgConfidence
+        avgConfidence: avgSourceQuality / 100  // Convert 0-100 source quality to 0-1 scale for legacy compatibility
       },
       topSources,
       allFindingIds
@@ -563,10 +561,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
         statistics: {
           totalFindings: findings.length,
           newFindings: findings.filter(f => f.isNew).length,
-          highRelevanceCount: findings.filter(f => f.relevanceScore > 0.7).length,
+          highRelevanceCount: findings.filter(f => f.priority === 'critical' || f.priority === 'high').length,
           sourceCount: new Set(findings.map(f => f.source?.name)).size,
-          platformCount: new Set(findings.map(f => f.source?.type)).size,
-          avgConfidence: 0.5
+          avgConfidence: 0.5  // Legacy field, no longer based on deprecated confidenceLevel
         },
         topSources: [],
         allFindingIds,

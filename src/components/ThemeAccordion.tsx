@@ -105,14 +105,7 @@ export function ThemeAccordion({
     }
   };
 
-  const getConfidenceBadge = (confidence: string) => {
-    const colors = {
-      high: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      low: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    };
-    return colors[confidence as keyof typeof colors] || colors.medium;
-  };
+  // getConfidenceBadge removed - deprecated confidence metric no longer displayed
 
   const getFindingsByTheme = (themeId: string): ResearchFinding[] => {
     const theme = themes.find(t => t.id === themeId);
@@ -174,25 +167,7 @@ export function ThemeAccordion({
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {theme.summary}
                     </p>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Relevance:</span>
-                        <span className="text-xs font-medium">
-                          {Math.round(theme.avgRelevance * 100)}%
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Confidence:</span>
-                        <span
-                          className={cn(
-                            'text-xs px-1.5 py-0.5 rounded',
-                            getConfidenceBadge(theme.avgConfidence)
-                          )}
-                        >
-                          {theme.avgConfidence}
-                        </span>
-                      </div>
-                    </div>
+                    {/* Deprecated metrics (relevance/confidence) removed - not appropriate for medical info */}
                     {theme.entities && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {theme.entities.medications?.slice(0, 3).map((med, idx) => (

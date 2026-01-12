@@ -24,7 +24,7 @@ router.post('/parse-search-query', async (req, res) => {
 });
 
 /**
- * Perform web search using DuckDuckGo (no API key required)
+ * Perform web search using search service
  */
 router.post('/websearch', async (req, res) => {
   try {
@@ -34,24 +34,13 @@ router.post('/websearch', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    // Using DuckDuckGo HTML API (no key required)
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' medical research')}`;
+    // Import search service
+    const { searchService } = await import('../services/search.service.js');
 
-    // For now, return mock data since web scraping requires additional setup
-    const mockResults = [
-      {
-        title: 'Recent Advances in Treatment',
-        url: 'https://example.com/treatment',
-        snippet: 'New research shows promising results for treatment approaches...'
-      },
-      {
-        title: 'Clinical Trial Updates',
-        url: 'https://clinicaltrials.gov/study/example',
-        snippet: 'Phase 3 trial demonstrates significant improvement...'
-      }
-    ];
+    // Use real web search or return empty if not configured
+    const results = await searchService.searchWeb(query, limit);
 
-    res.json({ results: mockResults });
+    res.json({ results });
   } catch (error) {
     console.error('Error in websearch:', error);
     res.status(500).json({ error: 'Failed to perform search' });

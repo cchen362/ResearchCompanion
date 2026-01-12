@@ -81,6 +81,10 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
 
       // Step 4: Convert to ResearchFinding format
       for (const result of searchResults) {
+        // Handle source properly - backend returns it as an object
+        const sourceName = result.source?.displayName || result.source?.name || result.journal || 'Unknown Source';
+        const sourceUrl = result.source?.url || result.url || '';
+
         const finding: ResearchFinding = {
           id: generateId(),
           agentId: agent.id,
@@ -90,13 +94,12 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
           summary: result.snippet || result.abstract || result.briefSummary || '',
           details: summary,
           source: {
-            name: result.source || result.journal || 'Unknown Source',
-            url: result.url || '',
+            name: sourceName,
+            url: sourceUrl,
             type: determineSourceType(result),
-            publishDate: result.publishDate || result.pubdate || new Date().toISOString()
+            publishDate: result.publishedAt || result.publishDate || result.pubdate || new Date().toISOString()
           },
-          relevanceScore: calculateRelevance(result, topic),
-          confidenceLevel: 'medium',
+          // relevanceScore and confidenceLevel removed - misleading metrics
           isNew: true,
           timestamp: Date.now()
         };
@@ -117,8 +120,8 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
         await db.add('findings', finding);
       }
 
-      // Create notification for important findings
-      if (findings.some(f => f.relevanceScore > 0.8)) {
+      // Create notification for new findings
+      if (findings.length > 0) {
         await createNotification(topic, findings.length);
       }
     }
@@ -224,41 +227,23 @@ function determineType(agentType: string): ResearchFinding['type'] {
  * Determine source type from result
  */
 function determineSourceType(result: any): ResearchFinding['source']['type'] {
+  // Check if source is an object from backend
+  if (result.source?.type) {
+    return result.source.type as ResearchFinding['source']['type'];
+  }
+
+  // Fallback checks for other fields
   if (result.journal) return 'journal';
-  if (result.nctId) return 'clinical_trial';
-  if (result.source?.toLowerCase().includes('fda')) return 'fda';
+  if (result.nctId || result.metadata?.nctId) return 'clinical_trial';
+  if (result.type === 'regulatory') return 'fda';
+  if (result.type === 'research') return 'journal';
+  if (result.type === 'clinical_trial') return 'clinical_trial';
+  if (result.type === 'article') return 'medical_site';
+
   return 'medical_site';
 }
 
-/**
- * Calculate relevance score
- */
-function calculateRelevance(result: any, topic: Topic): number {
-  let score = 0.5;
-
-  const title = (result.title || '').toLowerCase();
-  const content = (result.snippet || result.abstract || '').toLowerCase();
-  const diseaseName = topic.diseaseProfile.name.toLowerCase();
-
-  // Check title relevance
-  if (title.includes(diseaseName)) score += 0.2;
-  if (title.includes('breakthrough') || title.includes('novel')) score += 0.1;
-
-  // Check content relevance
-  if (content.includes(diseaseName)) score += 0.1;
-
-  // Check recency
-  if (result.publishDate || result.pubdate) {
-    const date = new Date(result.publishDate || result.pubdate);
-    const monthsOld = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    if (monthsOld < 3) score += 0.1;
-  }
-
-  // Clinical trials get bonus
-  if (result.nctId && result.status === 'RECRUITING') score += 0.15;
-
-  return Math.min(score, 1);
-}
+// calculateRelevance function removed - relevanceScore metric is deprecated and misleading for medical information
 
 /**
  * Calculate API cost

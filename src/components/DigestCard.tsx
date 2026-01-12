@@ -161,7 +161,7 @@ export function DigestCard({
             </div>
 
             {/* Statistics Bar - Only show meaningful metrics */}
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 gap-4 text-center">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -194,21 +194,6 @@ export function DigestCard({
                 </Tooltip>
               </TooltipProvider>
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-3 bg-background/50 rounded cursor-help">
-                      <div className="text-2xl font-bold">
-                        {digest.themes.length}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Key Themes</div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Major research themes identified across all findings</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
           </div>
         </CardContent>
@@ -342,92 +327,8 @@ export function DigestCard({
         </Card>
       )}
 
-      {/* Research Trends - Only show if there's actual data */}
-      {(digest.trends.emerging.length > 0 || digest.trends.declining.length > 0) && (
-        <Card>
-          <CardHeader
-            className="cursor-pointer"
-            onClick={() => toggleSection('trends')}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Research Trends
-              </CardTitle>
-              {expandedSections.has('trends') ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </div>
-          </CardHeader>
-          {expandedSections.has('trends') && (
-            <CardContent>
-              <div className="space-y-4">
-                {/* Emerging Trends */}
-                {digest.trends.emerging.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      Emerging Research
-                    </h4>
-                    <div className="space-y-1">
-                      {digest.trends.emerging.map((trend, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 bg-green-50/50 dark:bg-green-950/20 rounded"
-                        >
-                          <span className="text-sm">{trend.topic}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {trend.findingCount} findings
-                            </Badge>
-                            {trend.changePercent && (
-                              <span className="text-xs text-green-600">
-                                +{trend.changePercent}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Declining Trends */}
-                {digest.trends.declining.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                      Declining Focus
-                    </h4>
-                    <div className="space-y-1">
-                      {digest.trends.declining.map((trend, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 bg-red-50/50 dark:bg-red-950/20 rounded"
-                        >
-                          <span className="text-sm">{trend.topic}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {trend.findingCount} findings
-                            </Badge>
-                            {trend.changePercent && (
-                              <span className="text-xs text-red-600">
-                                {trend.changePercent}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      )}
+      {/* Research Trends Removed - These were misleading AI-generated placeholders */}
+      {/* Will be replaced with real temporal analysis when we have actual historical data */}
 
       {/* View All Sources Button */}
       <div className="flex justify-center">

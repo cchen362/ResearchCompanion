@@ -143,19 +143,19 @@ class ExportService {
 
     yPosition += 10;
 
-    // Group findings by relevance
-    const highRelevance = findings.filter(f => f.relevanceScore >= 8);
-    const mediumRelevance = findings.filter(f => f.relevanceScore >= 5 && f.relevanceScore < 8);
-    const lowRelevance = findings.filter(f => f.relevanceScore < 5);
+    // Group findings by priority instead of deprecated relevanceScore
+    const criticalFindings = findings.filter(f => f.priority === 'critical');
+    const highPriorityFindings = findings.filter(f => f.priority === 'high');
+    const otherFindings = findings.filter(f => f.priority !== 'critical' && f.priority !== 'high');
 
-    // High relevance findings
-    if (highRelevance.length > 0) {
+    // Critical findings
+    if (criticalFindings.length > 0) {
       pdf.setFontSize(13);
       pdf.setTextColor(...primaryColor);
-      pdf.text('High Relevance Findings', 20, yPosition);
+      pdf.text('Critical Priority Findings', 20, yPosition);
       yPosition += 8;
 
-      highRelevance.forEach(finding => {
+      criticalFindings.forEach(finding => {
         if (yPosition > 260) {
           pdf.addPage();
           yPosition = 20;
@@ -174,7 +174,85 @@ class ExportService {
         pdf.setFontSize(9);
         pdf.setTextColor(100, 100, 100);
         pdf.text(
-          `Source: ${finding.source.name} | Confidence: ${finding.confidenceLevel}/10 | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
+          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
+          25,
+          yPosition
+        );
+        yPosition += 10;
+      });
+    }
+
+    // High priority findings
+    if (highPriorityFindings.length > 0) {
+      if (yPosition > 200) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(13);
+      pdf.setTextColor(...primaryColor);
+      pdf.text('High Priority Findings', 20, yPosition);
+      yPosition += 8;
+
+      highPriorityFindings.forEach(finding => {
+        if (yPosition > 260) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(...textColor);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(finding.title, 25, yPosition);
+        pdf.setFont(undefined, 'normal');
+        yPosition += 7;
+
+        pdf.setFontSize(10);
+        yPosition += addWrappedText(finding.summary, 25, yPosition, 165);
+
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(
+          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
+          25,
+          yPosition
+        );
+        yPosition += 10;
+      });
+    }
+
+    // Other findings
+    if (otherFindings.length > 0) {
+      if (yPosition > 200) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(13);
+      pdf.setTextColor(...primaryColor);
+      pdf.text('Other Findings', 20, yPosition);
+      yPosition += 8;
+
+      otherFindings.forEach(finding => {
+        if (yPosition > 260) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(...textColor);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(finding.title, 25, yPosition);
+        pdf.setFont(undefined, 'normal');
+        yPosition += 7;
+
+        pdf.setFontSize(10);
+        yPosition += addWrappedText(finding.summary, 25, yPosition, 165);
+
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(
+          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
           25,
           yPosition
         );
@@ -243,8 +321,7 @@ class ExportService {
       'Details': finding.details,
       'Source': finding.source.name,
       'Source Type': finding.source.type,
-      'Relevance Score': finding.relevanceScore,
-      'Confidence Level': finding.confidenceLevel,
+      'Priority': finding.priority || 'medium',
       'Published Date': finding.publishedAt ? format(finding.publishedAt, 'yyyy-MM-dd') : '',
       'Added Date': format(finding.timestamp, 'yyyy-MM-dd HH:mm'),
       'Category': finding.category || '',
@@ -359,8 +436,8 @@ class ExportService {
         interpretation: [{
           coding: [{
             system: 'http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation',
-            code: finding.relevanceScore >= 8 ? 'H' : finding.relevanceScore >= 5 ? 'N' : 'L',
-            display: finding.relevanceScore >= 8 ? 'High' : finding.relevanceScore >= 5 ? 'Normal' : 'Low'
+            code: finding.priority === 'critical' || finding.priority === 'high' ? 'H' : finding.priority === 'low' ? 'L' : 'N',
+            display: finding.priority === 'critical' || finding.priority === 'high' ? 'High' : finding.priority === 'low' ? 'Low' : 'Normal'
           }]
         }],
         performer: [{

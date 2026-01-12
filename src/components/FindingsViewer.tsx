@@ -59,7 +59,8 @@ export default function FindingsViewer({ topicId }: FindingsViewerProps) {
       case 'new':
         return findings.filter(f => f.isNew);
       case 'high-relevance':
-        return findings.filter(f => f.relevanceScore >= 0.8);
+        // Filter by priority instead of deprecated relevanceScore
+        return findings.filter(f => f.priority === 'critical' || f.priority === 'high');
       default:
         return findings;
     }
@@ -177,7 +178,7 @@ export default function FindingsViewer({ topicId }: FindingsViewerProps) {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                High Relevance ({findings.filter(f => f.relevanceScore >= 0.8).length})
+                High Priority ({findings.filter(f => f.priority === 'critical' || f.priority === 'high').length})
               </button>
             </div>
           </div>
@@ -240,11 +241,17 @@ export default function FindingsViewer({ topicId }: FindingsViewerProps) {
                     )}
 
                     <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(finding.confidenceLevel)}`}>
-                        {finding.confidenceLevel} confidence
-                      </span>
-                      <span>Relevance: {Math.round(finding.relevanceScore * 100)}%</span>
-                      <span>{finding.source.name}</span>
+                      {finding.priority && (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          finding.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                          finding.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                          finding.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {finding.priority} priority
+                        </span>
+                      )}
+                      <span>{finding.source.displayName || finding.source.name}</span>
                       <span>{new Date(finding.timestamp).toLocaleDateString()}</span>
                     </div>
 

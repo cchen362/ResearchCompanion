@@ -23,25 +23,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
     pubmedId: finding.metadata?.pubmedId,
   };
 
-  // Determine confidence badge color
-  const getConfidenceColor = (level: string) => {
-    switch(level.toLowerCase()) {
-      case 'high': return 'bg-green-100 text-green-800 border-green-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  // Determine relevance indicator
-  const getRelevanceLabel = (score: number) => {
-    if (score > 0.8) return { label: 'Highly Relevant', color: 'text-green-600' };
-    if (score > 0.6) return { label: 'Relevant', color: 'text-blue-600' };
-    if (score > 0.4) return { label: 'Somewhat Relevant', color: 'text-gray-600' };
-    return { label: 'Peripherally Related', color: 'text-gray-400' };
-  };
-
-  const relevance = getRelevanceLabel(finding.relevanceScore);
+  // Deprecated confidence and relevance metrics removed - not appropriate for medical information
 
   return (
     <>
@@ -68,12 +50,6 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                   {finding.title}
                 </h2>
                 <div className="flex items-center gap-4 mt-2">
-                  <span className={`text-sm font-medium ${relevance.color}`}>
-                    {relevance.label}
-                  </span>
-                  <span className={`px-2 py-1 text-xs rounded-full border ${getConfidenceColor(finding.confidenceLevel)}`}>
-                    {finding.confidenceLevel} Confidence
-                  </span>
                   {finding.isNew && (
                     <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
                       New
@@ -136,9 +112,6 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                   <div className="flex-1">
                     <span className="text-sm text-gray-600">Source:</span>
                     <span className="ml-2 text-sm font-medium text-gray-900">{finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type}</span>
-                    <span className="ml-2 text-xs text-gray-500">
-                      (Credibility: {Math.round((finding.source.credibilityScore || 0.7) * 100)}%)
-                    </span>
                   </div>
                 </div>
               </div>
@@ -192,9 +165,9 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
             <div className="border-t pt-4">
               <h3 className="font-medium text-gray-900 mb-3">Access Full Study</h3>
               <div className="space-y-2">
-                {finding.url && (
+                {finding.source?.url && (
                   <a
-                    href={finding.url}
+                    href={finding.source.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"

@@ -15,7 +15,6 @@ const ChatRequestSchema = z.object({
       id: z.string(),
       title: z.string().optional(),
       content: z.string(),
-      relevanceScore: z.number().optional(),
       source: z.string()
     })).optional(),
     previousMessages: z.array(z.object({

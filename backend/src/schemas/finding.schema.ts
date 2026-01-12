@@ -18,9 +18,6 @@ export const FindingCategorySchema = z.enum([
 // Priority enum
 export const FindingPrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
 
-// Confidence level enum
-export const ConfidenceLevelSchema = z.enum(['high', 'medium', 'low']);
-
 // Source type enum
 export const SourceTypeSchema = z.enum([
   'journal',
@@ -83,16 +80,11 @@ export const ResearchFindingSchema = z.object({
 
   // Source and quality
   source: ResearchSourceSchema,
-  sourceQuality: z.number().min(0).max(100).optional().default(50),
 
   // Categorization
   category: FindingCategorySchema.optional(),
   tags: z.array(z.string()).optional().default([]),
   priority: FindingPrioritySchema.optional().default('medium'),
-
-  // Scoring
-  relevanceScore: z.number().min(0).max(10).default(5),
-  confidenceLevel: ConfidenceLevelSchema,
 
   // Status flags
   isNew: z.boolean().default(true),

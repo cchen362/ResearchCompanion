@@ -11,10 +11,7 @@ const testData = {
       source: {
         name: "ClinicalTrials.gov",
         type: "clinical-trial",
-        credibilityScore: 0.9
       },
-      relevanceScore: 0.85,
-      confidenceLevel: "high",
       isNew: true,
       timestamp: Date.now(),
       metadata: {
@@ -29,10 +26,7 @@ const testData = {
       source: {
         name: "Nature Medicine",
         type: "journal",
-        credibilityScore: 0.95
       },
-      relevanceScore: 0.78,
-      confidenceLevel: "high",
       isNew: true,
       timestamp: Date.now(),
       metadata: {
@@ -47,10 +41,7 @@ const testData = {
       source: {
         name: "FDA Database",
         type: "regulatory",
-        credibilityScore: 0.98
       },
-      relevanceScore: 0.72,
-      confidenceLevel: "medium",
       isNew: false,
       timestamp: Date.now()
     }
