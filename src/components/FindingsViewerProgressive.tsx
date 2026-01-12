@@ -704,7 +704,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                   <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
                     <span>{finding.type}</span>
                     <span>•</span>
-                    <span>{finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type}</span>
+                    <span>{finding.source.displayName || 'Research Database'}</span>
                     <span>•</span>
                     <span>{formatDistanceToNow(finding.timestamp)} ago</span>
                   </div>

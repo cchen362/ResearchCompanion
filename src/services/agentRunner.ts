@@ -81,9 +81,33 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
 
       // Step 4: Convert to ResearchFinding format
       for (const result of searchResults) {
-        // Handle source properly - backend returns it as an object
-        const sourceName = result.source?.displayName || result.source?.name || result.journal || 'Unknown Source';
-        const sourceUrl = result.source?.url || result.url || '';
+        // DEBUG: Log what we receive from backend
+        console.log('Backend result source:', result.source);
+
+        // Preserve the complete source object from backend
+        let sourceObject;
+        if (result.source && typeof result.source === 'object') {
+          // Backend provided a complete source object - preserve ALL fields
+          sourceObject = {
+            ...result.source, // Keep everything from backend
+            // Ensure critical fields are present
+            name: result.source.name || result.source.displayName || result.journal || 'Research Database',
+            displayName: result.source.displayName || result.source.name || result.journal || 'Research Database',
+            url: result.source.url || result.url || '',
+            type: result.source.type || determineSourceType(result),
+            publishDate: result.source.publishDate || result.publishedAt || result.publishDate || new Date().toISOString()
+          };
+        } else {
+          // Fallback: construct source from available fields
+          const fallbackName = result.journal || result.sponsor || 'Research Database';
+          sourceObject = {
+            name: fallbackName,
+            displayName: fallbackName,
+            url: result.url || '',
+            type: determineSourceType(result),
+            publishDate: result.publishedAt || result.publishDate || new Date().toISOString()
+          };
+        }
 
         const finding: ResearchFinding = {
           id: generateId(),
@@ -92,13 +116,8 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
           type: determineType(agent.type),
           title: result.title || result.briefTitle || 'Untitled',
           summary: result.snippet || result.abstract || result.briefSummary || '',
-          details: result.details || result.description || result.snippet || result.abstract || summary,
-          source: {
-            name: sourceName,
-            url: sourceUrl,
-            type: determineSourceType(result),
-            publishDate: result.publishedAt || result.publishDate || result.pubdate || new Date().toISOString()
-          },
+          details: result.details || result.summary || result.briefSummary || '', // Ensure details has content
+          source: sourceObject,
           // relevanceScore and confidenceLevel removed - misleading metrics
           isNew: true,
           timestamp: Date.now()

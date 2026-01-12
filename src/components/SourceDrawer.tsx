@@ -298,7 +298,7 @@ export function SourceDrawer({
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
-                            {finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type || 'Research Source'}
+                            {finding.source.displayName || 'Research Database'}
                           </div>
                           {finding.publishedAt && (
                             <div className="flex items-center gap-1">

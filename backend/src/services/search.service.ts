@@ -172,11 +172,20 @@ export class SearchService {
         const briefSummary = identificationModule.briefSummary?.textBlock || 'No summary available';
         const detailedDescription = protocolSection.descriptionModule?.detailedDescription?.textBlock || '';
 
-        // Improved sponsor name extraction with multiple fallbacks
-        const sponsorName = sponsorModule?.leadSponsor?.name ||
-                          sponsorModule?.responsibleParty?.investigatorFullName ||
-                          sponsorModule?.collaborators?.[0]?.name ||
-                          'ClinicalTrials.gov';
+        // Improved sponsor name extraction with multiple fallbacks and defensive checks
+        let sponsorName = sponsorModule?.leadSponsor?.name || '';
+
+        // Try multiple fallbacks and ensure we never get empty string
+        if (!sponsorName || sponsorName.trim() === '') {
+          sponsorName = sponsorModule?.responsibleParty?.investigatorFullName || '';
+        }
+        if (!sponsorName || sponsorName.trim() === '') {
+          sponsorName = sponsorModule?.collaborators?.[0]?.name || '';
+        }
+        if (!sponsorName || sponsorName.trim() === '') {
+          // Final fallback - always show something meaningful
+          sponsorName = 'ClinicalTrials.gov Registry';
+        }
 
         // Add unique identifier to details to prevent duplication
         const uniqueDetails = `${detailedDescription || briefSummary}\n\n───────────\nTrial ID: ${identificationModule.nctId}\nSponsor: ${sponsorName}`;

@@ -17,7 +17,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
     type: finding.metadata?.studyType || 'Research Study',
     participants: finding.metadata?.sampleSize || 'Not specified',
     duration: finding.metadata?.duration || 'Not specified',
-    location: finding.metadata?.location || finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type,
+    location: finding.metadata?.location || finding.source.displayName || 'Research Database',
     publicationDate: finding.publishedAt ? new Date(finding.publishedAt).toLocaleDateString() : 'Recent',
     doi: finding.metadata?.doi,
     pubmedId: finding.metadata?.pubmedId,
@@ -111,7 +111,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                   <Shield className="h-4 w-4 text-gray-400 mt-1" />
                   <div className="flex-1">
                     <span className="text-sm text-gray-600">Source:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-900">{finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type}</span>
+                    <span className="ml-2 text-sm font-medium text-gray-900">{finding.source.displayName || 'Research Database'}</span>
                   </div>
                 </div>
               </div>
@@ -173,7 +173,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    <span className="text-sm">View on {finding.source.displayName || finding.source.journal || finding.source.name || finding.source.type}</span>
+                    <span className="text-sm">View on {finding.source.displayName || 'Research Database'}</span>
                   </a>
                 )}
                 {studyDetails.doi && (

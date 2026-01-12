@@ -90,15 +90,29 @@ router.post('/run-agent', async (req, res) => {
 
     findingsCount = searchResults.length;
 
-    // Normalize sources to ensure displayName is always populated
+    // Normalize sources to ensure displayName is always populated with meaningful defaults
     searchResults = searchResults.map(result => {
       if (result.source) {
-        // Ensure displayName is set - use existing displayName, or fall back to name
-        if (!result.source.displayName) {
-          result.source.displayName = result.source.name || 'Unknown Source';
+        // Type-specific default names for better UX
+        const defaultNames = {
+          'clinical_trial': 'ClinicalTrials.gov Registry',
+          'pubmed': 'PubMed',
+          'fda': 'FDA',
+          'web': 'Web Source'
+        };
+
+        // Ensure displayName is set - use existing displayName, name, or type-specific default
+        if (!result.source.displayName || result.source.displayName.trim() === '') {
+          if (result.source.name && result.source.name.trim() !== '') {
+            result.source.displayName = result.source.name;
+          } else {
+            // Use type-specific default
+            result.source.displayName = defaultNames[result.source.type] || 'Research Database';
+          }
         }
+
         // Ensure name is also set for backward compatibility
-        if (!result.source.name) {
+        if (!result.source.name || result.source.name.trim() === '') {
           result.source.name = result.source.displayName;
         }
       }
