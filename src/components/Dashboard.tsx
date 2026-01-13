@@ -7,7 +7,11 @@ import { getDB } from '@/utils/db/database';
 import { Search, FileText, Bot, MessageSquare, TrendingUp, Plus } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 
-export default function Dashboard() {
+interface DashboardProps {
+  setCurrentView?: (view: string) => void;
+}
+
+export default function Dashboard({ setCurrentView }: DashboardProps) {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [pendingAgents, setPendingAgents] = useState<Agent[]>([]);
   const [recentFindings, setRecentFindings] = useState<ResearchFinding[]>([]);
@@ -87,7 +91,11 @@ export default function Dashboard() {
             </div>
             {hasNewFindings && (
               <button
-                onClick={() => window.location.href = '/findings'}
+                onClick={() => {
+                  if (setCurrentView) {
+                    setCurrentView('findings');
+                  }
+                }}
                 className="ml-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
               >
                 View New Findings
@@ -150,8 +158,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <button
               onClick={() => {
-                // Navigate to Topics page
-                window.location.href = '/topics';
+                if (setCurrentView) {
+                  setCurrentView('topics');
+                }
               }}
               className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -161,8 +170,9 @@ export default function Dashboard() {
 
             <button
               onClick={() => {
-                // Navigate to Findings page
-                window.location.href = '/findings';
+                if (setCurrentView) {
+                  setCurrentView('findings');
+                }
               }}
               className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -172,8 +182,9 @@ export default function Dashboard() {
 
             <button
               onClick={() => {
-                // Navigate to Agents page
-                window.location.href = '/agents';
+                if (setCurrentView) {
+                  setCurrentView('agents');
+                }
               }}
               className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -204,7 +215,9 @@ export default function Dashboard() {
                     message: `${pendingAgents.length} agents are ready to run. Go to Agents page to run them.`,
                     duration: 4000
                   });
-                  window.location.href = '/agents';
+                  if (setCurrentView) {
+                    setCurrentView('agents');
+                  }
                 } else {
                   showToast({
                     type: 'info',
@@ -224,8 +237,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => {
-                // Navigate to Timeline/Insights page
-                window.location.href = '/timeline';
+                // Navigate to Analytics page (was incorrectly going to timeline)
+                if (setCurrentView) {
+                  setCurrentView('analytics');
+                }
               }}
               className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
