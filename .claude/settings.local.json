@@ -50,7 +50,8 @@
       "Bash(dir /B \"c:\\Users\\cchen362\\OneDrive\\Desktop\\medical-companion-pwa\\backend\" 2)",
       "Bash(cat:*)",
       "Bash(powershell -Command \"Stop-Process -Id 397264 -Force\")",
-      "Bash(start chrome http://localhost:5193/)"
+      "Bash(start chrome http://localhost:5193/)",
+      "Bash(uipro init:*)"
     ],
     "deny": [],
     "ask": []
