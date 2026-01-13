@@ -654,6 +654,61 @@ const finding = {
 4. **Check for Type-Specific Bugs**: If one type works but another doesn't, compare their data flow paths
 5. **Use Debug Logging**: Add `console.log` at critical points to see actual data structure
 
+### The Voice Recording Fix Investigation (January 2025)
+
+**Problem**: Voice recordings disappeared when navigating away, despite successful processing.
+
+**Root Cause**: Service worker had hardcoded DB version 1 while main app used version 4.
+
+#### Critical Discovery - "Works in Incognito"
+When the app worked in incognito mode but not regular browser, this immediately indicated:
+- Service worker cache issues
+- IndexedDB version mismatches
+- Browser cache conflicts
+
+#### The Version Mismatch
+
+```javascript
+// ❌ BAD: Service worker hardcoded to old version
+// public/sw.js
+const dbRequest = indexedDB.open('MedCompanionDB', 1); // Hardcoded!
+
+// src/utils/db/database.ts
+const DB_VERSION = 4; // Main app at version 4
+
+// Result: VersionError when service worker tries to open DB
+```
+
+#### The Solution
+
+1. **Centralized Version Management** ([src/utils/db/version.ts](src/utils/db/version.ts)):
+```typescript
+export const DB_VERSION = 4;
+export const CACHE_VERSION = 'v4';
+export const DB_NAME = 'MedCompanionDB';
+```
+
+2. **Updated Service Worker** to use correct version
+3. **Added Auto-Update PWA Configuration**
+4. **Created Cache Clear Utility** ([public/clear-cache.html](public/clear-cache.html))
+
+#### Key Lesson: PWA Version Management Protocol
+
+**CRITICAL**: When updating DB_VERSION, you MUST update ALL of these:
+1. `src/utils/db/version.ts` - Central version file
+2. `public/sw.js` - indexedDB.open() version parameter
+3. `public/sw.js` - CACHE_NAME version suffix
+4. Clear browser caches after deployment
+5. Document version change in VERSION_HISTORY
+
+**Warning Signs of Version Issues**:
+- App works in incognito but not regular browser
+- Data disappears on navigation
+- `VersionError` in console
+- Features work initially then break
+
+For detailed case study, see [docs/VOICE-RECORDING-FIX-CASE-STUDY.md](docs/VOICE-RECORDING-FIX-CASE-STUDY.md)
+
 ### Debugging Best Practices
 
 #### 1. Systematic Investigation
@@ -814,10 +869,15 @@ Closes #123
   - Root cause: Frontend was destroying backend's source object structure
   - Solution: Preserve complete backend objects using spread operator
   - Lesson: Always trace complete data flow when debugging
+- **v1.0.2** - Fixed Voice Recording persistence issue
+  - Root cause: Service worker DB version mismatch (hardcoded v1 vs app v4)
+  - Solution: Centralized version management, auto-update PWA config
+  - Lesson: "Works in incognito" = cache/version issue
+  - Added: Cache clear utility and version management protocol
 - **v2.0.0** (Planned) - Conversational interface
 - **v3.0.0** (Planned) - Knowledge graph visualization
 
 ---
 
-*Last Updated: January 12, 2025*
+*Last Updated: January 13, 2025*
 *Maintained by: Development Team*
