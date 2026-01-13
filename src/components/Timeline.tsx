@@ -292,15 +292,17 @@ export default function Timeline() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <button
-                          onClick={() => toggleEventExpansion(event.id)}
-                          className="text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                          {expandedEvents.has(event.id) ?
-                            <ChevronDown className="w-5 h-5" /> :
-                            <ChevronRight className="w-5 h-5" />
-                          }
-                        </button>
+                        {event.type === 'voice_note' && event.data?.summary && (
+                          <button
+                            onClick={() => toggleEventExpansion(event.id)}
+                            className="text-gray-600 hover:text-gray-800 transition-colors"
+                          >
+                            {expandedEvents.has(event.id) ?
+                              <ChevronDown className="w-5 h-5" /> :
+                              <ChevronRight className="w-5 h-5" />
+                            }
+                          </button>
+                        )}
                         <span className="text-2xl">{getEventIcon(event.type)}</span>
 
                         {editingTitle === event.id ? (

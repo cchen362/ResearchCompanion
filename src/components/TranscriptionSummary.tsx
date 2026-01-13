@@ -105,25 +105,38 @@ export function TranscriptionSummary({
     });
   };
 
-  // Parse visit summary to extract key information
+  // Parse visit summary to extract key information and preserve formatting
   const parseVisitSummary = (summary: string) => {
-    // Split into paragraphs and identify key medical terms
-    const paragraphs = summary.split(/\n\n|\. (?=[A-Z])/).filter(p => p.trim());
+    // Preserve original line breaks and split into paragraphs
+    // Split on double newlines or periods followed by capital letters after proper spacing
+    const paragraphs = summary
+      .split(/\n\n+/)  // Split on multiple newlines
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
 
-    // Extract first paragraph as executive summary
-    const executiveSummary = paragraphs[0] || summary;
+    // If no paragraphs found, try splitting on sentence boundaries
+    if (paragraphs.length === 1) {
+      // Split on periods that are followed by a space and capital letter, but preserve the period
+      const sentences = summary.match(/[^.!?]+[.!?]+/g) || [summary];
 
-    // Look for medical context (diagnosis, symptoms, treatment)
-    const medicalContext = paragraphs.slice(1).join(' ');
+      // Group sentences into logical paragraphs (2-3 sentences each for better readability)
+      if (sentences.length > 3) {
+        const firstPara = sentences.slice(0, 2).join(' ').trim();
+        const secondPara = sentences.slice(2).join(' ').trim();
+        return {
+          paragraphs: [firstPara, secondPara].filter(p => p.length > 0),
+          hasMultipleParagraphs: true
+        };
+      }
+    }
 
     return {
-      executiveSummary,
-      medicalContext,
+      paragraphs: paragraphs.length > 0 ? paragraphs : [summary],
       hasMultipleParagraphs: paragraphs.length > 1
     };
   };
 
-  const { executiveSummary, medicalContext, hasMultipleParagraphs } = parseVisitSummary(summary.visitSummary);
+  const { paragraphs, hasMultipleParagraphs } = parseVisitSummary(summary.visitSummary);
 
   // Categorize action items
   const categorizeActionItems = (items: string[]) => {
@@ -184,12 +197,28 @@ export function TranscriptionSummary({
 
       {/* Executive Summary - Always visible */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-        <p className="text-gray-800 leading-relaxed">{executiveSummary}</p>
-        {hasMultipleParagraphs && medicalContext && (
-          <div className="mt-3 pt-3 border-t border-blue-200">
-            <p className="text-sm text-gray-700 leading-relaxed">{medicalContext}</p>
-          </div>
-        )}
+        <div className="space-y-3">
+          {paragraphs.map((paragraph, index) => (
+            <div key={index}>
+              {index === 0 ? (
+                // First paragraph - executive summary (slightly larger)
+                <p className="text-gray-800 leading-relaxed font-medium">
+                  {paragraph}
+                </p>
+              ) : (
+                // Additional paragraphs with visual separation
+                <>
+                  {index === 1 && hasMultipleParagraphs && (
+                    <div className="border-t border-blue-200 mt-3 pt-3" />
+                  )}
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {paragraph}
+                  </p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Action Items Section */}
@@ -261,13 +290,44 @@ export function TranscriptionSummary({
 
           {(!expandable || expandedSections.has('mentions')) && (
             <div className="px-4 pb-4">
-              <div className="grid gap-2">
-                {summary.importantMentions.map((mention, idx) => (
-                  <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-gray-700 leading-relaxed">{mention}</span>
-                  </div>
-                ))}
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                <div className="space-y-3">
+                  {summary.importantMentions.map((mention, idx) => {
+                    // Categorize mentions by type based on keywords
+                    let icon = AlertCircle;
+                    let iconColor = "text-amber-600";
+                    const lowerMention = mention.toLowerCase();
+
+                    if (lowerMention.includes('diagnosis') || lowerMention.includes('condition')) {
+                      icon = Stethoscope;
+                      iconColor = "text-blue-600";
+                    } else if (lowerMention.includes('symptom') || lowerMention.includes('pain')) {
+                      icon = Activity;
+                      iconColor = "text-orange-600";
+                    } else if (lowerMention.includes('test') || lowerMention.includes('result') || lowerMention.includes('lab')) {
+                      icon = FileText;
+                      iconColor = "text-purple-600";
+                    } else if (lowerMention.includes('treatment') || lowerMention.includes('medication')) {
+                      icon = Pill;
+                      iconColor = "text-green-600";
+                    }
+
+                    const Icon = icon;
+
+                    return (
+                      <div key={idx} className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          <Icon className={`w-4 h-4 ${iconColor}`} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            {mention}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
