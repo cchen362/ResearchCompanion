@@ -3,7 +3,7 @@ const CACHE_NAME = 'med-companion-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.webmanifest'
 ];
 
 // Install event - cache essential files

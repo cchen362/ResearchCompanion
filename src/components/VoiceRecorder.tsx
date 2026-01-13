@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/services/api';
-import { createTimelineEvent } from '@/utils/db/timeline';
-import type { Topic } from '@/types';
+import { createTimelineEvent, getTimelineForTopic } from '@/utils/db/timeline';
+import type { Topic, VoiceTranscriptionResult, TimelineEvent } from '@/types';
 
 interface VoiceRecorderProps {
   topicId?: string;
@@ -15,10 +15,13 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [transcript, setTranscript] = useState('');
-  const [summary, setSummary] = useState('');
+  const [summary, setSummary] = useState<VoiceTranscriptionResult['summary'] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState(topicId || '');
   const [error, setError] = useState('');
+  const [previousRecordings, setPreviousRecordings] = useState<TimelineEvent[]>([]);
+  const [showPrevious, setShowPrevious] = useState(false);
+  const [savedSuccessfully, setSavedSuccessfully] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -30,6 +33,23 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
       setSelectedTopicId(topics[0].id);
     }
   }, [topics, selectedTopicId]);
+
+  // Load previous recordings for the selected topic
+  useEffect(() => {
+    const loadPreviousRecordings = async () => {
+      if (selectedTopicId) {
+        try {
+          const events = await getTimelineForTopic(selectedTopicId);
+          const voiceNotes = events.filter(e => e.type === 'voice_note');
+          setPreviousRecordings(voiceNotes.sort((a, b) => b.timestamp - a.timestamp));
+        } catch (err) {
+          console.error('Error loading previous recordings:', err);
+        }
+      }
+    };
+
+    loadPreviousRecordings();
+  }, [selectedTopicId]);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
@@ -133,14 +153,26 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
       const event = await createTimelineEvent(
         selectedTopicId,
         'voice_note',
-        'Doctor Visit Recording',
+        `Doctor Visit - ${new Date().toLocaleDateString()}`,
         {
           transcript: result.transcript,
           summary: result.summary,
           duration: recordingTime,
           recordedAt: Date.now()
+        },
+        {
+          // Optional metadata
+          processedAt: Date.now()
         }
       );
+
+      // Mark as saved successfully
+      setSavedSuccessfully(true);
+
+      // Reload previous recordings
+      const events = await getTimelineForTopic(selectedTopicId);
+      const voiceNotes = events.filter(e => e.type === 'voice_note');
+      setPreviousRecordings(voiceNotes.sort((a, b) => b.timestamp - a.timestamp));
 
       if (onComplete) {
         onComplete();
@@ -156,9 +188,10 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
   const resetRecording = () => {
     setAudioBlob(null);
     setTranscript('');
-    setSummary('');
+    setSummary(null);
     setRecordingTime(0);
     setError('');
+    setSavedSuccessfully(false);
   };
 
   if (topics.length === 0) {
@@ -291,24 +324,94 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
           </div>
         )}
 
-        {transcript && (
+        {transcript && summary && (
           <div className="w-full space-y-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="font-semibold text-green-800">Recording Processed Successfully</span>
+                <span className="font-semibold text-green-800">
+                  Recording Processed {savedSuccessfully && 'and Saved to Timeline'}
+                </span>
               </div>
+              {savedSuccessfully && (
+                <p className="text-sm text-green-700 mt-1">
+                  Your recording has been saved and will appear in your timeline and previous recordings.
+                </p>
+              )}
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Summary</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{summary}</p>
+            {/* Visit Summary Section */}
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center space-x-2 mb-3">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="font-semibold text-gray-900">Visit Summary</h3>
+                {summary.sentiment && (
+                  <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
+                    summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                    summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {summary.sentiment === 'positive' ? '✓ Positive' :
+                     summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
+                     '• Neutral'}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-700 whitespace-pre-wrap">{summary.visitSummary}</p>
             </div>
 
+            {/* Next Steps Section */}
+            {summary.nextSteps && summary.nextSteps.length > 0 && (
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <div className="flex items-center space-x-2 mb-3">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  <h3 className="font-semibold text-gray-900">Action Items</h3>
+                </div>
+                <ul className="space-y-2">
+                  {summary.nextSteps.map((step, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-green-600 mr-2">•</span>
+                      <span className="text-gray-700">{step}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Important Mentions Section */}
+            {summary.importantMentions && summary.importantMentions.length > 0 && (
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                <div className="flex items-center space-x-2 mb-3">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h3 className="font-semibold text-gray-900">Important Points</h3>
+                </div>
+                <ul className="space-y-2">
+                  {summary.importantMentions.map((mention, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-amber-600 mr-2">!</span>
+                      <span className="text-gray-700">{mention}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Full Transcript Section */}
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Full Transcript</h3>
+              <div className="flex items-center space-x-2 mb-3">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3 className="font-semibold text-gray-900">Full Transcript</h3>
+              </div>
               <p className="text-gray-700 whitespace-pre-wrap text-sm">{transcript}</p>
             </div>
 
@@ -327,6 +430,102 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
           </div>
         )}
       </div>
+
+      {/* Previous Recordings Section */}
+      {previousRecordings.length > 0 && !isRecording && !audioBlob && !transcript && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Previous Recordings</h3>
+            <button
+              onClick={() => setShowPrevious(!showPrevious)}
+              className="text-sm text-indigo-600 hover:text-indigo-700"
+            >
+              {showPrevious ? 'Hide' : 'Show'} ({previousRecordings.length})
+            </button>
+          </div>
+
+          {showPrevious && (
+            <div className="space-y-4">
+              {previousRecordings.slice(0, 5).map((recording) => {
+                const data = recording.data as any;
+                const recordingDate = new Date(recording.timestamp);
+
+                return (
+                  <div key={recording.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{recording.description}</h4>
+                        <p className="text-sm text-gray-500">
+                          {recordingDate.toLocaleDateString()} at {recordingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {data.duration && (
+                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                          {Math.floor(data.duration / 60)}:{(data.duration % 60).toString().padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
+
+                    {data.summary && (
+                      <div className="mt-3 space-y-2">
+                        {data.summary.visitSummary && (
+                          <div className="text-sm text-gray-700">
+                            <span className="font-medium">Summary:</span> {data.summary.visitSummary.substring(0, 150)}
+                            {data.summary.visitSummary.length > 150 && '...'}
+                          </div>
+                        )}
+
+                        {data.summary.nextSteps && data.summary.nextSteps.length > 0 && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-700">Action Items:</span>
+                            <ul className="mt-1 list-disc list-inside text-gray-600">
+                              {data.summary.nextSteps.slice(0, 2).map((step: string, i: number) => (
+                                <li key={i}>{step}</li>
+                              ))}
+                              {data.summary.nextSteps.length > 2 && (
+                                <li className="text-gray-400">+{data.summary.nextSteps.length - 2} more</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+
+                        {data.summary.sentiment && (
+                          <div className="mt-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                              data.summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {data.summary.sentiment === 'positive' ? '✓ Positive Visit' :
+                               data.summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
+                               '• Routine Visit'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <details className="mt-3">
+                      <summary className="text-sm text-indigo-600 hover:text-indigo-700 cursor-pointer">
+                        View Full Transcript
+                      </summary>
+                      <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                        {data.transcript || 'No transcript available'}
+                      </p>
+                    </details>
+                  </div>
+                );
+              })}
+
+              {previousRecordings.length > 5 && (
+                <p className="text-sm text-gray-500 text-center">
+                  Showing 5 of {previousRecordings.length} recordings. View timeline for complete history.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

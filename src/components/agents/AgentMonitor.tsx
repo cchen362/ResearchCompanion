@@ -211,21 +211,16 @@ export default function AgentMonitor() {
         {agents.map(agent => (
           <div key={agent.id} className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
-                    <p className="text-xs text-gray-500">
-                      {agent.type.split('_').map(word =>
-                        word.charAt(0).toUpperCase() + word.slice(1)
-                      ).join(' ')}
-                    </p>
-                  </div>
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
+                  <p className="text-xs text-gray-500">
+                    {agent.type.split('_').map(word =>
+                      word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')}
+                  </p>
                 </div>
-                <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(agent.status)}`}>
-                  {agent.status}
-                </span>
               </div>
 
               <p className="text-sm text-gray-600 mb-4">{agent.description}</p>

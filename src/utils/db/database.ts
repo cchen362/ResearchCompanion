@@ -122,7 +122,7 @@ interface MedCompanionDB extends DBSchema {
 }
 
 const DB_NAME = 'MedicalCompanionDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbInstance: IDBPDatabase<MedCompanionDB> | null = null;
 
@@ -161,7 +161,7 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
         const timelineStore = db.createObjectStore('timeline', { keyPath: 'id' });
         timelineStore.createIndex('by-date', 'date');
         timelineStore.createIndex('by-type', 'type');
-        timelineStore.createIndex('by-topic', 'linkedTopicId');
+        timelineStore.createIndex('by-topic', 'topicId');
       }
 
       // Audio store

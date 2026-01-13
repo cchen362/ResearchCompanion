@@ -51,7 +51,12 @@
       "Bash(cat:*)",
       "Bash(powershell -Command \"Stop-Process -Id 397264 -Force\")",
       "Bash(start chrome http://localhost:5193/)",
-      "Bash(uipro init:*)"
+      "Bash(uipro init:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(dir:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(start chrome --incognito http://localhost:5176/)"
     ],
     "deny": [],
     "ask": []

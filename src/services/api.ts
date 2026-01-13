@@ -1,8 +1,9 @@
 import axios from 'axios';
+import type { VoiceTranscriptionResult } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -95,7 +96,7 @@ export async function summarizeResults(
 /**
  * Transcribe audio and generate summary
  */
-export async function transcribeAudio(audioBlob: Blob) {
+export async function transcribeAudio(audioBlob: Blob): Promise<VoiceTranscriptionResult> {
   // Convert blob to base64
   const reader = new FileReader();
   const base64Promise = new Promise<string>((resolve, reject) => {
@@ -126,9 +127,6 @@ export async function checkHealth() {
   const response = await api.get('/health');
   return response.data;
 }
-
-// Named export for newer code
-export { api };
 
 // Default export for backward compatibility
 export default api;

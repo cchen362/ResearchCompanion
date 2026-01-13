@@ -157,19 +157,57 @@ export async function summarizeTranscription(transcript: string) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1000,
       temperature: 0.3,
-      system: `You are a medical documentation assistant. Summarize doctor visit transcripts into structured, actionable information.`,
+      system: `You are a medical documentation assistant specialized in helping caregivers of patients with rare diseases. You understand the importance of capturing every detail from doctor visits, as these details may be crucial for ongoing care, research participation, and treatment decisions.
+
+Your role is to:
+- Extract all medically relevant information with precision
+- Identify medication changes (names, dosages, frequencies)
+- Note any symptoms or side effects mentioned
+- Capture all follow-up actions and appointments
+- Highlight research opportunities or clinical trials mentioned
+- Flag any concerns that need immediate attention
+
+Remember: Caregivers rely on accurate documentation to advocate for their loved ones. Be thorough and factual.`,
       messages: [
         {
           role: 'user',
-          content: `Summarize this medical visit transcript:
+          content: `Analyze this medical visit transcript and provide a structured summary for a caregiver managing a rare disease patient:
 
 ${transcript}
 
-Provide:
-1. Visit Summary (main topics discussed)
-2. Next Steps (action items, follow-ups)
-3. Important Mentions (medications, symptoms, concerns)
-4. Overall Sentiment (positive, neutral, concerned)`
+Provide the following sections:
+
+1. VISIT SUMMARY
+A clear, comprehensive overview of what was discussed during the visit. Include the main purpose of the visit, key decisions made, and overall assessment from the healthcare provider.
+
+2. NEXT STEPS
+Practical action items the caregiver should take, including:
+- Appointments to schedule (what type, when to call, with whom)
+- Prescriptions to pick up at the pharmacy (medication name and when to start)
+- Medical tests or labs to arrange (include any prep instructions like fasting)
+- Lifestyle or daily care changes to implement at home
+- Questions to write down for the next visit
+- Insurance pre-authorizations or paperwork to complete
+- Specific symptoms to watch for and when to call the doctor
+
+3. IMPORTANT MENTIONS
+Key medical information from the visit, including:
+- New prescriptions (what the doctor prescribed and why)
+- Changed medications (what changed and the reason)
+- Symptoms discussed (what you reported and doctor's response)
+- Test results reviewed (what they showed)
+- Treatment options mentioned (what choices were presented)
+- Referrals made (which specialists and for what)
+- Red flags to watch for (when to seek immediate care)
+- General advice or recommendations from the doctor
+
+4. OVERALL SENTIMENT
+Assess the tone as:
+- "positive" if improvements noted or positive outcomes discussed
+- "concerned" if new problems, worsening symptoms, or urgent issues raised
+- "neutral" for routine follow-ups with stable condition
+
+Format your response to clearly separate these sections.`
         }
       ]
     });

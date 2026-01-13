@@ -354,6 +354,17 @@ export interface AppointmentExtraction {
   urgency?: 'routine' | 'soon' | 'urgent';
 }
 
+// Voice transcription API response type - matches backend structure
+export interface VoiceTranscriptionResult {
+  transcript: string;
+  summary: {
+    visitSummary: string;
+    nextSteps: string[];
+    importantMentions: string[];
+    sentiment?: 'positive' | 'neutral' | 'concerned';
+  };
+}
+
 // ============= FAMILY & COLLABORATION =============
 
 export type FamilyRole = 'owner' | 'caregiver' | 'viewer';

@@ -107,7 +107,7 @@ router.post('/run-agent', async (req, res) => {
             result.source.displayName = result.source.name;
           } else {
             // Use type-specific default
-            result.source.displayName = defaultNames[result.source.type] || 'Research Database';
+            result.source.displayName = defaultNames[result.source.type as keyof typeof defaultNames] || 'Research Database';
           }
         }
 

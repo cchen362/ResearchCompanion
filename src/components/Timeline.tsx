@@ -263,9 +263,42 @@ export default function Timeline() {
                       {event.type === 'voice_note' && event.data?.summary && (
                         <div className="bg-white bg-opacity-50 rounded p-3 mb-2">
                           <p className="text-sm font-medium text-gray-700 mb-1">Summary:</p>
-                          <p className="text-sm text-gray-600">{event.data.summary}</p>
+                          <p className="text-sm text-gray-600">
+                            {typeof event.data.summary === 'string'
+                              ? event.data.summary
+                              : event.data.summary.visitSummary || 'Voice recording processed'}
+                          </p>
+
+                          {/* Display action items if available */}
+                          {event.data.summary.nextSteps && event.data.summary.nextSteps.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-gray-700">Action Items:</p>
+                              <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
+                                {event.data.summary.nextSteps.slice(0, 3).map((step: string, i: number) => (
+                                  <li key={i}>{step}</li>
+                                ))}
+                                {event.data.summary.nextSteps.length > 3 && (
+                                  <li className="text-gray-400">+{event.data.summary.nextSteps.length - 3} more</li>
+                                )}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Display sentiment if available */}
+                          {event.data.summary.sentiment && (
+                            <span className={`inline-block mt-2 text-xs px-2 py-1 rounded-full ${
+                              event.data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                              event.data.summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {event.data.summary.sentiment === 'positive' ? '✓ Positive' :
+                               event.data.summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
+                               '• Routine'}
+                            </span>
+                          )}
+
                           {event.data.duration && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 mt-2">
                               Duration: {Math.floor(event.data.duration / 60)}:{(event.data.duration % 60).toString().padStart(2, '0')}
                             </p>
                           )}
