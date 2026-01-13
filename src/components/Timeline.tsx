@@ -66,12 +66,15 @@ export default function Timeline() {
   };
 
   const toggleEventExpansion = (eventId: string) => {
+    console.log('Toggle expansion for event:', eventId);
+    console.log('Current expanded events:', expandedEvents);
     const newExpanded = new Set(expandedEvents);
     if (newExpanded.has(eventId)) {
       newExpanded.delete(eventId);
     } else {
       newExpanded.add(eventId);
     }
+    console.log('New expanded events:', newExpanded);
     setExpandedEvents(newExpanded);
   };
 
@@ -292,10 +295,17 @@ export default function Timeline() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        {event.type === 'voice_note' && event.data?.summary && (
+                        {event.type === 'voice_note' && (event.data?.summary || event.data?.transcript) && (
                           <button
-                            onClick={() => toggleEventExpansion(event.id)}
-                            className="text-gray-600 hover:text-gray-800 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log('Button clicked for event:', event.id);
+                              console.log('Event data:', event.data);
+                              toggleEventExpansion(event.id);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-800 transition-all transform hover:scale-110"
+                            title={expandedEvents.has(event.id) ? "Click to collapse" : "Click to expand full summary"}
+                            aria-label={expandedEvents.has(event.id) ? "Collapse" : "Expand"}
                           >
                             {expandedEvents.has(event.id) ?
                               <ChevronDown className="w-5 h-5" /> :
@@ -349,26 +359,54 @@ export default function Timeline() {
                       )}
 
                       {/* Event-specific data display */}
-                      {event.type === 'voice_note' && event.data?.summary && (
+                      {event.type === 'voice_note' && (event.data?.summary || event.data?.transcript) && (
+                        (() => {
+                          console.log('Rendering voice note for event:', event.id);
+                          console.log('Is expanded?', expandedEvents.has(event.id));
+                          console.log('expandedEvents set:', Array.from(expandedEvents));
+                          return null;
+                        })() || (
                         expandedEvents.has(event.id) ? (
-                          <TranscriptionSummary
-                            summary={event.data.summary}
-                            transcript={event.data.transcript}
-                            duration={event.data.duration}
-                            recordedAt={event.data.recordedAt || event.timestamp}
-                            expandable={false}
-                            className="mt-3"
-                          />
+                          // Expanded view - show full summary if available, otherwise just transcript
+                          event.data.summary && typeof event.data.summary === 'object' ? (
+                            <TranscriptionSummary
+                              summary={event.data.summary}
+                              transcript={event.data.transcript}
+                              duration={event.data.duration}
+                              recordedAt={event.data.recordedAt || event.timestamp}
+                              expandable={false}
+                              className="mt-3"
+                            />
+                          ) : (
+                            // Fallback for old data or string summaries
+                            <div className="bg-gray-50 rounded-lg p-4 mt-3">
+                              {event.data.summary && (
+                                <div className="mb-3">
+                                  <h4 className="font-medium text-gray-900 mb-2">Summary</h4>
+                                  <p className="text-sm text-gray-700">
+                                    {typeof event.data.summary === 'string' ? event.data.summary : JSON.stringify(event.data.summary)}
+                                  </p>
+                                </div>
+                              )}
+                              {event.data.transcript && (
+                                <div>
+                                  <h4 className="font-medium text-gray-900 mb-2">Full Transcript</h4>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{event.data.transcript}</p>
+                                </div>
+                              )}
+                            </div>
+                          )
                         ) : (
+                          // Collapsed view
                           <div className="bg-white bg-opacity-50 rounded p-3 mb-2">
                             <p className="text-sm text-gray-600 line-clamp-3">
-                              {typeof event.data.summary === 'string'
+                              {typeof event.data?.summary === 'string'
                                 ? event.data.summary
-                                : event.data.summary.visitSummary || 'Voice recording processed'}
+                                : event.data?.summary?.visitSummary || event.data?.transcript?.substring(0, 200) || 'Voice recording processed'}
                             </p>
 
-                            {/* Show condensed action items */}
-                            {event.data.summary.nextSteps && event.data.summary.nextSteps.length > 0 && (
+                            {/* Show condensed action items if they exist */}
+                            {event.data?.summary?.nextSteps && event.data.summary.nextSteps.length > 0 && (
                               <div className="mt-2">
                                 <p className="text-xs font-medium text-gray-700">Action Items:</p>
                                 <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
@@ -377,15 +415,15 @@ export default function Timeline() {
                                   ))}
                                   {event.data.summary.nextSteps.length > 2 && (
                                     <li className="text-indigo-600 font-medium">
-                                      +{event.data.summary.nextSteps.length - 2} more (click to expand)
+                                      +{event.data.summary.nextSteps.length - 2} more
                                     </li>
                                   )}
                                 </ul>
                               </div>
                             )}
 
-                            {/* Display sentiment */}
-                            {event.data.summary.sentiment && (
+                            {/* Display sentiment if it exists */}
+                            {event.data?.summary?.sentiment && (
                               <span className={`inline-block mt-2 text-xs px-2 py-1 rounded-full ${
                                 event.data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
                                 event.data.summary.sentiment === 'concerned' ? 'bg-amber-100 text-amber-700' :
@@ -396,9 +434,22 @@ export default function Timeline() {
                                  '• Stable'}
                               </span>
                             )}
+
+                            {/* Click to expand indicator */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('Expand text clicked for event:', event.id);
+                                toggleEventExpansion(event.id);
+                              }}
+                              className="mt-2 text-xs text-indigo-600 font-medium flex items-center gap-1 hover:text-indigo-800 transition-colors"
+                            >
+                              <ChevronRight className="w-3 h-3" />
+                              Click to expand full summary
+                            </button>
                           </div>
                         )
-                      )}
+                      ))}
 
                       {event.type === 'test_result' && event.data && (
                         <div className="bg-white bg-opacity-50 rounded p-3 mb-2">
