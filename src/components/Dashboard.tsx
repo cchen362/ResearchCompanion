@@ -4,6 +4,8 @@ import { getAgentsToRun } from '@/utils/db/agents';
 import { getMonthlyApiCost } from '@/utils/db/agents';
 import type { Topic, Agent, ResearchFinding } from '@/types';
 import { getDB } from '@/utils/db/database';
+import { Search, FileText, Bot, MessageSquare, TrendingUp, Plus } from 'lucide-react';
+import { useUIStore } from '@/stores/uiStore';
 
 export default function Dashboard() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -11,6 +13,9 @@ export default function Dashboard() {
   const [recentFindings, setRecentFindings] = useState<ResearchFinding[]>([]);
   const [monthlyCost, setMonthlyCost] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+
+  const showToast = useUIStore(state => state.showToast);
+  const setChatPanelOpen = useUIStore(state => state.setChatPanelOpen);
 
   useEffect(() => {
     loadDashboardData();
@@ -52,8 +57,46 @@ export default function Dashboard() {
     );
   }
 
+  // Calculate some insights
+  const newFindingsCount = recentFindings.filter(f => f.isNew).length;
+  const hasNewFindings = newFindingsCount > 0;
+  const needsAttention = pendingAgents.length > 3 || monthlyCost > 15;
+
   return (
     <div className="space-y-6">
+      {/* Insights Banner - Only show if there's something to highlight */}
+      {(hasNewFindings || pendingAgents.length > 0 || needsAttention) && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Welcome back!</h2>
+              <div className="mt-1 text-sm text-gray-600 space-y-1">
+                {hasNewFindings && (
+                  <p>• You have {newFindingsCount} new finding{newFindingsCount > 1 ? 's' : ''} since your last visit</p>
+                )}
+                {pendingAgents.length > 0 && (
+                  <p>• {pendingAgents.length} agent{pendingAgents.length > 1 ? 's are' : ' is'} ready to run</p>
+                )}
+                {monthlyCost > 15 && monthlyCost <= 20 && (
+                  <p>• API usage is approaching monthly budget (${monthlyCost.toFixed(2)}/$20.00)</p>
+                )}
+                {monthlyCost > 20 && (
+                  <p className="text-red-600">• Monthly budget exceeded (${monthlyCost.toFixed(2)}/$20.00)</p>
+                )}
+              </div>
+            </div>
+            {hasNewFindings && (
+              <button
+                onClick={() => window.location.href = '/findings'}
+                className="ml-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                View New Findings
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -96,6 +139,99 @@ export default function Dashboard() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <button
+              onClick={() => {
+                // Navigate to Topics page
+                window.location.href = '/topics';
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Plus className="h-8 w-8 text-indigo-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">Add Topic</span>
+            </button>
+
+            <button
+              onClick={() => {
+                // Navigate to Findings page
+                window.location.href = '/findings';
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <FileText className="h-8 w-8 text-green-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">View Findings</span>
+            </button>
+
+            <button
+              onClick={() => {
+                // Navigate to Agents page
+                window.location.href = '/agents';
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Bot className="h-8 w-8 text-blue-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">Manage Agents</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setChatPanelOpen(true);
+                showToast({
+                  type: 'info',
+                  message: 'Chat panel opened',
+                  duration: 2000
+                });
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <MessageSquare className="h-8 w-8 text-purple-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">Open Chat</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                if (pendingAgents.length > 0) {
+                  showToast({
+                    type: 'info',
+                    message: `${pendingAgents.length} agents are ready to run. Go to Agents page to run them.`,
+                    duration: 4000
+                  });
+                  window.location.href = '/agents';
+                } else {
+                  showToast({
+                    type: 'info',
+                    message: 'No agents pending. They run automatically when scheduled.',
+                    duration: 3000
+                  });
+                }
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors relative"
+            >
+              <Search className="h-8 w-8 text-orange-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">Run Research</span>
+              {pendingAgents.length > 0 && (
+                <span className="absolute top-3 right-3 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                // Navigate to Timeline/Insights page
+                window.location.href = '/timeline';
+              }}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <TrendingUp className="h-8 w-8 text-cyan-600 mb-2" />
+              <span className="text-sm font-medium text-gray-900">View Insights</span>
+            </button>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { digestCacheService } from '@/services/digestCache.service';
 import type { DigestTimeframe } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -25,10 +25,18 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Analysis depth options
-  const [analysisDepth, setAnalysisDepth] = useState<'quick' | 'standard' | 'deep'>('standard');
+  // Analysis depth options (with localStorage persistence)
+  const [analysisDepth, setAnalysisDepth] = useState<'quick' | 'standard' | 'deep'>(() => {
+    const saved = localStorage.getItem('digestAnalysisDepth');
+    return (saved as 'quick' | 'standard' | 'deep') || 'standard';
+  });
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<'1h' | '6h' | '24h' | 'never'>('6h');
+
+  // Save analysis depth preference when it changes
+  useEffect(() => {
+    localStorage.setItem('digestAnalysisDepth', analysisDepth);
+  }, [analysisDepth]);
 
   // Cache configuration per timeframe
   const [cacheConfigs, setCacheConfigs] = useState({
@@ -123,10 +131,10 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setAnalysisDepth('quick')}
-                className={`p-3 border rounded-md text-center transition-colors ${
+                className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'quick'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <div className="font-medium">Quick</div>
@@ -135,22 +143,25 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
               </button>
               <button
                 onClick={() => setAnalysisDepth('standard')}
-                className={`p-3 border rounded-md text-center transition-colors ${
+                className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'standard'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <div className="font-medium">Standard</div>
                 <div className="text-xs text-muted-foreground">~15 seconds</div>
-                <div className="text-xs mt-1">Themes & patterns</div>
+                <div className="text-xs mt-1">Balanced analysis</div>
+                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                  Recommended
+                </span>
               </button>
               <button
                 onClick={() => setAnalysisDepth('deep')}
-                className={`p-3 border rounded-md text-center transition-colors ${
+                className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'deep'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <div className="font-medium">Deep</div>

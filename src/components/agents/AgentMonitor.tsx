@@ -4,6 +4,7 @@ import { getAgentsToRun, setAgentStatus } from '@/utils/db/agents';
 import { runAgentWithAPI } from '@/services/agentRunner';
 import { getTopic } from '@/utils/db/topics';
 import AgentConfigModal from './AgentConfigModal';
+import { useUIStore } from '@/stores/uiStore';
 import type { Agent } from '@/types';
 
 export default function AgentMonitor() {
@@ -11,6 +12,9 @@ export default function AgentMonitor() {
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [configuringAgent, setConfiguringAgent] = useState<Agent | null>(null);
+  const [isRunningAll, setIsRunningAll] = useState(false);
+  const [runningAllProgress, setRunningAllProgress] = useState({ current: 0, total: 0 });
+  const showToast = useUIStore(state => state.showToast);
 
   useEffect(() => {
     loadAgents();
@@ -40,12 +44,28 @@ export default function AgentMonitor() {
         throw new Error('Topic not found');
       }
 
+      showToast({
+        type: 'info',
+        message: `Running ${agent.name}...`,
+        duration: 3000
+      });
+
       const findings = await runAgentWithAPI(agent, topic);
-      alert(`Agent completed successfully! Found ${findings.length} new findings.`);
+
+      showToast({
+        type: 'success',
+        message: `Agent completed successfully! Found ${findings.length} new findings.`,
+        duration: 5000
+      });
+
       await loadAgents();
     } catch (error) {
       console.error('Error running agent:', error);
-      alert('Failed to run agent. Check console for details.');
+      showToast({
+        type: 'error',
+        message: 'Failed to run agent. Check console for details.',
+        duration: 5000
+      });
     } finally {
       setRunningAgentId(null);
     }
@@ -56,23 +76,65 @@ export default function AgentMonitor() {
 
     if (pendingAgents.length === 0) {
       // No agents to run - show informative message
-      alert('No pending agents to run. Agents run automatically when scheduled.');
+      showToast({
+        type: 'info',
+        message: 'No pending agents to run. Agents run automatically when scheduled.',
+        duration: 4000
+      });
       return;
     }
 
-    for (const agent of pendingAgents) {
+    setIsRunningAll(true);
+    setRunningAllProgress({ current: 0, total: pendingAgents.length });
+
+    showToast({
+      type: 'info',
+      message: `Starting to run ${pendingAgents.length} agent${pendingAgents.length > 1 ? 's' : ''}...`,
+      duration: 3000
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < pendingAgents.length; i++) {
+      const agent = pendingAgents[i];
+      setRunningAllProgress({ current: i + 1, total: pendingAgents.length });
+
       const topic = await getTopic(agent.topicId);
       if (topic) {
         try {
+          showToast({
+            type: 'info',
+            message: `Running ${agent.name} (${i + 1}/${pendingAgents.length})...`,
+            duration: 2000
+          });
           await runAgentWithAPI(agent, topic);
+          successCount++;
         } catch (error) {
           console.error(`Failed to run agent ${agent.id}:`, error);
+          failCount++;
         }
       }
     }
 
     await loadAgents();
-    alert(`Completed running ${pendingAgents.length} agent${pendingAgents.length > 1 ? 's' : ''}`);
+    setIsRunningAll(false);
+    setRunningAllProgress({ current: 0, total: 0 });
+
+    // Show final result
+    if (failCount === 0) {
+      showToast({
+        type: 'success',
+        message: `Successfully ran all ${successCount} agent${successCount > 1 ? 's' : ''}!`,
+        duration: 5000
+      });
+    } else {
+      showToast({
+        type: 'warning',
+        message: `Completed: ${successCount} succeeded, ${failCount} failed.`,
+        duration: 5000
+      });
+    }
   };
 
   const getStatusColor = (status: Agent['status']) => {
@@ -124,9 +186,22 @@ export default function AgentMonitor() {
           </div>
           <button
             onClick={handleRunAllPending}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={isRunningAll}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
-            Run All Pending
+            {isRunningAll ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {runningAllProgress.total > 0
+                  ? `Running (${runningAllProgress.current}/${runningAllProgress.total})...`
+                  : 'Starting...'}
+              </>
+            ) : (
+              'Run All Pending'
+            )}
           </button>
         </div>
       </div>
@@ -189,10 +264,22 @@ export default function AgentMonitor() {
               <div className="mt-4 flex space-x-2">
                 <button
                   onClick={() => handleRunAgent(agent)}
-                  disabled={agent.status === 'running' || runningAgentId === agent.id}
-                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={agent.status === 'running' || runningAgentId === agent.id || isRunningAll}
+                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
                 >
-                  {runningAgentId === agent.id ? 'Running...' : 'Run Now'}
+                  {runningAgentId === agent.id ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Running...
+                    </>
+                  ) : isRunningAll ? (
+                    'Waiting...'
+                  ) : (
+                    'Run Now'
+                  )}
                 </button>
                 <button
                   onClick={() => setConfiguringAgent(agent)}

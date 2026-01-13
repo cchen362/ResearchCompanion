@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -43,7 +43,26 @@ export function DigestCard({
   explanationMode,
   setExplanationMode
 }: DigestCardProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  // Initialize with saved preferences or default to showing takeaways
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('digestExpandedSections');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return new Set(parsed);
+      } catch {
+        // If parse fails, use default
+        return new Set(['takeaways']);
+      }
+    }
+    // Default: auto-expand takeaways
+    return new Set(['takeaways']);
+  });
+
+  // Save preferences whenever they change
+  useEffect(() => {
+    localStorage.setItem('digestExpandedSections', JSON.stringify(Array.from(expandedSections)));
+  }, [expandedSections]);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {

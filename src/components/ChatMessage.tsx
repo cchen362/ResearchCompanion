@@ -179,28 +179,40 @@ export function ChatMessage({
     }
   };
 
-  // Get message alignment and styling based on role
+  // Get message alignment and styling based on role with enhanced visuals
   const messageStyles = {
-    user: 'ml-auto bg-primary text-primary-foreground',
-    assistant: 'mr-auto bg-muted',
-    system: 'mx-auto bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+    user: 'ml-auto bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-md border-primary/20',
+    assistant: 'mr-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm',
+    system: 'mx-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 shadow-sm'
   };
 
   const isLongMessage = message.content.length > 500;
 
   return (
-    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className}`}>
-      <Card className={`max-w-full md:max-w-[85%] lg:max-w-3xl p-4 ${messageStyles[message.role]}`}>
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-2">
-          <MessageIcon />
-          <span className="font-medium capitalize">{message.role}</span>
-          {message.timestamp && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {format(new Date(message.timestamp), 'HH:mm')}
-            </span>
-          )}
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className} animate-fadeIn`}>
+      <div className={`flex gap-3 max-w-full md:max-w-[85%] lg:max-w-3xl ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+        {/* Avatar */}
+        <div className={`flex-shrink-0 ${message.role === 'system' ? 'hidden' : ''}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            message.role === 'user'
+              ? 'bg-primary/10 text-primary'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+          }`}>
+            <MessageIcon />
+          </div>
         </div>
+
+        {/* Message Card */}
+        <Card className={`flex-1 p-4 transition-all hover:shadow-md ${messageStyles[message.role]}`}>
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-medium capitalize text-sm">{message.role}</span>
+            {message.timestamp && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                {format(new Date(message.timestamp), 'HH:mm')}
+              </span>
+            )}
+          </div>
 
         {/* Content */}
         <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words">
@@ -317,7 +329,8 @@ export function ChatMessage({
             </div>
           </div>
         )}
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
