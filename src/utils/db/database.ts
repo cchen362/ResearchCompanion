@@ -1,5 +1,6 @@
 import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
+import { DB_VERSION, DB_NAME } from './version';
 import type {
   Topic,
   Agent,
@@ -121,8 +122,7 @@ interface MedCompanionDB extends DBSchema {
   };
 }
 
-const DB_NAME = 'MedicalCompanionDB';
-const DB_VERSION = 4;
+// DB_NAME and DB_VERSION are now imported from './version' - DO NOT DEFINE HERE
 
 let dbInstance: IDBPDatabase<MedCompanionDB> | null = null;
 
@@ -130,7 +130,8 @@ let dbInstance: IDBPDatabase<MedCompanionDB> | null = null;
 export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<MedCompanionDB>(DB_NAME, DB_VERSION, {
+  try {
+    dbInstance = await openDB<MedCompanionDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion) {
       // Topics store
       if (!db.objectStoreNames.contains('topics')) {
@@ -226,7 +227,30 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
     },
   });
 
-  return dbInstance;
+    return dbInstance;
+  } catch (error: any) {
+    console.error('Database initialization error:', error);
+
+    // Check for version error
+    if (error.name === 'VersionError') {
+      console.error('IndexedDB version mismatch detected!');
+      console.error(`Attempted to open with version ${DB_VERSION}, but database may have different version`);
+      console.error('Please clear your browser cache and reload the page.');
+
+      // Show user-friendly error
+      const message = 'Database version mismatch detected. Please clear your browser cache:\n\n' +
+                     '1. Press Ctrl+Shift+R (or Cmd+Shift+R on Mac) to hard refresh\n' +
+                     '2. Or go to Settings > Privacy > Clear browsing data\n' +
+                     '3. Select "Cached images and files" and clear\n' +
+                     '4. Reload the page';
+
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(message);
+      }
+    }
+
+    throw error;
+  }
 }
 
 // Get the database instance

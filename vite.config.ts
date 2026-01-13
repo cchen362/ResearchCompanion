@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // Changed from 'prompt' to auto-update service worker
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Medical Research Companion',
@@ -40,6 +40,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        cleanupOutdatedCaches: true, // Remove old caches automatically
+        skipWaiting: true, // Install new service worker immediately
+        clientsClaim: true, // Take control of pages immediately
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./,
