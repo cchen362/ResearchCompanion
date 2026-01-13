@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/services/api';
 import { createTimelineEvent, getTimelineForTopic } from '@/utils/db/timeline';
+import { TranscriptionSummary } from './TranscriptionSummary';
+import { ChevronDown, ChevronRight, Mic, MicOff, Clock, Calendar, FileText, Eye } from 'lucide-react';
 import type { Topic, VoiceTranscriptionResult, TimelineEvent } from '@/types';
 
 interface VoiceRecorderProps {
@@ -22,6 +24,7 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
   const [previousRecordings, setPreviousRecordings] = useState<TimelineEvent[]>([]);
   const [showPrevious, setShowPrevious] = useState(false);
   const [savedSuccessfully, setSavedSuccessfully] = useState(false);
+  const [expandedRecordings, setExpandedRecordings] = useState<Set<string>>(new Set());
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -194,6 +197,16 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
     setSavedSuccessfully(false);
   };
 
+  const toggleRecordingExpansion = (recordingId: string) => {
+    const newExpanded = new Set(expandedRecordings);
+    if (newExpanded.has(recordingId)) {
+      newExpanded.delete(recordingId);
+    } else {
+      newExpanded.add(recordingId);
+    }
+    setExpandedRecordings(newExpanded);
+  };
+
   if (topics.length === 0) {
     return (
       <div className="text-center py-12">
@@ -342,78 +355,13 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
               )}
             </div>
 
-            {/* Visit Summary Section */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center space-x-2 mb-3">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="font-semibold text-gray-900">Visit Summary</h3>
-                {summary.sentiment && (
-                  <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
-                    summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
-                    summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {summary.sentiment === 'positive' ? '✓ Positive' :
-                     summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
-                     '• Neutral'}
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap">{summary.visitSummary}</p>
-            </div>
-
-            {/* Next Steps Section */}
-            {summary.nextSteps && summary.nextSteps.length > 0 && (
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center space-x-2 mb-3">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                  <h3 className="font-semibold text-gray-900">Action Items</h3>
-                </div>
-                <ul className="space-y-2">
-                  {summary.nextSteps.map((step, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-green-600 mr-2">•</span>
-                      <span className="text-gray-700">{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Important Mentions Section */}
-            {summary.importantMentions && summary.importantMentions.length > 0 && (
-              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                <div className="flex items-center space-x-2 mb-3">
-                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <h3 className="font-semibold text-gray-900">Important Points</h3>
-                </div>
-                <ul className="space-y-2">
-                  {summary.importantMentions.map((mention, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-amber-600 mr-2">!</span>
-                      <span className="text-gray-700">{mention}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Full Transcript Section */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <h3 className="font-semibold text-gray-900">Full Transcript</h3>
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap text-sm">{transcript}</p>
-            </div>
+            <TranscriptionSummary
+              summary={summary}
+              transcript={transcript}
+              duration={recordingTime}
+              recordedAt={Date.now()}
+              expandable={false}
+            />
 
             <button
               onClick={resetRecording}
@@ -438,9 +386,20 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
             <h3 className="text-lg font-semibold text-gray-900">Previous Recordings</h3>
             <button
               onClick={() => setShowPrevious(!showPrevious)}
-              className="text-sm text-indigo-600 hover:text-indigo-700"
+              className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700"
             >
-              {showPrevious ? 'Hide' : 'Show'} ({previousRecordings.length})
+              {showPrevious ? (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Hide
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="w-4 h-4" />
+                  Show
+                </>
+              )}
+              <span className="ml-1">({previousRecordings.length})</span>
             </button>
           </div>
 
@@ -449,70 +408,94 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
               {previousRecordings.slice(0, 5).map((recording) => {
                 const data = recording.data as any;
                 const recordingDate = new Date(recording.timestamp);
+                const isExpanded = expandedRecordings.has(recording.id);
 
                 return (
-                  <div key={recording.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{recording.description}</h4>
-                        <p className="text-sm text-gray-500">
-                          {recordingDate.toLocaleDateString()} at {recordingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                  <div key={recording.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="p-4">
+                      <div className="flex items-start justify-between">
+                        <button
+                          onClick={() => toggleRecordingExpansion(recording.id)}
+                          className="flex-1 flex items-start gap-2 text-left hover:bg-gray-50 -ml-2 -mt-2 -mb-2 p-2 rounded"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-5 h-5 text-gray-500 mt-0.5" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-gray-500 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{recording.title}</h4>
+                            <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {recordingDate.toLocaleDateString()}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                {recordingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              {data.duration && (
+                                <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">
+                                  {Math.floor(data.duration / 60)}:{(data.duration % 60).toString().padStart(2, '0')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+
+                        {data.summary?.sentiment && (
+                          <span className={`text-xs px-2 py-1 rounded-full self-start ${
+                            data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                            data.summary.sentiment === 'concerned' ? 'bg-amber-100 text-amber-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {data.summary.sentiment === 'positive' ? '✓ Positive' :
+                             data.summary.sentiment === 'concerned' ? '⚠ Attention' :
+                             '• Stable'}
+                          </span>
+                        )}
                       </div>
-                      {data.duration && (
-                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
-                          {Math.floor(data.duration / 60)}:{(data.duration % 60).toString().padStart(2, '0')}
-                        </span>
+
+                      {!isExpanded && data.summary && (
+                        <div className="mt-3 pl-7">
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {data.summary.visitSummary}
+                          </p>
+                          {data.summary.nextSteps && data.summary.nextSteps.length > 0 && (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>{data.summary.nextSteps.length} action items</span>
+                              {data.summary.importantMentions && data.summary.importantMentions.length > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>{data.summary.importantMentions.length} key points</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => toggleRecordingExpansion(recording.id)}
+                            className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View Full Summary
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    {data.summary && (
-                      <div className="mt-3 space-y-2">
-                        {data.summary.visitSummary && (
-                          <div className="text-sm text-gray-700">
-                            <span className="font-medium">Summary:</span> {data.summary.visitSummary.substring(0, 150)}
-                            {data.summary.visitSummary.length > 150 && '...'}
-                          </div>
-                        )}
-
-                        {data.summary.nextSteps && data.summary.nextSteps.length > 0 && (
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-700">Action Items:</span>
-                            <ul className="mt-1 list-disc list-inside text-gray-600">
-                              {data.summary.nextSteps.slice(0, 2).map((step: string, i: number) => (
-                                <li key={i}>{step}</li>
-                              ))}
-                              {data.summary.nextSteps.length > 2 && (
-                                <li className="text-gray-400">+{data.summary.nextSteps.length - 2} more</li>
-                              )}
-                            </ul>
-                          </div>
-                        )}
-
-                        {data.summary.sentiment && (
-                          <div className="mt-2">
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
-                              data.summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {data.summary.sentiment === 'positive' ? '✓ Positive Visit' :
-                               data.summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
-                               '• Routine Visit'}
-                            </span>
-                          </div>
-                        )}
+                    {isExpanded && data.summary && (
+                      <div className="border-t border-gray-200 p-4 bg-gray-50">
+                        <TranscriptionSummary
+                          summary={data.summary}
+                          transcript={data.transcript}
+                          duration={data.duration}
+                          recordedAt={data.recordedAt || recording.timestamp}
+                          expandable={true}
+                          className="bg-transparent"
+                        />
                       </div>
                     )}
-
-                    <details className="mt-3">
-                      <summary className="text-sm text-indigo-600 hover:text-indigo-700 cursor-pointer">
-                        View Full Transcript
-                      </summary>
-                      <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
-                        {data.transcript || 'No transcript available'}
-                      </p>
-                    </details>
                   </div>
                 );
               })}

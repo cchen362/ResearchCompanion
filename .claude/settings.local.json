@@ -58,7 +58,8 @@
       "Bash(git ls-tree:*)",
       "Bash(start chrome --incognito http://localhost:5176/)",
       "Bash(git log:*)",
-      "Bash(start chrome http://localhost:5178/clear-cache.html)"
+      "Bash(start chrome http://localhost:5178/clear-cache.html)",
+      "Bash(npm start)"
     ],
     "deny": [],
     "ask": []

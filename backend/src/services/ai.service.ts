@@ -155,7 +155,7 @@ export async function summarizeTranscription(transcript: string) {
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1000,
+      max_tokens: 2000,
       temperature: 0.3,
       system: `You are a medical documentation assistant specialized in helping caregivers of patients with rare diseases. You understand the importance of capturing every detail from doctor visits, as these details may be crucial for ongoing care, research participation, and treatment decisions.
 
@@ -166,6 +166,7 @@ Your role is to:
 - Capture all follow-up actions and appointments
 - Highlight research opportunities or clinical trials mentioned
 - Flag any concerns that need immediate attention
+- Create clear, hybrid summaries that blend prose and bullet points effectively
 
 Remember: Caregivers rely on accurate documentation to advocate for their loved ones. Be thorough and factual.`,
       messages: [
@@ -178,36 +179,72 @@ ${transcript}
 Provide the following sections:
 
 1. VISIT SUMMARY
-A clear, comprehensive overview of what was discussed during the visit. Include the main purpose of the visit, key decisions made, and overall assessment from the healthcare provider.
+Start with a 2-3 sentence executive overview that captures the essence of the visit - the main purpose, key outcome, and overall status. Then provide a more detailed paragraph covering:
+- Chief complaint or reason for visit
+- Physical examination findings
+- Doctor's assessment and clinical impression
+- Main decisions or changes made
+- Overall prognosis or outlook discussed
+
+Make this section comprehensive but readable, using complete sentences that flow naturally.
 
 2. NEXT STEPS
-Practical action items the caregiver should take, including:
-- Appointments to schedule (what type, when to call, with whom)
-- Prescriptions to pick up at the pharmacy (medication name and when to start)
-- Medical tests or labs to arrange (include any prep instructions like fasting)
-- Lifestyle or daily care changes to implement at home
-- Questions to write down for the next visit
-- Insurance pre-authorizations or paperwork to complete
-- Specific symptoms to watch for and when to call the doctor
+Format as categorized action items. Group related items together:
+
+MEDICATIONS:
+• [Specific prescriptions to pick up, including medication name, dosage, frequency]
+• [When to start/stop medications]
+
+APPOINTMENTS:
+• [What type of appointment, with whom, timeframe for scheduling]
+• [Any prep needed for appointments]
+
+MONITORING:
+• [Specific symptoms to watch for]
+• [When to call doctor or seek emergency care]
+• [How to track progress]
+
+LIFESTYLE:
+• [Daily care changes]
+• [Dietary or activity modifications]
+• [Rest or therapy recommendations]
+
+ADMINISTRATIVE:
+• [Insurance authorizations needed]
+• [Paperwork to complete]
+• [Medical records to obtain]
 
 3. IMPORTANT MENTIONS
-Key medical information from the visit, including:
-- New prescriptions (what the doctor prescribed and why)
-- Changed medications (what changed and the reason)
-- Symptoms discussed (what you reported and doctor's response)
-- Test results reviewed (what they showed)
-- Treatment options mentioned (what choices were presented)
-- Referrals made (which specialists and for what)
-- Red flags to watch for (when to seek immediate care)
-- General advice or recommendations from the doctor
+Present as highlighted medical points with context:
+
+DIAGNOSIS & ASSESSMENT:
+• [Current condition status with brief explanation]
+• [Any new diagnoses or rule-outs]
+
+SYMPTOMS DISCUSSED:
+• [Patient-reported symptoms and doctor's interpretation]
+• [New vs ongoing symptoms]
+
+TEST RESULTS:
+• [What was reviewed and key findings]
+• [Pending results to follow up on]
+
+TREATMENT CONSIDERATIONS:
+• [Options discussed with pros/cons mentioned]
+• [Why certain approaches were chosen or rejected]
+
+CLINICAL OBSERVATIONS:
+• [Physical exam findings of note]
+• [Vital signs or measurements mentioned]
+• [Doctor's clinical impressions]
 
 4. OVERALL SENTIMENT
 Assess the tone as:
-- "positive" if improvements noted or positive outcomes discussed
-- "concerned" if new problems, worsening symptoms, or urgent issues raised
-- "neutral" for routine follow-ups with stable condition
+- "positive" if improvements noted, positive test results, or encouraging prognosis discussed
+- "concerned" if new problems identified, worsening symptoms, urgent issues, or serious diagnoses mentioned
+- "neutral" for routine follow-ups with stable condition, expected post-treatment recovery, or standard monitoring visits
 
-Format your response to clearly separate these sections.`
+Format your response to clearly separate these sections with the exact headers shown above.`
         }
       ]
     });

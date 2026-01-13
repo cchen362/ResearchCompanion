@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getAllTopics } from '@/utils/db/topics';
-import { getTimelineForTopic, deleteTimelineEvent } from '@/utils/db/timeline';
+import { getTimelineForTopic, deleteTimelineEvent, updateTimelineEvent } from '@/utils/db/timeline';
+import { TranscriptionSummary } from './TranscriptionSummary';
+import { ChevronDown, ChevronRight, Edit2, Check, X, Trash2 } from 'lucide-react';
 import type { Topic, TimelineEvent } from '@/types';
 
 export default function Timeline() {
@@ -10,6 +12,9 @@ export default function Timeline() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | TimelineEvent['type']>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
+  const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [editTitleValue, setEditTitleValue] = useState('');
 
   useEffect(() => {
     loadTopics();
@@ -58,6 +63,42 @@ export default function Timeline() {
         console.error('Error deleting event:', error);
       }
     }
+  };
+
+  const toggleEventExpansion = (eventId: string) => {
+    const newExpanded = new Set(expandedEvents);
+    if (newExpanded.has(eventId)) {
+      newExpanded.delete(eventId);
+    } else {
+      newExpanded.add(eventId);
+    }
+    setExpandedEvents(newExpanded);
+  };
+
+  const startEditingTitle = (event: TimelineEvent) => {
+    setEditingTitle(event.id);
+    setEditTitleValue(event.title);
+  };
+
+  const saveTitle = async (event: TimelineEvent) => {
+    if (editTitleValue.trim() && editTitleValue !== event.title) {
+      try {
+        await updateTimelineEvent({
+          ...event,
+          title: editTitleValue.trim()
+        });
+        await loadTimeline();
+      } catch (error) {
+        console.error('Error updating title:', error);
+      }
+    }
+    setEditingTitle(null);
+    setEditTitleValue('');
+  };
+
+  const cancelEditingTitle = () => {
+    setEditingTitle(null);
+    setEditTitleValue('');
   };
 
   const getFilteredEvents = () => {
@@ -247,12 +288,58 @@ export default function Timeline() {
                 <div className="absolute left-8 w-4 h-4 -ml-2 bg-white border-2 border-gray-400 rounded-full z-10"></div>
 
                 {/* Event card */}
-                <div className={`ml-16 flex-1 p-4 rounded-lg border-2 ${getEventColor(event.type)}`}>
+                <div className={`ml-16 flex-1 p-4 rounded-lg border-2 group ${getEventColor(event.type)}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
+                        <button
+                          onClick={() => toggleEventExpansion(event.id)}
+                          className="text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          {expandedEvents.has(event.id) ?
+                            <ChevronDown className="w-5 h-5" /> :
+                            <ChevronRight className="w-5 h-5" />
+                          }
+                        </button>
                         <span className="text-2xl">{getEventIcon(event.type)}</span>
-                        <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+
+                        {editingTitle === event.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editTitleValue}
+                              onChange={(e) => setEditTitleValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveTitle(event);
+                                if (e.key === 'Escape') cancelEditingTitle();
+                              }}
+                              className="flex-1 text-lg font-semibold text-gray-900 border-b-2 border-indigo-500 focus:outline-none"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => saveTitle(event)}
+                              className="text-green-600 hover:text-green-800"
+                            >
+                              <Check className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={cancelEditingTitle}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+                            <button
+                              onClick={() => startEditingTitle(event)}
+                              className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {event.description && (
@@ -261,48 +348,54 @@ export default function Timeline() {
 
                       {/* Event-specific data display */}
                       {event.type === 'voice_note' && event.data?.summary && (
-                        <div className="bg-white bg-opacity-50 rounded p-3 mb-2">
-                          <p className="text-sm font-medium text-gray-700 mb-1">Summary:</p>
-                          <p className="text-sm text-gray-600">
-                            {typeof event.data.summary === 'string'
-                              ? event.data.summary
-                              : event.data.summary.visitSummary || 'Voice recording processed'}
-                          </p>
-
-                          {/* Display action items if available */}
-                          {event.data.summary.nextSteps && event.data.summary.nextSteps.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs font-medium text-gray-700">Action Items:</p>
-                              <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
-                                {event.data.summary.nextSteps.slice(0, 3).map((step: string, i: number) => (
-                                  <li key={i}>{step}</li>
-                                ))}
-                                {event.data.summary.nextSteps.length > 3 && (
-                                  <li className="text-gray-400">+{event.data.summary.nextSteps.length - 3} more</li>
-                                )}
-                              </ul>
-                            </div>
-                          )}
-
-                          {/* Display sentiment if available */}
-                          {event.data.summary.sentiment && (
-                            <span className={`inline-block mt-2 text-xs px-2 py-1 rounded-full ${
-                              event.data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
-                              event.data.summary.sentiment === 'concerned' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {event.data.summary.sentiment === 'positive' ? '✓ Positive' :
-                               event.data.summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
-                               '• Routine'}
-                            </span>
-                          )}
-
-                          {event.data.duration && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              Duration: {Math.floor(event.data.duration / 60)}:{(event.data.duration % 60).toString().padStart(2, '0')}
+                        expandedEvents.has(event.id) ? (
+                          <TranscriptionSummary
+                            summary={event.data.summary}
+                            transcript={event.data.transcript}
+                            duration={event.data.duration}
+                            recordedAt={event.data.recordedAt || event.timestamp}
+                            expandable={false}
+                            className="mt-3"
+                          />
+                        ) : (
+                          <div className="bg-white bg-opacity-50 rounded p-3 mb-2">
+                            <p className="text-sm text-gray-600 line-clamp-3">
+                              {typeof event.data.summary === 'string'
+                                ? event.data.summary
+                                : event.data.summary.visitSummary || 'Voice recording processed'}
                             </p>
-                          )}
-                        </div>
+
+                            {/* Show condensed action items */}
+                            {event.data.summary.nextSteps && event.data.summary.nextSteps.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium text-gray-700">Action Items:</p>
+                                <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
+                                  {event.data.summary.nextSteps.slice(0, 2).map((step: string, i: number) => (
+                                    <li key={i} className="truncate">{step}</li>
+                                  ))}
+                                  {event.data.summary.nextSteps.length > 2 && (
+                                    <li className="text-indigo-600 font-medium">
+                                      +{event.data.summary.nextSteps.length - 2} more (click to expand)
+                                    </li>
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Display sentiment */}
+                            {event.data.summary.sentiment && (
+                              <span className={`inline-block mt-2 text-xs px-2 py-1 rounded-full ${
+                                event.data.summary.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                                event.data.summary.sentiment === 'concerned' ? 'bg-amber-100 text-amber-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {event.data.summary.sentiment === 'positive' ? '✓ Positive Progress' :
+                                 event.data.summary.sentiment === 'concerned' ? '⚠ Needs Attention' :
+                                 '• Stable'}
+                              </span>
+                            )}
+                          </div>
+                        )
                       )}
 
                       {event.type === 'test_result' && event.data && (
@@ -347,9 +440,10 @@ export default function Timeline() {
 
                         <button
                           onClick={() => handleDeleteEvent(event.id)}
-                          className="text-sm text-red-600 hover:text-red-800"
+                          className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          Delete
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     </div>
