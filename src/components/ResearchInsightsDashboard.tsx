@@ -381,7 +381,7 @@ export function ResearchInsightsDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {metrics.sourceDistribution.slice(0, 10).map((source, index) => (
+                {metrics.sourceDistribution.map((source, index) => (
                   <div key={source.source} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

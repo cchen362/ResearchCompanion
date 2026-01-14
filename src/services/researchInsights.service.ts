@@ -226,8 +226,9 @@ class ResearchInsightsService {
     // Extract breakthroughs
     const breakthroughs = (latestDigest.breakthroughs || []).map(b => ({
       id: b.id,
-      finding: b.finding,
-      significance: b.significance
+      finding: b.title,
+      significance: b.description,
+      impact: b.impact
     }));
 
     // Extract knowledge gaps
@@ -285,32 +286,31 @@ class ResearchInsightsService {
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
 
-    // Group by agent - now using agentType for better display
-    const agentMap = new Map<string, { lastRun: Date; count: number; type?: string }>();
+    // Group by agent type instead of agent ID for consolidated view
+    const agentMap = new Map<string, { lastRun: Date; count: number }>();
 
     findings.forEach(f => {
-      const agentId = f.agentId;
-      if (agentId) {
-        if (!agentMap.has(agentId)) {
-          agentMap.set(agentId, {
-            lastRun: new Date(f.timestamp || f.createdAt || Date.now()),
-            count: 0,
-            type: f.agentType // Store the agent type for formatting
-          });
-        }
+      // Use agentType for grouping, fallback to generic if not present
+      const agentType = f.agentType || 'general';
 
-        const agent = agentMap.get(agentId)!;
-        agent.count++;
-        agent.lastRun = new Date(Math.max(
-          agent.lastRun.getTime(),
-          new Date(f.timestamp || f.createdAt || Date.now()).getTime()
-        ));
+      if (!agentMap.has(agentType)) {
+        agentMap.set(agentType, {
+          lastRun: new Date(f.timestamp || f.createdAt || Date.now()),
+          count: 0
+        });
       }
+
+      const agent = agentMap.get(agentType)!;
+      agent.count++;
+      agent.lastRun = new Date(Math.max(
+        agent.lastRun.getTime(),
+        new Date(f.timestamp || f.createdAt || Date.now()).getTime()
+      ));
     });
 
     const agentActivity = Array.from(agentMap.entries())
-      .map(([agentId, data]) => ({
-        agentName: data.type ? this.formatAgentType(data.type) : this.getAgentDisplayName(agentId),
+      .map(([agentType, data]) => ({
+        agentName: this.formatAgentType(agentType),
         lastRun: data.lastRun,
         findingsGenerated: data.count
       }))
@@ -370,7 +370,7 @@ class ResearchInsightsService {
   private formatAgentType(type: string): string {
     const agentTypeMap: Record<string, string> = {
       'treatment_breakthrough': 'Treatment Breakthrough Agent',
-      'clinical_trial': 'Clinical Trials Agent',
+      'clinical_trial': 'Clinical Trial Research Agent',
       'medical_literature': 'Medical Literature Agent',
       'pattern_recognition': 'Pattern Recognition Agent',
       'insurance_access': 'Insurance & Access Agent',
