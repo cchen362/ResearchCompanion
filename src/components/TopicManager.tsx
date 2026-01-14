@@ -105,23 +105,9 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
                       </div>
                       <div className="mt-2 sm:flex sm:justify-between">
                         <div className="sm:flex sm:space-x-4">
-                          <p className="flex items-center text-sm text-gray-500">
-                            {topic.diseaseProfile.rareDisease && (
-                              <span className="mr-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
-                                Rare Disease
-                              </span>
-                            )}
-                            <span className={`px-2 py-1 text-xs rounded ${
-                              topic.diseaseProfile.progressionRate === 'rapid' ? 'bg-red-100 text-red-800' :
-                              topic.diseaseProfile.progressionRate === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {topic.diseaseProfile.progressionRate} progression
-                            </span>
-                          </p>
                           {topic.patientContext && (
-                            <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                            <p className="flex items-center text-sm text-gray-500">
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded capitalize">
                                 {topic.patientContext.ageGroup}
                               </span>
                             </p>
@@ -183,7 +169,6 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
 function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [diseaseName, setDiseaseName] = useState('');
-  const [isRare, setIsRare] = useState(true);
   const [progressionRate, setProgressionRate] = useState<'rapid' | 'moderate' | 'slow' | 'variable'>('moderate');
   const [ageGroup, setAgeGroup] = useState<'pediatric' | 'adolescent' | 'adult' | 'elderly'>('adult');
   const [creating, setCreating] = useState(false);
@@ -196,7 +181,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
     try {
       const diseaseProfile: DiseaseProfile = {
         name: diseaseName,
-        rareDisease: isRare,
+        rareDisease: false, // Default to false
         progressionRate,
         category: ['genetic'] // Default, could be expanded
       };
@@ -272,18 +257,6 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           </div>
 
           <div>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={isRare}
-                onChange={(e) => setIsRare(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span className="ml-2 text-sm text-gray-700">This is a rare disease</span>
-            </label>
-          </div>
-
-          <div>
             <label htmlFor="progression" className="block text-sm font-medium text-gray-700">
               How Often to Check for Updates
             </label>
@@ -345,7 +318,6 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
 function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState(topic.name);
   const [diseaseName, setDiseaseName] = useState(topic.diseaseProfile.name);
-  const [isRare, setIsRare] = useState(topic.diseaseProfile.rareDisease);
   const [progressionRate, setProgressionRate] = useState<'rapid' | 'moderate' | 'slow' | 'variable'>(topic.diseaseProfile.progressionRate);
   const [ageGroup, setAgeGroup] = useState<'pediatric' | 'adolescent' | 'adult' | 'elderly'>(topic.patientContext?.ageGroup || 'adult');
   const [updating, setUpdating] = useState(false);
@@ -362,7 +334,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
         diseaseProfile: {
           ...topic.diseaseProfile,
           name: diseaseName,
-          rareDisease: isRare,
+          rareDisease: topic.diseaseProfile.rareDisease, // Keep existing value
           progressionRate
         },
         patientContext: {
@@ -416,18 +388,6 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               placeholder="e.g., Mitochondrial Disease"
               required
             />
-          </div>
-
-          <div>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={isRare}
-                onChange={(e) => setIsRare(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span className="ml-2 text-sm text-gray-700">This is a rare disease</span>
-            </label>
           </div>
 
           <div>

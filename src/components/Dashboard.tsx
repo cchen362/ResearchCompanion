@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getAllTopics, getTopicsNeedingUpdate } from '@/utils/db/topics';
-import { getAgentsToRun } from '@/utils/db/agents';
+import { getAgentsToRun, getAgentsByTopic } from '@/utils/db/agents';
 import { getMonthlyApiCost } from '@/utils/db/agents';
 import type { Topic, Agent, ResearchFinding } from '@/types';
 import { getDB } from '@/utils/db/database';
-import { Search, FileText, Bot, MessageSquare, TrendingUp, Plus } from 'lucide-react';
+import { FileText, Bot, MessageSquare, TrendingUp, Plus } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 
 interface DashboardProps {
@@ -16,6 +16,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
   const [pendingAgents, setPendingAgents] = useState<Agent[]>([]);
   const [recentFindings, setRecentFindings] = useState<ResearchFinding[]>([]);
   const [monthlyCost, setMonthlyCost] = useState<number>(0);
+  const [agentCounts, setAgentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const showToast = useUIStore(state => state.showToast);
@@ -32,6 +33,14 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       // Load topics
       const allTopics = await getAllTopics();
       setTopics(allTopics);
+
+      // Load agent counts for each topic
+      const counts: Record<string, number> = {};
+      for (const topic of allTopics) {
+        const agents = await getAgentsByTopic(topic.id);
+        counts[topic.id] = agents.length;
+      }
+      setAgentCounts(counts);
 
       // Load pending agents
       const agentsToRun = await getAgentsToRun();
@@ -155,7 +164,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <button
               onClick={() => {
                 if (setCurrentView) {
@@ -208,34 +217,6 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
             </button>
 
             <button
-              onClick={async () => {
-                if (pendingAgents.length > 0) {
-                  showToast({
-                    type: 'info',
-                    message: `${pendingAgents.length} agents are ready to run. Go to Agents page to run them.`,
-                    duration: 4000
-                  });
-                  if (setCurrentView) {
-                    setCurrentView('agents');
-                  }
-                } else {
-                  showToast({
-                    type: 'info',
-                    message: 'No agents pending. They run automatically when scheduled.',
-                    duration: 3000
-                  });
-                }
-              }}
-              className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors relative"
-            >
-              <Search className="h-8 w-8 text-orange-600 mb-2" />
-              <span className="text-sm font-medium text-gray-900">Run Research</span>
-              {pendingAgents.length > 0 && (
-                <span className="absolute top-3 right-3 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-              )}
-            </button>
-
-            <button
               onClick={() => {
                 // Navigate to Analytics page (was incorrectly going to timeline)
                 if (setCurrentView) {
@@ -284,41 +265,6 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
         </div>
       </div>
 
-      {/* Topics Overview */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Active Topics</h3>
-          {topics.length === 0 ? (
-            <p className="text-gray-500 text-sm">No topics yet. Add a disease topic to start monitoring.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {topics.map(topic => (
-                <div key={topic.id} className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900">{topic.name}</h4>
-                  <p className="mt-1 text-xs text-gray-500">{topic.diseaseProfile.name}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      topic.diseaseProfile.progressionRate === 'rapid' ? 'bg-red-100 text-red-800' :
-                      topic.diseaseProfile.progressionRate === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {topic.diseaseProfile.progressionRate} progression
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {topic.agents.length} agents
-                    </span>
-                  </div>
-                  {topic.lastAgentRun && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Last update: {new Date(topic.lastAgentRun).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

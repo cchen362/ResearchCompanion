@@ -62,7 +62,8 @@
       "Bash(npm start)",
       "Bash(start chrome http://localhost:5176/clear-cache.html)",
       "Bash(find:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(node dist/index.js:*)"
     ],
     "deny": [],
     "ask": []

@@ -230,6 +230,19 @@ export class DigestQueueService {
       // Save the digest
       await db.add('digests', digest);
 
+      // Mark all findings in this digest as read (not new)
+      for (const findingId of digest.allFindingIds) {
+        const finding = await db.get('findings', findingId);
+        if (finding && finding.isNew) {
+          finding.isNew = false;
+          finding.userEngagement = {
+            ...finding.userEngagement,
+            viewed: true
+          };
+          await db.put('findings', finding);
+        }
+      }
+
       // Update queue item as completed
       item.status = 'completed';
       item.completedAt = Date.now();

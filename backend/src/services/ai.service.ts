@@ -88,9 +88,17 @@ export async function summarizeResults(
   context?: string
 ) {
   try {
-    const resultsText = searchResults.map(r =>
-      `Source: ${r.title}\nURL: ${r.url}\nContent: ${r.snippet || r.description}`
-    ).join('\n\n');
+    // Better error handling for missing fields
+    const resultsText = searchResults.map(r => {
+      const title = r.title || 'Untitled';
+      const url = r.url || r.source?.url || 'No URL';
+      const content = r.snippet || r.description || r.summary || r.abstract || 'No content available';
+
+      return `Source: ${title}\nURL: ${url}\nContent: ${content}`;
+    }).join('\n\n');
+
+    // Log for debugging
+    console.log(`Summarizing ${searchResults.length} results for query: ${query}`);
 
     const systemPrompt = context
       ? `You are a medical research assistant. Summarize the following search results, focusing on what's NEW or DIFFERENT from the previous context.
@@ -122,6 +130,7 @@ Previous context: ${context}`
     throw new Error('Unexpected response format');
   } catch (error) {
     console.error('Error summarizing results:', error);
+    console.error('Search results structure:', JSON.stringify(searchResults.slice(0, 1), null, 2));
     throw error;
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/utils/db/database';
-import { getAgentsToRun, setAgentStatus } from '@/utils/db/agents';
+import { getAgentsToRun, getAgentsForForceRun, setAgentStatus } from '@/utils/db/agents';
 import { runAgentWithAPI } from '@/services/agentRunner';
 import { getTopic } from '@/utils/db/topics';
 import AgentConfigModal from './AgentConfigModal';
@@ -72,16 +72,28 @@ export default function AgentMonitor() {
   };
 
   const handleRunAllPending = async () => {
-    const pendingAgents = await getAgentsToRun();
+    let pendingAgents = await getAgentsToRun();
 
     if (pendingAgents.length === 0) {
-      // No agents to run - show informative message
+      // No pending agents, try to get all agents that can be force-run
+      const forceRunAgents = await getAgentsForForceRun();
+
+      if (forceRunAgents.length === 0) {
+        showToast({
+          type: 'info',
+          message: 'No agents available to run.',
+          duration: 4000
+        });
+        return;
+      }
+
+      // Use force-run agents instead
+      pendingAgents = forceRunAgents;
       showToast({
         type: 'info',
-        message: 'No pending agents to run. Agents run automatically when scheduled.',
-        duration: 4000
+        message: `No agents scheduled, but force-running ${forceRunAgents.length} agent${forceRunAgents.length > 1 ? 's' : ''}...`,
+        duration: 3000
       });
-      return;
     }
 
     setIsRunningAll(true);

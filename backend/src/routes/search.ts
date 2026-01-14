@@ -152,11 +152,28 @@ router.post('/summarize', async (req, res) => {
       return res.status(400).json({ error: 'Results and query are required' });
     }
 
+    // Log the structure of results for debugging
+    console.log(`Summarize request - Query: ${query}, Results count: ${results.length}`);
+    if (results.length > 0) {
+      console.log('First result structure:', Object.keys(results[0]));
+    }
+
     const summary = await summarizeResults(results, query, context);
     res.json({ summary });
   } catch (error) {
     console.error('Error in summarize:', error);
-    res.status(500).json({ error: 'Failed to summarize results' });
+    console.error('Request body:', {
+      query: req.body.query,
+      resultsCount: req.body.results?.length,
+      firstResult: req.body.results?.[0]
+    });
+
+    // More detailed error response
+    const errorMessage = error instanceof Error ? error.message : 'Failed to summarize results';
+    res.status(500).json({
+      error: 'Failed to summarize results',
+      details: errorMessage
+    });
   }
 });
 

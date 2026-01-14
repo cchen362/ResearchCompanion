@@ -49,6 +49,15 @@ export async function getAgentsToRun(): Promise<Agent[]> {
   );
 }
 
+// Get all agents that can be force-run (not currently running)
+export async function getAgentsForForceRun(): Promise<Agent[]> {
+  const db = await getDB();
+  const allAgents = await db.getAll('agents');
+
+  // Return all agents that aren't currently running
+  return allAgents.filter(agent => agent.status !== 'running');
+}
+
 // Update agent after run
 export async function updateAgentAfterRun(
   agentId: string,
