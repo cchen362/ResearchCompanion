@@ -60,23 +60,70 @@ export async function updateTopic(topic: Topic): Promise<void> {
 export async function deleteTopic(id: string): Promise<void> {
   const db = await getDB();
 
-  // Also delete associated agents and findings
+  // Get all associated data
   const agents = await db.getAllFromIndex('agents', 'by-topic', id);
   const findings = await db.getAllFromIndex('findings', 'by-topic', id);
+  const digests = await db.getAllFromIndex('digests', 'by-topic', id);
+  const chats = await db.getAllFromIndex('chats', 'by-topic', id);
+  const timeline = await db.getAllFromIndex('timeline', 'by-topic', id);
 
-  const tx = db.transaction(['topics', 'agents', 'findings'], 'readwrite');
+  // Get all notifications (we'll filter for topic-related ones)
+  const allNotifications = await db.getAll('notifications');
+  const topicNotifications = allNotifications.filter(n =>
+    n.data?.topicId === id ||
+    n.title?.includes(id) ||
+    (n.data && typeof n.data === 'object' && 'topicId' in n.data && n.data.topicId === id)
+  );
 
+  // Delete everything in a transaction
+  const tx = db.transaction([
+    'topics', 'agents', 'findings', 'digests',
+    'chats', 'timeline', 'notifications'
+  ], 'readwrite');
+
+  // Delete the topic itself
   await tx.objectStore('topics').delete(id);
 
+  // Delete associated agents
   for (const agent of agents) {
     await tx.objectStore('agents').delete(agent.id);
   }
 
+  // Delete associated findings
   for (const finding of findings) {
     await tx.objectStore('findings').delete(finding.id);
   }
 
+  // Delete associated digests
+  for (const digest of digests) {
+    await tx.objectStore('digests').delete(digest.id);
+  }
+
+  // Delete associated chats
+  for (const chat of chats) {
+    await tx.objectStore('chats').delete(chat.id);
+  }
+
+  // Delete associated timeline events
+  for (const event of timeline) {
+    await tx.objectStore('timeline').delete(event.id);
+  }
+
+  // Delete associated notifications
+  for (const notification of topicNotifications) {
+    await tx.objectStore('notifications').delete(notification.id);
+  }
+
   await tx.done;
+
+  console.log(`Deleted topic ${id} and all associated data:`, {
+    agents: agents.length,
+    findings: findings.length,
+    digests: digests.length,
+    chats: chats.length,
+    timeline: timeline.length,
+    notifications: topicNotifications.length
+  });
 }
 
 // Search topics by name

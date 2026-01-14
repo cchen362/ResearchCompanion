@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/utils/db/database';
+import { cleanupOrphanedNotifications, getNotificationStats } from '@/utils/db/cleanup';
 import type { Notification } from '@/types';
 
 export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [cleanupStats, setCleanupStats] = useState<{ orphaned: number; total: number } | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   useEffect(() => {
     console.log('NotificationCenter mounted');
     loadNotifications();
+    checkForOrphans();
+
     // Refresh every 2 seconds for more responsive updates
     const interval = setInterval(() => {
       loadNotifications();
@@ -21,13 +26,21 @@ export default function NotificationCenter() {
       loadNotifications();
     };
 
+    const handleNotificationsCleaned = () => {
+      console.log('Notifications cleaned, reloading...');
+      loadNotifications();
+      checkForOrphans();
+    };
+
     window.addEventListener('notification-created', handleNotificationCreated);
     window.addEventListener('agent-complete', handleNotificationCreated);
+    window.addEventListener('notifications-cleaned', handleNotificationsCleaned);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('notification-created', handleNotificationCreated);
       window.removeEventListener('agent-complete', handleNotificationCreated);
+      window.removeEventListener('notifications-cleaned', handleNotificationsCleaned);
     };
   }, []);
 
@@ -86,6 +99,47 @@ export default function NotificationCenter() {
     }
   };
 
+  const checkForOrphans = async () => {
+    try {
+      const stats = await getNotificationStats();
+      setCleanupStats({ orphaned: stats.orphaned, total: stats.total });
+    } catch (error) {
+      console.error('Error checking for orphans:', error);
+    }
+  };
+
+  const handleCleanupOrphans = async () => {
+    setIsCleaningUp(true);
+    try {
+      const result = await cleanupOrphanedNotifications();
+      console.log(`Cleanup complete: ${result.removed} orphaned notifications removed`);
+
+      // Show a temporary success message
+      const tempNotification: Notification = {
+        id: 'cleanup-success',
+        type: 'agent_complete',
+        title: 'Cleanup Complete',
+        message: `Removed ${result.removed} orphaned notifications. ${result.kept} notifications kept.`,
+        priority: 'normal',
+        createdAt: Date.now()
+      };
+
+      setNotifications(prev => [tempNotification, ...prev.slice(0, 9)]);
+
+      // Remove the temp notification after 3 seconds
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== 'cleanup-success'));
+      }, 3000);
+
+      await loadNotifications();
+      await checkForOrphans();
+    } catch (error) {
+      console.error('Error cleaning up orphans:', error);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'breakthrough_treatment':
@@ -132,14 +186,26 @@ export default function NotificationCenter() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="text-xs text-indigo-600 hover:text-indigo-500"
-                  >
-                    Mark all as read
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {cleanupStats && cleanupStats.orphaned > 0 && (
+                    <button
+                      onClick={handleCleanupOrphans}
+                      disabled={isCleaningUp}
+                      className="text-xs text-red-600 hover:text-red-500 disabled:opacity-50"
+                      title={`${cleanupStats.orphaned} orphaned notifications from deleted topics`}
+                    >
+                      {isCleaningUp ? 'Cleaning...' : `Clean ${cleanupStats.orphaned} orphaned`}
+                    </button>
+                  )}
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-xs text-indigo-600 hover:text-indigo-500"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
               </div>
 
               {notifications.length === 0 ? (

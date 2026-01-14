@@ -132,6 +132,67 @@
             }
         }
 
+        async function testNotificationCleanup() {
+            addResult('<strong>Testing Notification Cleanup...</strong>');
+            try {
+                const dbName = 'MedCompanionDB';
+                const request = indexedDB.open(dbName);
+
+                request.onsuccess = async function(event) {
+                    const db = event.target.result;
+
+                    // Get all topics
+                    const topicsStore = db.transaction(['topics'], 'readonly').objectStore('topics');
+                    const topicsRequest = topicsStore.getAll();
+
+                    topicsRequest.onsuccess = async function() {
+                        const topics = topicsRequest.result;
+                        const validTopicIds = new Set(topics.map(t => t.id));
+
+                        // Get all notifications
+                        const notifStore = db.transaction(['notifications'], 'readonly').objectStore('notifications');
+                        const notifRequest = notifStore.getAll();
+
+                        notifRequest.onsuccess = function() {
+                            const notifications = notifRequest.result;
+                            let orphanedCount = 0;
+
+                            notifications.forEach(n => {
+                                const topicId = n.data?.topicId;
+                                if (topicId && !validTopicIds.has(topicId)) {
+                                    orphanedCount++;
+                                }
+                            });
+
+                            if (orphanedCount > 0) {
+                                addResult(`⚠️ Found ${orphanedCount} orphaned notifications from deleted topics`, 'warning');
+                                addResult(`You can clean these up using the "Clean orphaned" button in the notification panel`, 'info');
+                            } else {
+                                addResult(`✅ No orphaned notifications found`, 'success');
+                            }
+
+                            // Show breakdown
+                            const byTopic = {};
+                            notifications.forEach(n => {
+                                const topicId = n.data?.topicId || '[No topic]';
+                                const isOrphaned = topicId !== '[No topic]' && !validTopicIds.has(topicId);
+                                const key = isOrphaned ? `[Orphaned: ${topicId}]` : topicId;
+                                byTopic[key] = (byTopic[key] || 0) + 1;
+                            });
+
+                            addResult(`Notifications by topic: <pre>${JSON.stringify(byTopic, null, 2)}</pre>`, 'info');
+                        };
+                    };
+                };
+
+                request.onerror = function(event) {
+                    addResult(`❌ Failed to test notification cleanup: ${event.target.error}`, 'error');
+                };
+            } catch (error) {
+                addResult(`❌ Error testing notification cleanup: ${error}`, 'error');
+            }
+        }
+
         async function testAppEndpoint() {
             addResult('<strong>Testing app endpoint...</strong>');
             try {
@@ -169,6 +230,9 @@
             await new Promise(resolve => setTimeout(resolve, 100));
 
             await testIndexedDB();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            await testNotificationCleanup();
             await new Promise(resolve => setTimeout(resolve, 100));
 
             await testAppEndpoint();
