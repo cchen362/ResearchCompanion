@@ -20,6 +20,8 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
     await setAgentStatus(agent.id, 'running');
 
     const findings: ResearchFinding[] = [];
+    let duplicatesSkipped = 0;  // Track duplicates at function scope
+    let existingFindings: ResearchFinding[] = [];  // Define at function scope
     const query = buildSearchQuery(topic, agent.type);
 
     // Step 1: Parse the search intent
@@ -134,24 +136,57 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
         findings.push(finding);
       }
 
-      // Step 5: Store findings in database
+      // Step 5: Store findings in database with deduplication
       const db = await getDB();
+
+      // Get existing findings for this topic to check for duplicates
+      existingFindings = await db.getAllFromIndex('findings', 'by-topic', topic.id);
+
+      duplicatesSkipped = 0;  // Reset counter for this batch
       for (const finding of findings) {
-        await db.add('findings', finding);
+        // Check for duplicate by URL or title+source combination
+        const isDuplicate = existingFindings.some(existing => {
+          // Check by URL if available
+          if (finding.source.url && existing.source.url) {
+            return finding.source.url === existing.source.url;
+          }
+
+          // Check by title and source name
+          return finding.title.toLowerCase() === existing.title.toLowerCase() &&
+                 finding.source.name === existing.source.name;
+        });
+
+        if (!isDuplicate) {
+          await db.add('findings', finding);
+        } else {
+          duplicatesSkipped++;
+          console.log(`Skipping duplicate finding: ${finding.title}`);
+        }
       }
 
+      // Adjust the findings array to only include non-duplicates
+      const actualNewFindings = findings.length - duplicatesSkipped;
+
       // Create notification for new findings
-      if (findings.length > 0) {
-        await createNotification(topic, findings.length);
+      if (actualNewFindings > 0) {
+        await createNotification(topic, actualNewFindings);
       }
     }
 
     // Update agent status
     const apiCost = calculateCost(searchResults.length);
-    await updateAgentAfterRun(agent.id, 'success', findings.length, apiCost);
+    const actualNewCount = findings.length - (duplicatesSkipped || 0);
+    await updateAgentAfterRun(agent.id, 'success', actualNewCount, apiCost);
 
-    console.log(`Agent run complete. Found ${findings.length} new findings.`);
-    return findings;
+    console.log(`Agent run complete. Found ${actualNewCount} new findings (${duplicatesSkipped || 0} duplicates skipped).`);
+
+    // Return only the non-duplicate findings
+    return findings.filter(f =>
+      !existingFindings.some(existing =>
+        (f.source.url && existing.source.url && f.source.url === existing.source.url) ||
+        (f.title.toLowerCase() === existing.title.toLowerCase() && f.source.name === existing.source.name)
+      )
+    );
 
   } catch (error) {
     console.error(`Agent ${agent.id} failed:`, error);

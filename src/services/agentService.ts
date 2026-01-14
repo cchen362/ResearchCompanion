@@ -1,6 +1,7 @@
 import type { Agent, ResearchFinding, Topic, AgentType } from '@/types';
 import { getDB } from '@/utils/db/database';
 import { generateId } from '@/utils/db/topics';
+import { api } from '@/services/api';
 import {
   setAgentStatus,
   updateAgentAfterRun,
@@ -56,21 +57,16 @@ export async function runAgent(agent: Agent, topic: Topic): Promise<ResearchFind
     await setAgentStatus(agent.id, 'running');
 
     // Call backend to execute real medical research
-    console.log('Calling agent API at:', `${API_BASE}/run-agent`);
-    const response = await fetch(`${API_BASE}/run-agent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent, topic })
-    });
+    console.log('Calling agent API at: /run-agent');
+    const response = await api.post('/run-agent', { agent, topic });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Agent API failed:', response.status, errorText);
-      alert(`Failed to run agent: ${response.status} - ${errorText}`);
-      throw new Error(`Agent execution failed: ${response.status}`);
+    if (!response.data) {
+      console.error('Agent API failed: No data returned');
+      alert('Failed to run agent: No data returned');
+      throw new Error('Agent execution failed: No data returned');
     }
 
-    const data = await response.json();
+    const data = response.data;
 
     // Process and store findings from real sources only
     const processedFindings = await processFindings(data.findings || [], agent, topic);

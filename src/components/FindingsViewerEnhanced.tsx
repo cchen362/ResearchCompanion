@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDB } from '@/utils/db/database';
 import { getTopic } from '@/utils/db/topics';
+import { digestQueueService } from '@/services/digestQueue.service';
 import type { ResearchFinding, Topic, SmartDigest, DigestTimeframe, ExplanationMode } from '@/types';
 import { DigestCard } from './DigestCard';
 import { ThemeAccordion } from './ThemeAccordion';
@@ -163,28 +164,30 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         return;
       }
 
-      // Call backend to generate digest
-      const response = await fetch('/api/generate-digest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          findings: filteredFindings,
-          topic: topic,
-          timeframe: digestTimeframe
-        })
-      });
+      // Use digestQueueService to generate digest with proper auth
+      const findingIds = filteredFindings.map(f => f.id);
+      const queueId = await digestQueueService.queueDigestGeneration(
+        topicId || '',
+        digestTimeframe,
+        findingIds,
+        'high',
+        'user'
+      );
 
-      if (!response.ok) {
-        throw new Error('Failed to generate digest');
-      }
+      // Wait for digest to be generated
+      const checkStatus = async () => {
+        const status = await digestQueueService.getQueueStatus(queueId);
+        if (status?.status === 'completed' && status.digest) {
+          setDigest(status.digest);
+        } else if (status?.status === 'failed') {
+          throw new Error('Failed to generate digest');
+        } else {
+          // Check again in 1 second
+          setTimeout(checkStatus, 1000);
+        }
+      };
 
-      const newDigest = await response.json();
-
-      // Save to database
-      const db = await getDB();
-      await db.put('digests', newDigest);
-
-      setDigest(newDigest);
+      await checkStatus();
     } catch (error) {
       console.error('Error generating digest:', error);
       // Fallback: Create a basic digest locally

@@ -1,49 +1,99 @@
 import axios from 'axios';
+import type { AxiosInstance } from 'axios';
 import type { VoiceTranscriptionResult } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+// Standard timeout for regular operations
+const STANDARD_TIMEOUT = 60000; // 60 seconds
+
+// Extended timeout for long-running operations
+const LONG_OPERATION_TIMEOUT = 300000; // 5 minutes
 
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60 seconds
+  timeout: STANDARD_TIMEOUT, // Default to standard timeout
 });
 
-// Request interceptor for debugging
-api.interceptors.request.use(
-  (config) => {
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    return config;
+/**
+ * Create an API instance with extended timeout for long operations
+ * Use this for operations like digest generation, agent runs, etc.
+ */
+export const longOperationApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  (error) => {
-    console.error('API Request Error:', error);
-    return Promise.reject(error);
-  }
-);
+  timeout: LONG_OPERATION_TIMEOUT,
+});
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error('API Response Error:', error);
-    if (error.response) {
-      // Server responded with error
-      console.error('Response data:', error.response.data);
-      console.error('Response status:', error.response.status);
-    } else if (error.request) {
-      // No response received
-      console.error('No response received:', error.request);
-    } else {
-      // Request setup error
-      console.error('Error message:', error.message);
+/**
+ * Helper to make API call with custom timeout
+ */
+export function apiWithTimeout(timeout: number = STANDARD_TIMEOUT): AxiosInstance {
+  const instance = axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    timeout,
+  });
+
+  // Apply the same interceptors
+  applyInterceptors(instance);
+
+  return instance;
+}
+
+/**
+ * Apply standard interceptors to an axios instance
+ */
+function applyInterceptors(instance: AxiosInstance) {
+  // Request interceptor
+  instance.interceptors.request.use(
+    (config) => {
+      // Add auth token if available
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url} (timeout: ${config.timeout}ms)`);
+      return config;
+    },
+    (error) => {
+      console.error('API Request Error:', error);
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
-);
+  );
+
+  // Response interceptor
+  instance.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error) => {
+      console.error('API Response Error:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+      return Promise.reject(error);
+    }
+  );
+}
+
+// Apply interceptors to the main api instance
+applyInterceptors(api);
+
+// Apply interceptors to the long operation instance
+applyInterceptors(longOperationApi);
 
 /**
  * Parse a natural language search query
@@ -90,6 +140,19 @@ export async function summarizeResults(
   context?: string
 ) {
   const response = await api.post('/summarize', { results, query, context });
+  return response.data;
+}
+
+/**
+ * Summarize search results with extended timeout
+ * Use this when summarizing large result sets
+ */
+export async function summarizeResultsLong(
+  results: any[],
+  query: string,
+  context?: string
+) {
+  const response = await longOperationApi.post('/summarize', { results, query, context });
   return response.data;
 }
 

@@ -1,4 +1,5 @@
 import { getDB } from '@/utils/db/database';
+import { api, longOperationApi } from '@/services/api';
 import type {
   DigestQueueItem,
   DigestQueueStatus,
@@ -294,12 +295,9 @@ export class DigestQueueService {
 
     // First, check if backend is healthy
     try {
-      const healthCheck = await fetch('/api/health', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const healthCheck = await api.get('/health');
 
-      if (!healthCheck.ok) {
+      if (healthCheck.status !== 200) {
         throw new Error('Backend health check failed');
       }
     } catch (error) {
@@ -317,52 +315,15 @@ export class DigestQueueService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Create a timeout promise that rejects after 2.5 minutes (shorter than server's 3-minute timeout)
-        const timeoutPromise = new Promise<Response>((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout after 150 seconds - AI processing may be taking longer than expected')), 150000);
+        // API call using long operation API with 5-minute timeout
+        const response = await longOperationApi.post('/generate-digest', {
+          findings: findings.slice(0, 50), // Limit to 50 findings to reduce payload
+          topic,
+          timeframe
         });
 
-        // Create the fetch promise
-        const fetchPromise = fetch('/api/generate-digest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            findings: findings.slice(0, 50), // Limit to 50 findings to reduce payload
-            topic,
-            timeframe
-          })
-        });
-
-        // Race between fetch and timeout
-        const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-        // Handle different error responses
-        if (!response.ok) {
-          if (response.status === 429) {
-            // Rate limited - wait longer before retry
-            const retryAfter = response.headers.get('Retry-After');
-            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
-            await this.updateProgress(queueItem.id, 'generating', 50,
-              `Rate limited. Retrying in ${Math.ceil(waitTime / 1000)}s...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            continue;
-          } else if (response.status >= 500) {
-            // Server error - retry with backoff
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-          } else if (response.status >= 400) {
-            // Client error - don't retry
-            const errorData = await response.text();
-            throw new Error(`Client error ${response.status}: ${errorData}`);
-          }
-        }
-
-        // Parse response
-        let digestData;
-        try {
-          digestData = await response.json();
-        } catch (parseError) {
-          throw new Error('Failed to parse digest response');
-        }
+        // Axios returns data directly
+        const digestData = response.data;
 
         // Validate response has required fields
         if (!digestData.executiveSummary || !digestData.themes) {

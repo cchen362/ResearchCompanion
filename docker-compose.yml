@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  medical-companion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # API keys are baked into the image during build
+        # Replace these with your actual API keys
+        ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+        OPENAI_API_KEY: ${OPENAI_API_KEY}
+        BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+    container_name: medical-companion
+
+    ports:
+      - "6767:6767"  # nginx frontend
+      - "3001:3001"  # backend API (optional, for direct access)
+
+    environment:
+      # Runtime environment variables
+      NODE_ENV: production
+      PORT: 3001
+
+      # JWT Secret for authentication (change this!)
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+
+      # Baked-in API keys (set during build)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+      # Medical search configuration
+      ENABLE_REAL_MEDICAL_SEARCH: "true"
+      ENABLE_WEB_SEARCH: "true"
+
+    volumes:
+      # Persist user database and data
+      - medical-data:/app/data
+      - medical-logs:/var/log/nginx
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6767/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+volumes:
+  medical-data:
+    driver: local
+  medical-logs:
+    driver: local

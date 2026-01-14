@@ -1,6 +1,6 @@
 // Service Worker for Medical Research Companion PWA
 // IMPORTANT: Keep CACHE_NAME version in sync with DB_VERSION in src/utils/db/database.ts
-const CACHE_NAME = 'med-companion-v4';
+const CACHE_NAME = 'med-companion-v5';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -176,7 +176,7 @@ async function runScheduledAgents() {
 
   try {
     // Open IndexedDB
-    const dbRequest = indexedDB.open('MedCompanionDB', 4);
+    const dbRequest = indexedDB.open('MedCompanionDB', 5);
 
     return new Promise((resolve, reject) => {
       dbRequest.onsuccess = async (event) => {
@@ -262,7 +262,7 @@ async function checkAndRunAgents() {
 
   try {
     // Open IndexedDB
-    const dbRequest = indexedDB.open('MedCompanionDB', 4);
+    const dbRequest = indexedDB.open('MedCompanionDB', 5);
 
     return new Promise((resolve, reject) => {
       dbRequest.onsuccess = async (event) => {

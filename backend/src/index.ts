@@ -10,6 +10,11 @@ import transcribeRoute from './routes/transcribe.js';
 import digestRoutes from './routes/digest.routes.js';
 import agentRoute from './routes/agent.js';
 import chatRoutes from './routes/chat.routes.js';
+import authRoutes from './routes/auth.routes.js';
+
+// Import middleware and database
+import { authenticate } from './middleware/auth.js';
+import { userDatabase } from './database/users.db.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +23,11 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Initialize database on startup
+userDatabase.initialize().catch(error => {
+  console.error('Failed to initialize user database:', error);
+});
 
 // Configure server timeout for long-running AI operations (5 minutes)
 app.set('timeout', 300000); // 5 minutes in milliseconds
@@ -44,12 +54,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Routes
-app.use('/api', searchRoutes);
-app.use('/api', transcribeRoute);
-app.use('/api', digestRoutes);
-app.use('/api', agentRoute);
-app.use('/api/chat', chatRoutes);
+// Auth routes (no authentication required)
+app.use('/api/auth', authRoutes);
+
+// Protected routes (authentication required)
+app.use('/api', authenticate, searchRoutes);
+app.use('/api', authenticate, transcribeRoute);
+app.use('/api', authenticate, digestRoutes);
+app.use('/api', authenticate, agentRoute);
+app.use('/api/chat', authenticate, chatRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -62,7 +75,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
-  console.log('📡 API endpoints available:');
+  console.log('🔐 Authentication enabled - all API routes require login');
+  console.log('\n📡 Auth endpoints (no token required):');
+  console.log('  - POST /api/auth/register');
+  console.log('  - POST /api/auth/login');
+  console.log('  - GET /api/auth/verify');
+  console.log('\n🔒 Protected API endpoints (token required):');
   console.log('  - POST /api/parse-search-query');
   console.log('  - POST /api/websearch');
   console.log('  - POST /api/pubmed-search');

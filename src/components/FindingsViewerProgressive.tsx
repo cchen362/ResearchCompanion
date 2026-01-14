@@ -631,21 +631,27 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 {/* Themes Removed - These were confusing AI-generated groupings */}
                 {/* Will be replaced with better organization when we have real research data */}
               </>
-            ) : (
+            ) : queueItem && (queueItem.status === 'pending' || queueItem.status === 'processing') ? (
+              <Card className="p-8 text-center">
+                <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+                <CardTitle className="mb-2">Generating AI-Powered Insights</CardTitle>
+                <p className="text-muted-foreground mb-4">
+                  Analyzing {getFilteredFindings().length} findings to create your personalized digest...
+                </p>
+                <Progress value={queueItem.progress || 0} className="max-w-xs mx-auto" />
+                <p className="text-xs text-muted-foreground mt-2">{queueItem.progressMessage || 'Processing...'}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This typically takes 30-90 seconds for thorough AI analysis
+                </p>
+              </Card>
+            ) : !digest ? (
               <Card className="p-8 text-center">
                 {digestGeneration.isGenerating ? (
-                  <>
-                    <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
-                    <CardTitle className="mb-2">Generating AI-Powered Insights</CardTitle>
-                    <p className="text-muted-foreground mb-4">
-                      Analyzing {getFilteredFindings().length} findings to create your personalized digest...
-                    </p>
+                  <div className="space-y-4">
+                    <Sparkles className="h-12 w-12 mx-auto text-primary animate-pulse" />
+                    <CardTitle className="mb-2">Processing...</CardTitle>
                     <Progress value={digestGeneration.progress} className="max-w-xs mx-auto" />
-                    <p className="text-xs text-muted-foreground mt-2">{digestGeneration.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      This typically takes 30-90 seconds for thorough AI analysis (up to 2.5 minutes for complex topics)
-                    </p>
-                  </>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="relative">
@@ -672,7 +678,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                   </div>
                 )}
               </Card>
-            )}
+            ) : null}
             </div>
           ) : (
             <div className="space-y-4">

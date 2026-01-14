@@ -172,11 +172,15 @@ class ChatService {
       // Create event source for SSE
       const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/chat/stream`;
 
+      // Get auth token for streaming request
+      const token = localStorage.getItem('auth_token');
+
       fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream'
+          'Accept': 'text/event-stream',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify(payload),
         signal: this.abortController.signal
