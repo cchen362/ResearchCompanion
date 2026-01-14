@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, Brain, FileText } from 'lucide-react';
@@ -7,6 +7,7 @@ import { getDB } from '@/utils/db/database';
 import { getAllTopics } from '@/utils/db/topics';
 import type { ResearchFinding, SmartDigest, Topic } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
+import { digestService } from '@/services/digest.service';
 
 export function AnalyticsView() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -36,6 +37,10 @@ export function AnalyticsView() {
       if (allTopics.length > 0 && !selectedTopicId) {
         setSelectedTopicId(allTopics[0].id);
       }
+      // Set loading to false if no topics
+      if (allTopics.length === 0) {
+        setLoading(false);
+      }
     } catch (error) {
       console.error('Error loading topics:', error);
       toast({
@@ -43,6 +48,7 @@ export function AnalyticsView() {
         description: 'Failed to load research topics.',
         variant: 'destructive'
       });
+      setLoading(false);
     }
   };
 
@@ -81,6 +87,41 @@ export function AnalyticsView() {
       setLoading(false);
     }
   };
+
+  const handleGenerateDigest = useCallback(async () => {
+    if (!selectedTopic || findings.length === 0) {
+      toast({
+        title: 'No findings available',
+        description: 'You need research findings to generate a digest.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: 'Generating digest...',
+        description: 'This may take a moment.',
+      });
+
+      const newDigest = await digestService.generateSmartDigest(selectedTopic, findings);
+
+      // Reload digests after generation
+      await loadTopicData(selectedTopicId);
+
+      toast({
+        title: 'Digest generated',
+        description: 'Smart digest has been generated successfully.',
+      });
+    } catch (error) {
+      console.error('Error generating digest:', error);
+      toast({
+        title: 'Failed to generate digest',
+        description: 'An error occurred while generating the digest.',
+        variant: 'destructive'
+      });
+    }
+  }, [selectedTopic, findings, selectedTopicId, toast]);
 
 
   if (topics.length === 0 && !loading) {
@@ -143,7 +184,9 @@ export function AnalyticsView() {
       ) : selectedTopic ? (
         <ResearchInsightsDashboard
           findings={findings}
+          topics={topics}
           digests={digests}
+          onGenerateDigest={handleGenerateDigest}
         />
       ) : (
         <Card className="p-8 text-center">

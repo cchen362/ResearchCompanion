@@ -60,7 +60,9 @@
       "Bash(git log:*)",
       "Bash(start chrome http://localhost:5178/clear-cache.html)",
       "Bash(npm start)",
-      "Bash(start chrome http://localhost:5176/clear-cache.html)"
+      "Bash(start chrome http://localhost:5176/clear-cache.html)",
+      "Bash(find:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []
