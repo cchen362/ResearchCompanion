@@ -312,17 +312,69 @@ function calculateCost(resultCount: number): number {
  * Create notification for important findings
  */
 async function createNotification(topic: Topic, findingsCount: number): Promise<void> {
-  const db = await getDB();
-  await db.add('notifications', {
-    id: generateId(),
-    type: 'agent_complete',
-    priority: 'medium',
-    title: `New research for ${topic.name}`,
-    message: `Found ${findingsCount} new findings related to ${topic.diseaseProfile.name}`,
-    createdAt: Date.now()
-  });
+  try {
+    const db = await getDB();
+    const notification = {
+      id: generateId(),
+      type: 'agent_complete' as const,
+      priority: 'medium' as const,
+      title: `New research for ${topic.name}`,
+      message: `Found ${findingsCount} new findings related to ${topic.diseaseProfile.name}`,
+      createdAt: Date.now(),
+      // Add optional fields to ensure complete object
+      readAt: undefined,
+      dismissedAt: undefined,
+      actionUrl: undefined,
+      data: { topicId: topic.id, findingsCount }
+    };
 
-  // Dispatch custom event to notify UI components
-  window.dispatchEvent(new CustomEvent('notification-created'));
-  window.dispatchEvent(new CustomEvent('agent-complete'));
+    console.log('Creating notification with full object:', notification);
+
+    // Try to save the notification
+    try {
+      const result = await db.add('notifications', notification);
+      console.log('✅ Notification saved successfully with key:', result);
+
+      // Verify it was saved
+      const savedNotification = await db.get('notifications', notification.id);
+      console.log('Verification - saved notification:', savedNotification);
+
+      // Dispatch custom event to notify UI components
+      console.log('Dispatching notification-created and agent-complete events');
+      window.dispatchEvent(new CustomEvent('notification-created', {
+        detail: { notification: savedNotification }
+      }));
+      window.dispatchEvent(new CustomEvent('agent-complete', {
+        detail: { topicId: topic.id, findingsCount }
+      }));
+
+    } catch (dbError) {
+      console.error('❌ Failed to save notification to database:', dbError);
+      console.error('Error details:', {
+        name: (dbError as Error).name,
+        message: (dbError as Error).message,
+        stack: (dbError as Error).stack
+      });
+
+      // Try alternative approach: use put instead of add
+      try {
+        console.log('Trying put instead of add...');
+        await db.put('notifications', notification);
+        console.log('✅ Notification saved with put method');
+
+        // Dispatch events even if we used put
+        window.dispatchEvent(new CustomEvent('notification-created', {
+          detail: { notification }
+        }));
+        window.dispatchEvent(new CustomEvent('agent-complete', {
+          detail: { topicId: topic.id, findingsCount }
+        }));
+      } catch (putError) {
+        console.error('❌ Put also failed:', putError);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error in createNotification:', error);
+  }
 }

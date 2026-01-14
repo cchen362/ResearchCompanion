@@ -8,12 +8,16 @@ export default function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    console.log('NotificationCenter mounted');
     loadNotifications();
-    // Refresh every 10 seconds for more responsive updates
-    const interval = setInterval(loadNotifications, 10000);
+    // Refresh every 2 seconds for more responsive updates
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 2000);
 
     // Listen for custom notification events
     const handleNotificationCreated = () => {
+      console.log('Notification event received, loading notifications...');
       loadNotifications();
     };
 
@@ -30,11 +34,18 @@ export default function NotificationCenter() {
   const loadNotifications = async () => {
     try {
       const db = await getDB();
-      const allNotifications = await db.getAllFromIndex('notifications', 'by-date');
-      const recent = allNotifications.slice(-10).reverse(); // Last 10, most recent first
+      // Use getAll instead of getAllFromIndex to ensure we get all notifications
+      const allNotifications = await db.getAll('notifications');
+      console.log('Loaded notifications using getAll:', allNotifications.length, 'total notifications');
+
+      // Sort by createdAt manually (most recent first)
+      allNotifications.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      const recent = allNotifications.slice(0, 10); // First 10 after sorting (most recent)
       setNotifications(recent);
 
       const unread = recent.filter(n => !n.readAt).length;
+      console.log('Unread notifications:', unread);
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error loading notifications:', error);

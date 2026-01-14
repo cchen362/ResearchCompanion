@@ -30,6 +30,10 @@ export async function createTopic(
   };
 
   await db.add('topics', topic);
+
+  // Dispatch event to notify UI components
+  window.dispatchEvent(new CustomEvent('topic-created', { detail: { topic } }));
+
   return topic;
 }
 

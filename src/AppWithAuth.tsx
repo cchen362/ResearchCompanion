@@ -16,6 +16,8 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 import { AuthGuard } from './components/auth/AuthGuard';
+import { DebugPanel } from './components/DebugPanel';
+import NotificationCenter from './components/NotificationCenter';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare, LogOut, Menu, X, Bell } from 'lucide-react';
 import type { Topic } from './types';
@@ -33,6 +35,22 @@ function MainApp() {
 
   const { chatPanelOpen, setChatPanelOpen } = useUIStore();
 
+  // Function to refresh topics
+  const refreshTopics = async () => {
+    try {
+      const allTopics = await getAllTopics();
+      console.log('Refreshed topics:', allTopics.length, 'topics found');
+      setTopics(allTopics);
+
+      // Auto-select first topic if none selected and topics exist
+      if (!selectedTopic && allTopics.length > 0) {
+        setSelectedTopic(allTopics[0]);
+      }
+    } catch (err) {
+      console.error('Failed to refresh topics:', err);
+    }
+  };
+
   useEffect(() => {
     // Initialize database and request persistent storage
     const setupApp = async () => {
@@ -48,8 +66,7 @@ function MainApp() {
         setIsDbReady(true);
 
         // Load topics
-        const allTopics = await getAllTopics();
-        setTopics(allTopics);
+        await refreshTopics();
 
         // Register service worker
         try {
@@ -69,6 +86,42 @@ function MainApp() {
 
     setupApp();
   }, []);
+
+  // Listen for events that should trigger topic refresh
+  useEffect(() => {
+    const handleAgentComplete = () => {
+      console.log('Agent complete event received, refreshing topics...');
+      refreshTopics();
+    };
+
+    const handleTopicCreated = () => {
+      console.log('Topic created event received, refreshing topics...');
+      refreshTopics();
+    };
+
+    const handleDigestCompleted = () => {
+      console.log('Digest completed event received, refreshing topics...');
+      refreshTopics();
+    };
+
+    window.addEventListener('agent-complete', handleAgentComplete);
+    window.addEventListener('topic-created', handleTopicCreated);
+    window.addEventListener('digest-completed', handleDigestCompleted);
+
+    return () => {
+      window.removeEventListener('agent-complete', handleAgentComplete);
+      window.removeEventListener('topic-created', handleTopicCreated);
+      window.removeEventListener('digest-completed', handleDigestCompleted);
+    };
+  }, []);
+
+  // Also refresh topics periodically
+  useEffect(() => {
+    if (isDbReady) {
+      const interval = setInterval(refreshTopics, 5000); // Refresh every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [isDbReady]);
 
   const handleLogout = () => {
     authService.logout();
@@ -191,26 +244,32 @@ function MainApp() {
 
               {/* Action icons */}
               <div className="flex items-center space-x-2 ml-4 border-l pl-4">
-                {/* Notification Icon */}
-                <button
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full relative"
-                  title="Notifications"
-                >
-                  <Bell className="w-5 h-5" />
-                </button>
+                {/* Notification Center */}
+                <NotificationCenter />
 
                 {/* Chat Icon */}
                 <button
-                  onClick={() => selectedTopic && setChatPanelOpen(!chatPanelOpen)}
+                  onClick={() => {
+                    if (topics.length > 0) {
+                      // If no topic is selected, select the first one
+                      if (!selectedTopic) {
+                        setSelectedTopic(topics[0]);
+                      }
+                      setChatPanelOpen(!chatPanelOpen);
+                    }
+                  }}
                   className={`p-2 rounded-full ${
-                    selectedTopic
+                    topics.length > 0
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={selectedTopic ? "Open chat" : "Select a topic first"}
-                  disabled={!selectedTopic}
+                  title={topics.length > 0 ? "Open chat" : "Create a topic first"}
+                  disabled={topics.length === 0}
                 >
                   <MessageSquare className="w-5 h-5" />
+                  {chatPanelOpen && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full"></span>
+                  )}
                 </button>
 
                 {/* User dropdown */}
@@ -401,6 +460,26 @@ function MainApp() {
           />
         </div>
       )}
+
+      {/* Debug Panel - shows actual DB state */}
+      <DebugPanel />
+
+      {/* Test element to ensure rendering */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '4px',
+          right: '4px',
+          backgroundColor: 'red',
+          color: 'white',
+          padding: '10px',
+          zIndex: 999999,
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}
+      >
+        TEST: AppWithAuth is rendering
+      </div>
 
     </div>
   );

@@ -160,6 +160,9 @@ async function createNotification(finding: ResearchFinding, topic: Topic): Promi
     data: { findingId: finding.id, topicId: topic.id },
     createdAt: Date.now()
   });
+
+  // Dispatch custom event to notify UI components
+  window.dispatchEvent(new CustomEvent('notification-created'));
 }
 
 // Calculate API cost based on search depth

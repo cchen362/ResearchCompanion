@@ -64,7 +64,8 @@
       "Bash(find:*)",
       "Bash(node -e:*)",
       "Bash(node dist/index.js:*)",
-      "Bash(start chrome http://localhost:5181/)"
+      "Bash(start chrome http://localhost:5181/)",
+      "Bash(start chrome \"file:///C:/Users/cchen362/OneDrive/Desktop/medical-companion-pwa/test-debug.html\")"
     ],
     "deny": [],
     "ask": []
