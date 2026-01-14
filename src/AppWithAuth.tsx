@@ -16,7 +16,6 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 import { AuthGuard } from './components/auth/AuthGuard';
-import { DebugPanel } from './components/DebugPanel';
 import NotificationCenter from './components/NotificationCenter';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare, LogOut, Menu, X, Bell } from 'lucide-react';
@@ -460,27 +459,6 @@ function MainApp() {
           />
         </div>
       )}
-
-      {/* Debug Panel - shows actual DB state */}
-      <DebugPanel />
-
-      {/* Test element to ensure rendering */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '4px',
-          right: '4px',
-          backgroundColor: 'red',
-          color: 'white',
-          padding: '10px',
-          zIndex: 999999,
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}
-      >
-        TEST: AppWithAuth is rendering
-      </div>
-
     </div>
   );
 }
