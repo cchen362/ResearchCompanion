@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import type { ResearchFinding, SmartDigest, TimelineEvent, ResearchTopic } from '@/types';
+import { researchInsightsService } from './researchInsights.service';
 
 /**
  * Export Service - Phase 3A Implementation
@@ -51,6 +52,51 @@ class ExportService {
     pdf.setFontSize(12);
     pdf.text(`Generated: ${format(new Date(), 'MMMM d, yyyy')}`, 105, yPosition, { align: 'center' });
 
+    // Research Insights Summary
+    if (topic && findings.length > 0) {
+      yPosition += 20;
+      pdf.setFontSize(16);
+      pdf.setTextColor(...primaryColor);
+      pdf.text('Research Overview', 20, yPosition);
+
+      yPosition += 10;
+
+      // Calculate metrics (pass topic as array since the method expects topics array)
+      const metrics = await researchInsightsService.calculateResearchMetrics(findings, [topic]);
+
+      pdf.setFontSize(11);
+      pdf.setTextColor(...textColor);
+
+      // Key metrics
+      const metricsText = [
+        `Total Findings: ${metrics.totalFindings}`,
+        `Unique Sources: ${metrics.uniqueSources}`,
+        `Findings per week: ${metrics.findingsPerWeek || 0}`,
+        `Research Duration: ${metrics.researchDuration?.days || 0} days`
+      ];
+
+      metricsText.forEach(text => {
+        pdf.text(text, 25, yPosition);
+        yPosition += 7;
+      });
+
+      // Source breakdown if available
+      if (metrics.sourceDistribution.length > 0) {
+        yPosition += 5;
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Top Research Sources:', 25, yPosition);
+        pdf.setFont(undefined, 'normal');
+        yPosition += 6;
+
+        metrics.sourceDistribution.slice(0, 5).forEach(source => {
+          pdf.setFontSize(9);
+          pdf.text(`• ${source.source}: ${source.count} findings`, 30, yPosition);
+          yPosition += 5;
+        });
+      }
+    }
+
     // Executive Summary (if digest exists)
     if (digest) {
       yPosition += 20;
@@ -63,28 +109,11 @@ class ExportService {
       pdf.setTextColor(...textColor);
       yPosition += addWrappedText(digest.executiveSummary, 20, yPosition, 170);
 
-      // Key Themes
-      if (digest.themes.length > 0) {
-        yPosition += 15;
-        pdf.setFontSize(14);
-        pdf.setTextColor(...primaryColor);
-        pdf.text('Key Themes', 20, yPosition);
+      // Note: Removed Key Themes section as the theme structure has changed
+      // and may not have simple name/description fields anymore
 
-        yPosition += 8;
-        pdf.setFontSize(11);
-        pdf.setTextColor(...textColor);
-        digest.themes.forEach(theme => {
-          if (yPosition > 270) {
-            pdf.addPage();
-            yPosition = 20;
-          }
-          pdf.text(`• ${theme.name}: ${theme.description}`, 25, yPosition);
-          yPosition += 7;
-        });
-      }
-
-      // Contradictions
-      if (digest.contradictions.length > 0) {
+      // Contradictions - simplified to avoid missing field issues
+      if (digest.contradictions && digest.contradictions.length > 0) {
         yPosition += 10;
         pdf.setFontSize(14);
         pdf.setTextColor(...primaryColor);
@@ -98,18 +127,14 @@ class ExportService {
             pdf.addPage();
             yPosition = 20;
           }
-          yPosition += addWrappedText(
-            `• ${contradiction.description}`,
-            25,
-            yPosition,
-            165
-          );
+          const contradictionText = `• ${contradiction.topic}: "${contradiction.findingA?.claim || 'Finding A'}" vs "${contradiction.findingB?.claim || 'Finding B'}"`;
+          yPosition += addWrappedText(contradictionText, 25, yPosition, 165);
           yPosition += 3;
         });
       }
 
-      // Breakthroughs
-      if (digest.breakthroughs.length > 0) {
+      // Breakthroughs - with safety checks for fields
+      if (digest.breakthroughs && digest.breakthroughs.length > 0) {
         yPosition += 10;
         pdf.setFontSize(14);
         pdf.setTextColor(...primaryColor);
@@ -123,12 +148,10 @@ class ExportService {
             pdf.addPage();
             yPosition = 20;
           }
-          yPosition += addWrappedText(
-            `• ${breakthrough.title}: ${breakthrough.description}`,
-            25,
-            yPosition,
-            165
-          );
+          const breakthroughText = breakthrough.title && breakthrough.description
+            ? `• ${breakthrough.title}: ${breakthrough.description}`
+            : `• ${breakthrough.title || breakthrough.description || 'Breakthrough finding'}`;
+          yPosition += addWrappedText(breakthroughText, 25, yPosition, 165);
           yPosition += 3;
         });
       }
@@ -143,149 +166,118 @@ class ExportService {
 
     yPosition += 10;
 
-    // Group findings by priority instead of deprecated relevanceScore
-    const criticalFindings = findings.filter(f => f.priority === 'critical');
-    const highPriorityFindings = findings.filter(f => f.priority === 'high');
-    const otherFindings = findings.filter(f => f.priority !== 'critical' && f.priority !== 'high');
-
-    // Critical findings
-    if (criticalFindings.length > 0) {
-      pdf.setFontSize(13);
-      pdf.setTextColor(...primaryColor);
-      pdf.text('Critical Priority Findings', 20, yPosition);
-      yPosition += 8;
-
-      criticalFindings.forEach(finding => {
-        if (yPosition > 260) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
-        pdf.setFontSize(12);
-        pdf.setTextColor(...textColor);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(finding.title, 25, yPosition);
-        pdf.setFont(undefined, 'normal');
-        yPosition += 7;
-
-        pdf.setFontSize(10);
-        yPosition += addWrappedText(finding.summary, 25, yPosition, 165);
-
-        pdf.setFontSize(9);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(
-          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
-          25,
-          yPosition
-        );
-        yPosition += 10;
-      });
-    }
-
-    // High priority findings
-    if (highPriorityFindings.length > 0) {
-      if (yPosition > 200) {
+    // Helper function to render a finding with safety checks
+    const renderFinding = (finding: ResearchFinding) => {
+      if (yPosition > 240) {
         pdf.addPage();
         yPosition = 20;
       }
 
-      pdf.setFontSize(13);
-      pdf.setTextColor(...primaryColor);
-      pdf.text('High Priority Findings', 20, yPosition);
-      yPosition += 8;
-
-      highPriorityFindings.forEach(finding => {
-        if (yPosition > 260) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
-        pdf.setFontSize(12);
-        pdf.setTextColor(...textColor);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(finding.title, 25, yPosition);
-        pdf.setFont(undefined, 'normal');
-        yPosition += 7;
-
-        pdf.setFontSize(10);
-        yPosition += addWrappedText(finding.summary, 25, yPosition, 165);
-
-        pdf.setFontSize(9);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(
-          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
-          25,
-          yPosition
-        );
-        yPosition += 10;
-      });
-    }
-
-    // Other findings
-    if (otherFindings.length > 0) {
-      if (yPosition > 200) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-
-      pdf.setFontSize(13);
-      pdf.setTextColor(...primaryColor);
-      pdf.text('Other Findings', 20, yPosition);
-      yPosition += 8;
-
-      otherFindings.forEach(finding => {
-        if (yPosition > 260) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
-        pdf.setFontSize(12);
-        pdf.setTextColor(...textColor);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(finding.title, 25, yPosition);
-        pdf.setFont(undefined, 'normal');
-        yPosition += 7;
-
-        pdf.setFontSize(10);
-        yPosition += addWrappedText(finding.summary, 25, yPosition, 165);
-
-        pdf.setFontSize(9);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(
-          `Source: ${finding.source.name} | ${format(finding.publishedAt || finding.timestamp, 'MMM yyyy')}`,
-          25,
-          yPosition
-        );
-        yPosition += 10;
-      });
-    }
-
-    // Timeline Events (if any)
-    if (timeline.length > 0) {
-      pdf.addPage();
-      yPosition = 20;
-      pdf.setFontSize(16);
-      pdf.setTextColor(...primaryColor);
-      pdf.text('Timeline', 20, yPosition);
-
-      yPosition += 10;
-      pdf.setFontSize(11);
+      // Title
+      pdf.setFontSize(12);
       pdf.setTextColor(...textColor);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(finding.title || 'Untitled Finding', 25, yPosition);
+      pdf.setFont(undefined, 'normal');
+      yPosition += 7;
 
-      timeline.forEach(event => {
-        if (yPosition > 270) {
+      // Details or Summary
+      pdf.setFontSize(10);
+      const content = finding.details && finding.details !== finding.summary
+        ? finding.details
+        : finding.summary || '';
+      if (content) {
+        yPosition += addWrappedText(content, 25, yPosition, 165);
+      }
+
+      // Extracted entities if present
+      if (finding.extractedEntities && finding.extractedEntities.length > 0) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(60, 60, 60);
+        const entities = finding.extractedEntities
+          .map(e => e.dosage ? `${e.name} (${e.dosage})` : e.name)
+          .join(', ');
+        yPosition += addWrappedText(`Key Items: ${entities}`, 25, yPosition, 165);
+      }
+
+      // Metadata - only add if values exist
+      const metadata = [];
+      if (finding.metadata?.studyType) {
+        metadata.push(`Study: ${finding.metadata.studyType}`);
+      }
+      if (finding.metadata?.participantCount) {
+        metadata.push(`N=${finding.metadata.participantCount}`);
+      }
+      if (finding.metadata?.duration) {
+        metadata.push(`Duration: ${finding.metadata.duration}`);
+      }
+
+      if (metadata.length > 0) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(metadata.join(' | '), 25, yPosition);
+        yPosition += 5;
+      }
+
+      // Source and date
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 100, 100);
+      const sourceName = finding.source?.displayName || finding.source?.name || 'Unknown Source';
+      const date = finding.publishedAt || finding.timestamp || new Date();
+      pdf.text(`Source: ${sourceName} | ${format(date, 'MMM yyyy')}`, 25, yPosition);
+      yPosition += 5;
+
+      // Identifiers if available
+      const identifiers = [];
+      if (finding.metadata?.doi) identifiers.push(`DOI: ${finding.metadata.doi}`);
+      if (finding.metadata?.pmid) identifiers.push(`PMID: ${finding.metadata.pmid}`);
+      if (finding.metadata?.nctId) identifiers.push(`NCT: ${finding.metadata.nctId}`);
+
+      if (identifiers.length > 0) {
+        pdf.setFontSize(8);
+        pdf.text(identifiers.join(' | '), 25, yPosition);
+        yPosition += 5;
+      }
+
+      yPosition += 8; // Space before next finding
+    };
+
+    // Sort all findings by priority and render them
+    const priorityOrder = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3 };
+    const sortedFindings = [...findings].sort((a, b) => {
+      const priorityA = priorityOrder[a.priority || 'low'];
+      const priorityB = priorityOrder[b.priority || 'low'];
+      return priorityA - priorityB;
+    });
+
+    // Render all findings using the helper function
+    let currentPriority = '';
+    sortedFindings.forEach(finding => {
+      // Add priority header when it changes
+      const priority = finding.priority || 'low';
+      if (priority !== currentPriority) {
+        if (yPosition > 200) {
           pdf.addPage();
           yPosition = 20;
         }
 
-        pdf.text(
-          `${format(event.date, 'MMM d, yyyy')} - ${event.type}: ${event.description}`,
-          25,
-          yPosition
-        );
-        yPosition += 7;
-      });
-    }
+        currentPriority = priority;
+        const priorityLabels = {
+          'critical': 'Critical Priority Findings',
+          'high': 'High Priority Findings',
+          'medium': 'Medium Priority Findings',
+          'low': 'Other Findings'
+        };
+
+        pdf.setFontSize(13);
+        pdf.setTextColor(...primaryColor);
+        pdf.text(priorityLabels[priority] || 'Findings', 20, yPosition);
+        yPosition += 8;
+      }
+
+      renderFinding(finding);
+    });
+
 
     // Footer on last page
     const pageCount = pdf.getNumberOfPages();

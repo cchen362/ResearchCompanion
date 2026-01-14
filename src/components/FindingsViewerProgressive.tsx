@@ -465,21 +465,6 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 />
               )}
 
-              {/* Analytics button */}
-              {currentTopic && findings.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // For now, show an alert since we don't have routing
-                    alert('Analytics view coming soon! This will show correlations, patterns, and knowledge graph.');
-                  }}
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Analytics
-                </Button>
-              )}
-
               {/* Timeframe selector */}
               <select
                 value={digestTimeframe}
