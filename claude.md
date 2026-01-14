@@ -532,25 +532,36 @@ const SearchQuerySchema = z.object({
 - Link chat citations to specific findings
 - Accumulate context from user interactions
 
-### Phase 3A: Export & Analytics
+### Phase 3A: Research Insights Dashboard
 
 **Export Formats**:
 - PDF reports via jspdf
 - CSV/Excel via xlsx
-- FHIR JSON for medical records
+- JSON export for research data
 
-**Analytics Features**:
-- Symptom correlation charts
-- Treatment effectiveness over time
-- Pattern visualization
+**Research Insights Features**:
+- Research progress tracking (findings over time)
+- Source diversity analysis (journals, trials, web)
+- Finding pattern detection
+- Knowledge gap identification
+- Smart Digest integration
 
-### Phase 3B: Knowledge Graph
+**Note**: Analytics was pivoted from health tracking to research insights to align with actual data collected (research findings) rather than timeline events (which users don't create).
 
-**Architecture**:
-- Node/Edge data structures
-- Graph builder service
-- React Flow for visualization
-- AI-powered relationship detection
+### Phase 3B: Advanced Research Analytics (Future)
+
+**Planned Features**:
+- Research velocity metrics
+- Topic exploration depth
+- Agent performance analytics
+- Collaborative research tools
+- Integration with medical databases
+
+**Note**: Knowledge Graph was deprecated due to:
+- Reliance on deprecated scoring metrics
+- High maintenance burden
+- Violation of "Facts, Not Scores™" principle
+- Limited value beyond existing insights
 
 ## Common Pitfalls to Avoid
 
@@ -874,8 +885,13 @@ Closes #123
   - Solution: Centralized version management, auto-update PWA config
   - Lesson: "Works in incognito" = cache/version issue
   - Added: Cache clear utility and version management protocol
+- **v1.1.0** - Analytics pivoted to Research Insights (January 2025)
+  - Removed broken Knowledge Graph (used deprecated fields)
+  - Transformed Analytics from health tracking to research insights
+  - Aligned with "Facts, Not Scores™" principle
+  - Now uses existing findings data instead of non-existent timeline events
 - **v2.0.0** (Planned) - Conversational interface
-- **v3.0.0** (Planned) - Knowledge graph visualization
+- **v3.0.0** (Planned) - Advanced Research Analytics
 
 ---
 

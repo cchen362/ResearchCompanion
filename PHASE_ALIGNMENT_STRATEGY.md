@@ -6,8 +6,8 @@ This document ensures coherent integration across all three phases of the Medica
 ## Note: Strategic Alignment (Updated January 2025)
 After comprehensive codebase review, the development strategy has been aligned to focus on:
 1. **Phase 2**: Conversational Interface for research findings
-2. **Phase 3A**: Data Export & Analytics
-3. **Phase 3B**: Knowledge Graph Visualization
+2. **Phase 3A**: Research Insights Dashboard (pivoted from health analytics)
+3. **Phase 3B**: Advanced Research Analytics (Knowledge Graph deprecated)
 
 Items deferred to future phases:
 - Wearable device integration (requires authentication infrastructure)
@@ -24,11 +24,11 @@ See [claude.md](./claude.md) for detailed development guidelines and [README.md]
 │                     KNOWLEDGE LAYER                          │
 ├───────────────────┬─────────────────┬───────────────────────┤
 │   Phase 1:        │   Phase 2:      │   Phase 3:           │
-│   Smart Digest    │   Conversational│   Knowledge Graph    │
-│   (Foundation)    │   (Interaction) │   (Visualization)    │
+│   Smart Digest    │   Conversational│   Research Insights  │
+│   (Foundation)    │   (Interaction) │   (Analytics)        │
 ├───────────────────┼─────────────────┼───────────────────────┤
-│ • Structured Data │ • Natural Query │ • Visual Networks    │
-│ • Clean UI/UX     │ • Context-Aware │ • Relationship Maps  │
+│ • Structured Data │ • Natural Query │ • Research Metrics   │
+│ • Clean UI/UX     │ • Context-Aware │ • Source Analysis    │
 │ • Trust Signals   │ • Deep Dive     │ • Pattern Discovery  │
 └───────────────────┴─────────────────┴───────────────────────┘
 ```
@@ -257,110 +257,133 @@ const ConversationalPanel: React.FC = () => {
 };
 ```
 
-## Phase 3: Knowledge Graph (Data Prepared in Phase 1 & 2)
+## Phase 3: Research Insights Dashboard (Pivoted from Knowledge Graph)
 
-### Data Structure Foundation (Being Built Now)
+### Strategic Pivot Rationale
+The Knowledge Graph visualization was deprecated in favor of Research Insights Dashboard because:
+- Knowledge Graph relied on deprecated scoring metrics that violated "Facts, Not Scores™" principle
+- Analytics expected health timeline events that users never create
+- Research Insights uses existing findings data providing immediate value
+- Maintains factual metrics (counts, sources) rather than arbitrary scores
+
+### Research Insights Implementation
 ```typescript
-// src/types/graph.types.ts (Phase 3 prep)
-export interface KnowledgeNode {
-  id: string;
-  type: 'finding' | 'study' | 'treatment' | 'outcome' | 'biomarker';
-  label: string;
-  properties: Record<string, any>;
-  importance: number; // Calculated from Phase 1 metrics
+// src/services/researchInsights.service.ts (Phase 3A)
+export interface ResearchMetrics {
+  totalFindings: number;
+  findingsByCategory: Record<FindingCategory, number>;
+  findingsByPriority: Record<FindingPriority, number>;
+  sourceDistribution: Array<{ source: string; count: number; credibility: 'high' | 'medium' | 'low' }>;
+  researchVelocity: Array<{ date: string; count: number }>;
+  knowledgeGaps: string[]; // From Smart Digests
+  breakthroughs: Finding[]; // Critical findings
 }
 
-export interface KnowledgeEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: 'supports' | 'contradicts' | 'relates_to' | 'derived_from';
-  strength: number;
-  metadata?: {
-    confidence?: number;
-    studies?: string[];
-  };
-}
+class ResearchInsightsService {
+  // Analyze existing findings for patterns
+  async analyzeResearchProgress(topicId?: string): Promise<ResearchMetrics> {
+    const findings = await this.getFindings(topicId);
+    const digests = await this.getDigests(topicId);
 
-// Graph builder (accumulates during Phase 1 & 2)
-class KnowledgeGraphBuilder {
-  private nodes: Map<string, KnowledgeNode> = new Map();
-  private edges: Map<string, KnowledgeEdge> = new Map();
-
-  // Called automatically when digest is generated
-  addFindingsToGraph(findings: Finding[], digest: SmartDigest) {
-    // Create nodes from findings
-    findings.forEach(finding => {
-      this.addNode({
-        id: finding.id,
-        type: 'finding',
-        label: finding.title,
-        properties: {
-          confidence: finding.confidence,
-          source: finding.source,
-          theme: this.getThemeForFinding(finding, digest)
-        },
-        importance: this.calculateImportance(finding, digest)
-      });
-    });
-
-    // Create edges from relationships
-    this.detectRelationships(findings, digest);
+    return {
+      totalFindings: findings.length,
+      findingsByCategory: this.categorizeFindings(findings),
+      findingsByPriority: this.prioritizeFindings(findings),
+      sourceDistribution: this.analyzeSourceCredibility(findings),
+      researchVelocity: this.calculateVelocity(findings),
+      knowledgeGaps: this.extractGapsFromDigests(digests),
+      breakthroughs: this.identifyBreakthroughs(findings, digests)
+    };
   }
 
-  // Called during Phase 2 conversations
-  strengthenConnection(nodeA: string, nodeB: string, reason: string) {
-    const edge = this.edges.get(`${nodeA}-${nodeB}`);
-    if (edge) {
-      edge.strength += 0.1;
-      edge.metadata?.studies?.push(reason);
-    }
+  // Source credibility based on type
+  private analyzeSourceCredibility(findings: Finding[]) {
+    const sourceTypes = {
+      'PubMed': 'high',
+      'Clinical Trial': 'high',
+      'FDA': 'high',
+      'Research Paper': 'medium',
+      'Web': 'low'
+    };
+
+    return findings.reduce((acc, f) => {
+      const type = f.source.type;
+      const credibility = sourceTypes[type] || 'low';
+      // Count and categorize
+      return acc;
+    }, []);
   }
 }
 ```
 
-### Visual Integration (Phase 3 Implementation)
+### Visual Dashboard (Phase 3A Implementation)
 ```typescript
-// src/components/KnowledgeGraphView.tsx (Phase 3)
-const KnowledgeGraphView: React.FC = () => {
-  const graph = useKnowledgeGraph();
-  const [viewMode, setViewMode] = useState<'2D' | '3D' | 'timeline'>('2D');
-  const [filter, setFilter] = useState<GraphFilter>({
-    minImportance: 0.5,
-    edgeTypes: ['supports', 'contradicts'],
-    nodeTypes: ['finding', 'treatment']
-  });
+// src/components/ResearchInsightsDashboard.tsx
+const ResearchInsightsDashboard: React.FC = () => {
+  const [metrics, setMetrics] = useState<ResearchMetrics>();
+  const [selectedTopic, setSelectedTopic] = useState<string>('all');
 
-  // Interactive features building on Phase 1 & 2
-  const handleNodeClick = (node: KnowledgeNode) => {
-    // Opens Phase 1's finding detail
-    // Adds to Phase 2's conversation context
-    // Highlights in Phase 3's graph
-    openFindingDetail(node.id);
-    addToChat(`Tell me more about ${node.label}`);
-    highlightConnections(node.id);
-  };
-
-  // Pattern detection using Phase 2's chat history
-  const patterns = detectPatterns(graph, chatHistory);
+  // Load research metrics
+  useEffect(() => {
+    researchInsightsService.analyzeResearchProgress(selectedTopic)
+      .then(setMetrics);
+  }, [selectedTopic]);
 
   return (
-    <div className="knowledge-graph">
-      <GraphControls
-        viewMode={viewMode}
-        filter={filter}
-        patterns={patterns}
-      />
-      <GraphCanvas
-        nodes={graph.nodes}
-        edges={graph.edges}
-        interactions={{
-          onClick: handleNodeClick,
-          onHover: showPreview,
-          onDoubleClick: startConversation
-        }}
-      />
-      <PatternInsights patterns={patterns} />
+    <div className="research-insights">
+      {/* Metric Cards */}
+      <div className="metric-cards">
+        <MetricCard
+          title="Total Findings"
+          value={metrics?.totalFindings}
+          icon={<FileText />}
+        />
+        <MetricCard
+          title="Unique Sources"
+          value={metrics?.sourceDistribution.length}
+          icon={<Database />}
+        />
+        <MetricCard
+          title="Critical Findings"
+          value={metrics?.breakthroughs.length}
+          icon={<AlertCircle />}
+        />
+        <MetricCard
+          title="Knowledge Gaps"
+          value={metrics?.knowledgeGaps.length}
+          icon={<HelpCircle />}
+        />
+      </div>
+
+      {/* Tabbed Views */}
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="discoveries">Discoveries</TabsTrigger>
+          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <ResearchVelocityChart data={metrics?.researchVelocity} />
+          <CategoryDistribution data={metrics?.findingsByCategory} />
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <SourceCredibilityBreakdown data={metrics?.sourceDistribution} />
+          <JournalList sources={metrics?.sourceDistribution} />
+        </TabsContent>
+
+        <TabsContent value="discoveries">
+          <BreakthroughTimeline findings={metrics?.breakthroughs} />
+          <KnowledgeGapsList gaps={metrics?.knowledgeGaps} />
+        </TabsContent>
+
+        <TabsContent value="patterns">
+          <ResearchPatterns findings={findings} digests={digests} />
+          <AgentPerformance agents={agentHistory} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

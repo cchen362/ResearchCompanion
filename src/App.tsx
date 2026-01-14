@@ -166,7 +166,7 @@ function App() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Analytics
+                Research Insights
               </button>
             </nav>
 

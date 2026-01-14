@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, BarChart3, Network, Download } from 'lucide-react';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
-import { KnowledgeGraphVisualization } from '@/components/KnowledgeGraphVisualization';
 import { ExportMenu } from '@/components/ExportMenu';
 import { findingsService } from '@/services/findings.service';
 import { digestService } from '@/services/digest.service';
 import { timelineService } from '@/services/timeline.service';
 import { topicsService } from '@/services/topics.service';
-import { chatService } from '@/services/chat.service';
 import type { ResearchFinding, SmartDigest, TimelineEvent, ResearchTopic } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -24,7 +21,6 @@ export function AnalyticsPage() {
   const [digest, setDigest] = useState<SmartDigest | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('analytics');
 
   useEffect(() => {
     if (topicId) {
@@ -62,33 +58,6 @@ export function AnalyticsPage() {
     }
   };
 
-  const handleNodeClick = (nodeId: string, node: any) => {
-    // If it's a finding node, could open the finding detail drawer
-    console.log('Node clicked:', nodeId, node);
-  };
-
-  const handleNodeDoubleClick = async (nodeId: string, node: any) => {
-    // Start a chat conversation about this node
-    if (node.description) {
-      try {
-        // Add context to chat about this node
-        await chatService.addContext({
-          type: 'graph_node',
-          content: `User is exploring: ${node.label}\n${node.description}`,
-          metadata: { nodeId, nodeType: node.type }
-        });
-
-        // Navigate to chat with a suggested question
-        navigate(`/topic/${topicId}/chat`, {
-          state: {
-            suggestedQuestion: `Tell me more about ${node.label}`
-          }
-        });
-      } catch (error) {
-        console.error('Error starting chat:', error);
-      }
-    }
-  };
 
   if (loading) {
     return (
@@ -146,51 +115,11 @@ export function AnalyticsPage() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="analytics">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="graph">
-              <Network className="h-4 w-4 mr-2" />
-              Knowledge Graph
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="analytics" className="mt-6">
-            <AnalyticsDashboard
-              findings={findings}
-              timeline={timeline}
-              digest={digest}
-            />
-          </TabsContent>
-
-          <TabsContent value="graph" className="mt-6">
-            <div className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">Knowledge Graph</h2>
-                <p className="text-sm text-muted-foreground">
-                  Visual representation of relationships between findings, themes, and outcomes
-                </p>
-              </div>
-              <KnowledgeGraphVisualization
-                findings={findings}
-                digest={digest}
-                timeline={timeline}
-                onNodeClick={handleNodeClick}
-                onNodeDoubleClick={handleNodeDoubleClick}
-              />
-              <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-                <span>Click a node to see details</span>
-                <span>•</span>
-                <span>Double-click to explore in chat</span>
-                <span>•</span>
-                <span>Use mouse wheel to zoom</span>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+        <AnalyticsDashboard
+          findings={findings}
+          timeline={timeline}
+          digest={digest}
+        />
       </div>
     </div>
   );

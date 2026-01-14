@@ -206,21 +206,21 @@ Agents can be customized per topic:
 - [ ] Conversation history management
 - [ ] Streaming AI responses for real-time interaction
 
-### Phase 3A: Data Export & Analytics (3-4 weeks)
+### Phase 3A: Research Insights Dashboard (3-4 weeks)
+- [ ] Research progress tracking and visualization
+- [ ] Source diversity and credibility analysis
+- [ ] Finding patterns and trend detection
+- [ ] Knowledge gap identification from Smart Digests
 - [ ] PDF report generation with research summaries
-- [ ] CSV/Excel export for timeline and tracking data
-- [ ] FHIR-compatible medical record export
-- [ ] Symptom correlation charts
-- [ ] Treatment effectiveness visualization
-- [ ] Pattern analysis across timeline events
+- [ ] CSV/Excel export for research data
 
-### Phase 3B: Knowledge Graph Visualization (4-5 weeks)
-- [ ] Interactive knowledge graph of research findings
-- [ ] Relationship detection between medical concepts
-- [ ] Pattern highlighting and contradiction detection
-- [ ] 2D/3D graph visualization modes
-- [ ] Filter by theme, category, or time period
-- [ ] AI-powered relationship discovery
+### Phase 3B: Advanced Research Analytics (Future)
+- [ ] Research velocity and coverage metrics
+- [ ] Topic comparison and exploration depth
+- [ ] Agent performance analytics
+- [ ] Collaborative research features
+- [ ] Integration with medical databases
+- [ ] Advanced pattern recognition in findings
 
 ### Future Enhancements
 - [ ] Multi-language support (starting with Spanish/Mandarin)

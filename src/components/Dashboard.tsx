@@ -245,7 +245,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
               className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <TrendingUp className="h-8 w-8 text-cyan-600 mb-2" />
-              <span className="text-sm font-medium text-gray-900">View Insights</span>
+              <span className="text-sm font-medium text-gray-900">Research Insights</span>
             </button>
           </div>
         </div>

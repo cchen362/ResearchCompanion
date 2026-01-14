@@ -1,6 +1,7 @@
 import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
 import { DB_VERSION, DB_NAME } from './version';
+import DatabaseMigrationHandler from './migration';
 import type {
   Topic,
   Agent,
@@ -231,22 +232,16 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
   } catch (error: any) {
     console.error('Database initialization error:', error);
 
-    // Check for version error
+    // Check for version error and handle it automatically
     if (error.name === 'VersionError') {
       console.error('IndexedDB version mismatch detected!');
       console.error(`Attempted to open with version ${DB_VERSION}, but database may have different version`);
-      console.error('Please clear your browser cache and reload the page.');
 
-      // Show user-friendly error
-      const message = 'Database version mismatch detected. Please clear your browser cache:\n\n' +
-                     '1. Press Ctrl+Shift+R (or Cmd+Shift+R on Mac) to hard refresh\n' +
-                     '2. Or go to Settings > Privacy > Clear browsing data\n' +
-                     '3. Select "Cached images and files" and clear\n' +
-                     '4. Reload the page';
+      // Automatically handle the version mismatch
+      await DatabaseMigrationHandler.handleVersionMismatch(error);
 
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert(message);
-      }
+      // Note: The handler will reload the page, so code won't continue past here
+      return null as any; // TypeScript satisfaction
     }
 
     throw error;
