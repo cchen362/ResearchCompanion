@@ -326,9 +326,11 @@ class ResearchInsightsService {
       patterns.push({
         type: 'conflicting_results',
         description: `${contradictions.length} contradictions found across studies`,
-        findingCount: contradictions.reduce((sum, c) => sum + c.findingIds.length, 0),
+        findingCount: contradictions.reduce((sum, c) => sum + (c.findingIds?.length || 0), 0),
         sources: this.getUniqueSourcesFromContradictions(findings, contradictions),
-        firstSeen: new Date(Math.min(...findings.map(f => new Date(f.createdAt || Date.now()).getTime()))),
+        firstSeen: findings.length > 0
+          ? new Date(Math.min(...findings.map(f => new Date(f.createdAt || Date.now()).getTime())))
+          : new Date(),
         lastSeen: new Date()
       });
     }
@@ -440,12 +442,15 @@ class ResearchInsightsService {
   private getUniqueSourcesFromContradictions(findings: ResearchFinding[], contradictions: any[]): string[] {
     const sources = new Set<string>();
     contradictions.forEach(c => {
-      c.findingIds.forEach((id: string) => {
-        const finding = findings.find(f => f.id === id);
-        if (finding?.source?.name) {
-          sources.add(finding.source.name);
-        }
-      });
+      // Check if findingIds exists and is an array
+      if (c.findingIds && Array.isArray(c.findingIds)) {
+        c.findingIds.forEach((id: string) => {
+          const finding = findings.find(f => f.id === id);
+          if (finding?.source?.name) {
+            sources.add(finding.source.name);
+          }
+        });
+      }
     });
     return Array.from(sources);
   }

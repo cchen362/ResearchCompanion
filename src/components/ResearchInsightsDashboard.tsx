@@ -48,17 +48,26 @@ export function ResearchInsightsDashboard({
   useEffect(() => {
     // Calculate all research insights
     if (findings.length > 0) {
-      const calculatedMetrics = researchInsightsService.calculateResearchMetrics(findings, digests);
-      setMetrics(calculatedMetrics);
+      try {
+        const calculatedMetrics = researchInsightsService.calculateResearchMetrics(findings, digests);
+        setMetrics(calculatedMetrics);
 
-      const credibility = researchInsightsService.analyzeSourceCredibility(findings);
-      setSourceCredibility(credibility);
+        const credibility = researchInsightsService.analyzeSourceCredibility(findings);
+        setSourceCredibility(credibility);
 
-      const researchPatterns = researchInsightsService.identifyResearchPatterns(findings, digests);
-      setPatterns(researchPatterns);
+        const researchPatterns = researchInsightsService.identifyResearchPatterns(findings, digests);
+        setPatterns(researchPatterns);
 
-      const researchProgress = researchInsightsService.trackResearchProgress(findings);
-      setProgress(researchProgress);
+        const researchProgress = researchInsightsService.trackResearchProgress(findings);
+        setProgress(researchProgress);
+      } catch (error) {
+        console.error('Error calculating research insights:', error);
+        // Set default empty states if there's an error
+        setMetrics(null);
+        setSourceCredibility([]);
+        setPatterns([]);
+        setProgress(null);
+      }
     }
   }, [findings, digests]);
 
