@@ -105,6 +105,9 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
           {exportingFormat === 'pdf' && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
         </DropdownMenuItem>
 
+        {/* Excel and FHIR JSON exports temporarily disabled - not useful for current use case */}
+        {/* Can be re-enabled later if needed by uncommenting the code below */}
+        {/*
         <DropdownMenuItem
           onClick={() => handleExport('excel')}
           disabled={isExporting}
@@ -124,6 +127,7 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
           <span>FHIR JSON</span>
           {exportingFormat === 'fhir' && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
         </DropdownMenuItem>
+        */}
 
         <DropdownMenuSeparator />
         <div className="px-2 py-1.5 text-xs text-muted-foreground">
