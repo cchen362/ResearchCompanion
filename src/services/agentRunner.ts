@@ -321,4 +321,8 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
     message: `Found ${findingsCount} new findings related to ${topic.diseaseProfile.name}`,
     createdAt: Date.now()
   });
+
+  // Dispatch custom event to notify UI components
+  window.dispatchEvent(new CustomEvent('notification-created'));
+  window.dispatchEvent(new CustomEvent('agent-complete'));
 }

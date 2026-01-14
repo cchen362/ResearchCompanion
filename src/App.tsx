@@ -26,6 +26,16 @@ function App() {
 
   const { chatPanelOpen, setChatPanelOpen } = useUIStore();
 
+  // Function to refresh topics from database
+  const refreshTopics = async () => {
+    try {
+      const allTopics = await getAllTopics();
+      setTopics(allTopics);
+    } catch (err) {
+      console.error('Failed to refresh topics:', err);
+    }
+  };
+
   useEffect(() => {
     // Initialize database and request persistent storage
     const setupApp = async () => {
@@ -35,8 +45,7 @@ function App() {
         setIsDbReady(true);
 
         // Load topics
-        const allTopics = await getAllTopics();
-        setTopics(allTopics);
+        await refreshTopics();
 
         // Register service worker
         try {
@@ -61,6 +70,13 @@ function App() {
 
     setupApp();
   }, []);
+
+  // Refresh topics when returning from topics view or any other view that might have changed topics
+  useEffect(() => {
+    if (isDbReady && (currentView === 'dashboard' || currentView === 'voice' || currentView === 'agents')) {
+      refreshTopics();
+    }
+  }, [currentView, isDbReady]);
 
   if (error) {
     return (
@@ -224,10 +240,7 @@ function App() {
         {currentView === 'dashboard' && <Dashboard setCurrentView={setCurrentView} />}
         {currentView === 'topics' && (
           <TopicManager
-            onTopicsChange={async () => {
-              const updatedTopics = await getAllTopics();
-              setTopics(updatedTopics);
-            }}
+            onTopicsChange={refreshTopics}
           />
         )}
         {currentView === 'agents' && <AgentMonitor />}
@@ -236,11 +249,7 @@ function App() {
         {currentView === 'voice' && (
           <VoiceRecorder
             topics={topics}
-            onComplete={async () => {
-              // Refresh topics after recording
-              const updatedTopics = await getAllTopics();
-              setTopics(updatedTopics);
-            }}
+            onComplete={refreshTopics}
           />
         )}
         {currentView === 'analytics' && <AnalyticsView />}

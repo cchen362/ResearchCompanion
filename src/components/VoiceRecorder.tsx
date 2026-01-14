@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/services/api';
 import { createTimelineEvent, getTimelineForTopic } from '@/utils/db/timeline';
+import { getAllTopics } from '@/utils/db/topics';
 import { TranscriptionSummary } from './TranscriptionSummary';
 import { ChevronDown, ChevronRight, Mic, MicOff, Clock, Calendar, FileText, Eye } from 'lucide-react';
 import type { Topic, VoiceTranscriptionResult, TimelineEvent } from '@/types';
@@ -11,7 +12,7 @@ interface VoiceRecorderProps {
   onComplete?: () => void;
 }
 
-export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceRecorderProps) {
+export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -25,12 +26,38 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
   const [showPrevious, setShowPrevious] = useState(false);
   const [savedSuccessfully, setSavedSuccessfully] = useState(false);
   const [expandedRecordings, setExpandedRecordings] = useState<Set<string>>(new Set());
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Load topics from database on mount
+  useEffect(() => {
+    const loadTopics = async () => {
+      setIsLoadingTopics(true);
+      try {
+        const allTopics = await getAllTopics();
+        setTopics(allTopics);
+
+        // Set selected topic if not already set
+        if (!selectedTopicId && allTopics.length > 0) {
+          setSelectedTopicId(allTopics[0].id);
+        }
+      } catch (err) {
+        console.error('Error loading topics:', err);
+        setError('Failed to load topics');
+      } finally {
+        setIsLoadingTopics(false);
+      }
+    };
+
+    loadTopics();
+  }, []); // Only run on mount
+
+  // Update selected topic when topics change
   useEffect(() => {
     if (!selectedTopicId && topics.length > 0) {
       setSelectedTopicId(topics[0].id);
@@ -206,6 +233,17 @@ export default function VoiceRecorder({ topicId, topics, onComplete }: VoiceReco
     }
     setExpandedRecordings(newExpanded);
   };
+
+  if (isLoadingTopics) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <span className="text-gray-600">Loading topics...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (topics.length === 0) {
     return (
