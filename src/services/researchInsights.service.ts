@@ -285,8 +285,8 @@ class ResearchInsightsService {
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
 
-    // Group by agent
-    const agentMap = new Map<string, { lastRun: Date; count: number }>();
+    // Group by agent - now using agentType for better display
+    const agentMap = new Map<string, { lastRun: Date; count: number; type?: string }>();
 
     findings.forEach(f => {
       const agentId = f.agentId;
@@ -294,7 +294,8 @@ class ResearchInsightsService {
         if (!agentMap.has(agentId)) {
           agentMap.set(agentId, {
             lastRun: new Date(f.timestamp || f.createdAt || Date.now()),
-            count: 0
+            count: 0,
+            type: f.agentType // Store the agent type for formatting
           });
         }
 
@@ -309,7 +310,7 @@ class ResearchInsightsService {
 
     const agentActivity = Array.from(agentMap.entries())
       .map(([agentId, data]) => ({
-        agentName: this.getAgentDisplayName(agentId),
+        agentName: data.type ? this.formatAgentType(data.type) : this.getAgentDisplayName(agentId),
         lastRun: data.lastRun,
         findingsGenerated: data.count
       }))
@@ -366,16 +367,25 @@ class ResearchInsightsService {
     return maxWeek.count > 0 ? maxWeek : null;
   }
 
+  private formatAgentType(type: string): string {
+    const agentTypeMap: Record<string, string> = {
+      'treatment_breakthrough': 'Treatment Breakthrough Agent',
+      'clinical_trial': 'Clinical Trials Agent',
+      'medical_literature': 'Medical Literature Agent',
+      'pattern_recognition': 'Pattern Recognition Agent',
+      'insurance_access': 'Insurance & Access Agent',
+      'general': 'General Research Agent'
+    };
+
+    return agentTypeMap[type] || type.split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') + ' Agent';
+  }
+
   private getAgentDisplayName(agentId: string): string {
-    // Extract a readable name from agent ID
-    // Assuming agent IDs follow a pattern like "agent_treatment_123"
-    const parts = agentId.split('_');
-    if (parts.length > 1) {
-      return parts.slice(0, -1)
-        .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-        .join(' ');
-    }
-    return agentId;
+    // Fallback for older findings without agentType
+    // Just return a generic name since the ID is a timestamp-random string
+    return 'Research Agent';
   }
 }
 

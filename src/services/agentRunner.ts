@@ -112,6 +112,7 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
         const finding: ResearchFinding = {
           id: generateId(),
           agentId: agent.id,
+          agentType: agent.type, // Add agent type for readable display names
           topicId: topic.id,
           type: determineType(agent.type),
           title: result.title || result.briefTitle || 'Untitled',

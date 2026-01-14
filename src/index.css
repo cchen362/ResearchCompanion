@@ -19,6 +19,20 @@ body {
   min-height: 100vh;
 }
 
+/* Custom animations for Research Insights */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite;
+}
+
 /* Portal root for fullscreen overlays */
 #portal-root {
   position: fixed;

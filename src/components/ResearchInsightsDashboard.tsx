@@ -14,7 +14,14 @@ import {
   Activity,
   Lightbulb,
   AlertTriangle,
-  Award
+  Award,
+  Pill,
+  FlaskConical,
+  FileCheck,
+  Newspaper,
+  Microscope,
+  TrendingDown,
+  Sparkles
 } from 'lucide-react';
 import { researchInsightsService } from '@/services/researchInsights.service';
 import type { ResearchFinding, SmartDigest, Topic } from '@/types';
@@ -208,73 +215,154 @@ export function ResearchInsightsDashboard({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Finding Types */}
+              {/* Finding Types - Enhanced with icons and colors */}
               <div>
-                <h3 className="text-sm font-medium mb-3">Finding Types</h3>
-                <div className="space-y-2">
-                  {metrics.findingsByType.map(type => (
-                    <div key={type.type} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{type.type}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {type.count}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Finding Types
+                </h3>
+                <div className="space-y-3">
+                  {metrics.findingsByType.map(type => {
+                    // Define type-specific styling
+                    const typeConfig: Record<string, { icon: any; gradient: string; color: string }> = {
+                      'Treatments': {
+                        icon: Pill,
+                        gradient: 'from-blue-500 to-blue-600',
+                        color: 'text-blue-500'
+                      },
+                      'Clinical Trials': {
+                        icon: FlaskConical,
+                        gradient: 'from-purple-500 to-purple-600',
+                        color: 'text-purple-500'
+                      },
+                      'Research Studies': {
+                        icon: Microscope,
+                        gradient: 'from-green-500 to-green-600',
+                        color: 'text-green-500'
+                      },
+                      'Guidelines': {
+                        icon: FileCheck,
+                        gradient: 'from-orange-500 to-orange-600',
+                        color: 'text-orange-500'
+                      },
+                      'News & Updates': {
+                        icon: Newspaper,
+                        gradient: 'from-pink-500 to-pink-600',
+                        color: 'text-pink-500'
+                      },
+                      'Research': {
+                        icon: BookOpen,
+                        gradient: 'from-cyan-500 to-cyan-600',
+                        color: 'text-cyan-500'
+                      }
+                    };
+
+                    const config = typeConfig[type.type] || {
+                      icon: FileText,
+                      gradient: 'from-gray-500 to-gray-600',
+                      color: 'text-gray-500'
+                    };
+
+                    const Icon = config.icon;
+
+                    return (
+                      <div key={type.type} className="group hover:scale-[1.01] transition-transform">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Icon className={`h-4 w-4 ${config.color}`} />
+                            <span className="text-sm font-medium">{type.type}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {type.count}
+                            </Badge>
+                          </div>
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            {type.percentage}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-primary rounded-full"
+                            className={`h-full bg-gradient-to-r ${config.gradient} rounded-full transition-all duration-500 ease-out`}
                             style={{ width: `${type.percentage}%` }}
                           />
                         </div>
-                        <span className="text-xs text-muted-foreground w-10 text-right">
-                          {type.percentage}%
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Activity Timeline */}
+              {/* Activity Timeline - Enhanced with colors and trends */}
               <div>
-                <h3 className="text-sm font-medium mb-3">Activity Timeline</h3>
+                <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Activity Timeline
+                </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-lg font-semibold">{metrics.activityTimeline.thisWeek}</div>
-                    <div className="text-xs text-muted-foreground">This Week</div>
+                  {/* This Week - Highlight with gradient */}
+                  <div className="relative overflow-hidden text-center p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20 hover:scale-[1.02] transition-transform">
+                    <div className="flex items-center justify-center gap-1">
+                      <div className="text-2xl font-bold text-primary">{metrics.activityTimeline.thisWeek}</div>
+                      {metrics.activityTimeline.thisWeek > metrics.activityTimeline.lastWeek && (
+                        <TrendingUp className="h-4 w-4 text-green-500" />
+                      )}
+                      {metrics.activityTimeline.thisWeek < metrics.activityTimeline.lastWeek && (
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground">This Week</div>
+                    {metrics.activityTimeline.thisWeek > 0 && (
+                      <div className="absolute top-1 right-1">
+                        <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                      </div>
+                    )}
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-lg font-semibold">{metrics.activityTimeline.lastWeek}</div>
-                    <div className="text-xs text-muted-foreground">Last Week</div>
+
+                  {/* Last Week */}
+                  <div className="text-center p-4 bg-muted/30 rounded-lg border border-muted-foreground/10 hover:bg-muted/40 transition-colors">
+                    <div className="text-2xl font-bold">{metrics.activityTimeline.lastWeek}</div>
+                    <div className="text-xs font-medium text-muted-foreground">Last Week</div>
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-lg font-semibold">{metrics.activityTimeline.thisMonth}</div>
-                    <div className="text-xs text-muted-foreground">This Month</div>
+
+                  {/* This Month */}
+                  <div className="text-center p-4 bg-muted/20 rounded-lg border border-muted-foreground/10 hover:bg-muted/30 transition-colors">
+                    <div className="text-2xl font-bold">{metrics.activityTimeline.thisMonth}</div>
+                    <div className="text-xs font-medium text-muted-foreground">This Month</div>
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-lg font-semibold">{metrics.activityTimeline.older}</div>
-                    <div className="text-xs text-muted-foreground">Older</div>
+
+                  {/* Older */}
+                  <div className="text-center p-4 bg-muted/10 rounded-lg border border-muted-foreground/5 hover:bg-muted/20 transition-colors">
+                    <div className="text-2xl font-bold text-muted-foreground">{metrics.activityTimeline.older}</div>
+                    <div className="text-xs font-medium text-muted-foreground">Older</div>
                   </div>
                 </div>
               </div>
 
-              {/* Most Productive Period */}
+              {/* Most Productive Period - Enhanced with gradient and animation */}
               {metrics.mostProductivePeriod && (
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Most Productive Period</h3>
-                  <div className="p-4 bg-muted/30 rounded-lg">
+                  <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                    <Award className="h-4 w-4 text-yellow-500" />
+                    Most Productive Period
+                  </h3>
+                  <div className="relative overflow-hidden p-4 bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-red-500/10 rounded-lg border border-yellow-500/20">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">
+                        <div className="font-semibold text-lg">
                           {safeFormatDate(metrics.mostProductivePeriod.start, 'MMM d')} - {safeFormatDate(metrics.mostProductivePeriod.end, 'MMM d, yyyy')}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {metrics.mostProductivePeriod.count} findings collected
+                        <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                          <Sparkles className="h-3 w-3" />
+                          <span className="font-medium">{metrics.mostProductivePeriod.count} findings</span>
+                          collected in this period
                         </div>
                       </div>
-                      <Award className="h-5 w-5 text-primary" />
+                      <div className="relative">
+                        <Award className="h-8 w-8 text-yellow-500 animate-pulse" />
+                        <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-400 rounded-full animate-ping" />
+                      </div>
                     </div>
+                    {/* Decorative gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/5 to-transparent animate-shimmer pointer-events-none" />
                   </div>
                 </div>
               )}
@@ -336,13 +424,13 @@ export function ResearchInsightsDashboard({
                     From digest generated {safeFormatDistanceToNow(digestInsights.latestDigest.createdAt)}
                   </div>
 
-                  {/* Breakthroughs */}
-                  {digestInsights.breakthroughs.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                        <Lightbulb className="h-4 w-4 text-yellow-500" />
-                        Research Breakthroughs
-                      </h3>
+                  {/* Breakthroughs - Always show with empty state */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4 text-yellow-500" />
+                      Research Breakthroughs
+                    </h3>
+                    {digestInsights.breakthroughs.length > 0 ? (
                       <div className="space-y-3">
                         {digestInsights.breakthroughs.map(breakthrough => (
                           <div key={breakthrough.id} className="p-3 bg-muted/30 rounded-lg">
@@ -351,16 +439,25 @@ export function ResearchInsightsDashboard({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="p-4 bg-muted/10 rounded-lg border border-dashed border-muted-foreground/20">
+                        <p className="text-sm text-muted-foreground text-center">
+                          No major breakthroughs identified in this digest
+                        </p>
+                        <p className="text-xs text-muted-foreground/70 text-center mt-1">
+                          This is normal - breakthroughs are rare but important discoveries
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Knowledge Gaps */}
-                  {digestInsights.knowledgeGaps.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                        <Search className="h-4 w-4 text-blue-500" />
-                        Knowledge Gaps Identified
-                      </h3>
+                  {/* Knowledge Gaps - Always show with empty state */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Search className="h-4 w-4 text-blue-500" />
+                      Knowledge Gaps Identified
+                    </h3>
+                    {digestInsights.knowledgeGaps.length > 0 ? (
                       <ul className="space-y-2">
                         {digestInsights.knowledgeGaps.map((gap, index) => (
                           <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -369,16 +466,25 @@ export function ResearchInsightsDashboard({
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="p-4 bg-muted/10 rounded-lg border border-dashed border-muted-foreground/20">
+                        <p className="text-sm text-muted-foreground text-center">
+                          No knowledge gaps found in current research
+                        </p>
+                        <p className="text-xs text-muted-foreground/70 text-center mt-1">
+                          Your research coverage appears comprehensive for the analyzed findings
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Contradictions */}
-                  {digestInsights.contradictions.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-orange-500" />
-                        Contradictions Found
-                      </h3>
+                  {/* Contradictions - Always show with empty state */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      Contradictions Found
+                    </h3>
+                    {digestInsights.contradictions.length > 0 ? (
                       <div className="space-y-3">
                         {digestInsights.contradictions.map(contradiction => (
                           <div key={contradiction.id} className="p-3 border-l-2 border-orange-500 bg-muted/20">
@@ -394,8 +500,17 @@ export function ResearchInsightsDashboard({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="p-4 bg-muted/10 rounded-lg border border-dashed border-muted-foreground/20">
+                        <p className="text-sm text-muted-foreground text-center">
+                          No contradictions detected between findings
+                        </p>
+                        <p className="text-xs text-muted-foreground/70 text-center mt-1">
+                          Your research sources appear to be in agreement
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
