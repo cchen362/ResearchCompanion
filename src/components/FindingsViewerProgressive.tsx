@@ -250,6 +250,69 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
     };
   }, [selectedTopicId, activeRefreshQueueId, queueItem, findingsPerPage]);
 
+  // Listen for digest-queued and agent-complete events
+  useEffect(() => {
+    const handleDigestQueued = (event: CustomEvent) => {
+      const { queueItem: newQueueItem } = event.detail;
+
+      // Check if this queue item is for our current topic
+      if (newQueueItem.topicId === selectedTopicId) {
+        console.log('Digest queued for current topic, updating UI:', newQueueItem);
+
+        // Update the queue item state
+        setQueueItem(newQueueItem);
+
+        // Start digest generation state
+        setDigestGeneration({
+          isGenerating: true,
+          progress: 0,
+          message: 'Starting digest generation...'
+        });
+
+        // Clear any existing digest while new one is generating
+        setDigest(null);
+      }
+    };
+
+    const handleAgentComplete = async (event: CustomEvent) => {
+      const { topicId, findingsCount } = event.detail;
+
+      // If agent completed for current topic, check for queued digest
+      if (topicId === selectedTopicId && findingsCount > 0) {
+        console.log('Agent completed for current topic, checking for queued digest');
+
+        // Small delay to ensure digest queue has been updated
+        setTimeout(async () => {
+          const queueStatus = await digestQueueService.getQueueStatus(topicId);
+          if (queueStatus) {
+            console.log('Found queued digest after agent complete:', queueStatus);
+            setQueueItem(queueStatus);
+            setDigestGeneration({
+              isGenerating: true,
+              progress: queueStatus.progress?.percentage || 0,
+              message: queueStatus.progress?.message || 'Processing...'
+            });
+          }
+        }, 500);
+
+        // Also reload findings to show new ones
+        const db = await getDB();
+        const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+        updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
+        setFindings(updatedFindings);
+        setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
+      }
+    };
+
+    window.addEventListener('digest-queued', handleDigestQueued as any);
+    window.addEventListener('agent-complete', handleAgentComplete as any);
+
+    return () => {
+      window.removeEventListener('digest-queued', handleDigestQueued as any);
+      window.removeEventListener('agent-complete', handleAgentComplete as any);
+    };
+  }, [selectedTopicId, findingsPerPage]);
+
   // Setup infinite scroll observer
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
@@ -329,8 +392,20 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setDigest(cachedDigest);
         setLoadingDigest(false);
 
+        // Always check for existing queue status first
+        const existingQueue = await digestQueueService.getQueueStatus(topicId);
+        if (existingQueue) {
+          console.log('Found existing digest generation in progress (with cached digest):', existingQueue);
+          setQueueItem(existingQueue);
+          setDigestGeneration({
+            isGenerating: true,
+            progress: existingQueue.progress?.percentage || 0,
+            message: existingQueue.progress?.message || 'Updating digest...'
+          });
+        }
+
         // Check if we should refresh the digest (but skip if manual refresh is in progress)
-        if (!isManualRefresh) {
+        if (!isManualRefresh && !existingQueue) {
           const shouldRefresh = await digestCacheService.shouldRefreshDigest(
             topicId,
             digestTimeframe,
@@ -341,10 +416,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
             // Add small delay to prevent race condition with queue status
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Queue background refresh if stale or needs update
-            const existingQueue = await digestQueueService.getQueueStatus(topicId);
-            // Also check if we have a queueItem in state
-            if (!existingQueue && !queueItem) {
+            // Queue background refresh if stale or needs update (double-check no queue exists)
+            const recheckQueue = await digestQueueService.getQueueStatus(topicId);
+            if (!recheckQueue && !queueItem) {
               const newQueueItem = await digestQueueService.queueDigestGeneration(
                 topicId,
                 digestTimeframe,
@@ -365,9 +439,22 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setCachedDigest(null);
         setLoadingDigest(false);
 
-        // Step 4: Don't automatically queue digest generation
-        // Users should explicitly click "Update Research & Digest" button
-        // This prevents generating digest from stale data
+        // Step 4: Check if there's already a digest being generated
+        const existingQueue = await digestQueueService.getQueueStatus(topicId);
+        if (existingQueue) {
+          console.log('Found existing digest generation in queue:', existingQueue);
+          setQueueItem(existingQueue);
+          setDigestGeneration({
+            isGenerating: true,
+            progress: existingQueue.progress?.percentage || 0,
+            message: existingQueue.progress?.message || 'Processing...'
+          });
+        } else {
+          // No cached digest and no queue - show the Generate button
+          // Users should explicitly click to generate digest
+          console.log('No cached digest or queued generation found for topic');
+        }
+
         setLoadingDigest(false);
       }
     } catch (error) {
@@ -388,6 +475,54 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
     const newVisibleFindings = findings.slice(0, endIndex);
     setVisibleFindings(newVisibleFindings);
     setFindingsPage(nextPage);
+  };
+
+  // Generate digest from existing findings (no new research)
+  const handleGenerateDigest = async () => {
+    if (!selectedTopicId) return;
+
+    // Prevent rapid clicks
+    if (isRefreshing || digestGeneration.isGenerating) {
+      console.log('Generation already in progress, ignoring duplicate request');
+      return;
+    }
+
+    setIsRefreshing(true);
+    setIsManualRefresh(true);
+
+    try {
+      // Cancel existing queue item if any
+      if (queueItem) {
+        await digestQueueService.cancelQueueItem(queueItem.id);
+      }
+
+      // Queue digest generation from existing findings only
+      const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+        selectedTopicId,
+        digestTimeframe
+      );
+
+      console.log('Digest generation queued:', {
+        id: newQueueItem.id,
+        topicId: selectedTopicId,
+        timeframe: digestTimeframe
+      });
+
+      // Store the queue ID for tracking
+      setActiveRefreshQueueId(newQueueItem.id);
+      setQueueItem(newQueueItem);
+
+      // Start digest generation state
+      setDigestGeneration({
+        isGenerating: true,
+        progress: 0,
+        message: 'Starting digest generation...'
+      });
+    } catch (error) {
+      console.error('Failed to queue digest generation:', error);
+      setIsRefreshing(false);
+      setIsManualRefresh(false);
+    }
   };
 
   const handleRefreshDigest = async () => {
@@ -765,9 +900,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                       </p>
                     </div>
                     <div className="flex justify-center">
-                      <Button onClick={handleRefreshDigest} size="lg" className="gap-2">
+                      <Button onClick={handleGenerateDigest} size="lg" className="gap-2">
                         <Sparkles className="h-5 w-5" />
-                        Fetch Research & Generate Digest
+                        Generate Digest
                       </Button>
                     </div>
                     <div className="text-center">

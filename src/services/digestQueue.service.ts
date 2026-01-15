@@ -96,6 +96,12 @@ export class DigestQueueService {
 
       await db.add('digestQueue', queueItem);
 
+      // Dispatch event to notify UI that digest has been queued
+      window.dispatchEvent(new CustomEvent('digest-queued', {
+        detail: { queueItem }
+      }));
+      console.log('Dispatched digest-queued event for topic:', topicId);
+
       // Trigger queue processing
       this.processQueue();
 
@@ -427,6 +433,50 @@ export class DigestQueueService {
 
       this.notifyFailure(queueItem);
 
+      throw error;
+    }
+  }
+
+  /**
+   * Queue digest generation from existing findings (no new research)
+   * This is used when findings already exist and we just need to generate the digest
+   */
+  async queueDigestFromExistingFindings(
+    topicId: string,
+    timeframe: DigestTimeframe = 'weekly'
+  ): Promise<DigestQueueItem> {
+    console.log('Queueing digest generation from existing findings for topic:', topicId);
+
+    const db = await getDB();
+
+    try {
+      // Get existing findings for the topic
+      const findings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+
+      if (findings.length === 0) {
+        throw new Error('No findings available to generate digest');
+      }
+
+      // Sort findings by timestamp (newest first)
+      findings.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Get finding IDs
+      const findingIds = findings.map(f => f.id);
+
+      // Queue the digest generation with high priority since user is waiting
+      const queueItem = await this.queueDigestGeneration(
+        topicId,
+        timeframe,
+        findingIds,
+        'high',
+        'user'
+      );
+
+      console.log(`Queued digest generation from ${findings.length} existing findings`);
+
+      return queueItem;
+    } catch (error) {
+      console.error('Error queueing digest from existing findings:', error);
       throw error;
     }
   }

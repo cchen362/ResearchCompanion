@@ -3,6 +3,7 @@ import * as api from './api';
 import { generateId } from '@/utils/db/topics';
 import { getDB } from '@/utils/db/database';
 import { updateAgentAfterRun, setAgentStatus, isWithinBudget } from '@/utils/db/agents';
+import { digestQueueService } from './digestQueue.service';
 
 /**
  * Run a comprehensive agent search with real API integration
@@ -351,6 +352,18 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
         detail: { topicId: topic.id, findingsCount }
       }));
 
+      // Auto-queue digest generation if we have findings
+      if (findingsCount > 0) {
+        try {
+          console.log(`Auto-queueing digest generation for topic ${topic.id} with ${findingsCount} findings`);
+          await digestQueueService.queueDigestFromExistingFindings(topic.id, 'weekly');
+          console.log('✅ Digest generation queued automatically');
+        } catch (digestError) {
+          console.error('Failed to auto-queue digest generation:', digestError);
+          // Don't throw - digest generation failure shouldn't break the agent completion
+        }
+      }
+
     } catch (dbError) {
       console.error('❌ Failed to save notification to database:', dbError);
       console.error('Error details:', {
@@ -372,6 +385,17 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
         window.dispatchEvent(new CustomEvent('agent-complete', {
           detail: { topicId: topic.id, findingsCount }
         }));
+
+        // Auto-queue digest generation if we have findings (fallback path)
+        if (findingsCount > 0) {
+          try {
+            console.log(`Auto-queueing digest generation for topic ${topic.id} with ${findingsCount} findings (fallback)`);
+            await digestQueueService.queueDigestFromExistingFindings(topic.id, 'weekly');
+            console.log('✅ Digest generation queued automatically (fallback)');
+          } catch (digestError) {
+            console.error('Failed to auto-queue digest generation (fallback):', digestError);
+          }
+        }
       } catch (putError) {
         console.error('❌ Put also failed:', putError);
       }
