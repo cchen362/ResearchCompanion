@@ -1,4 +1,4 @@
-import type { Agent, Topic, ResearchFinding } from '@/types';
+import type { Agent, Topic, ResearchFinding, AgentType } from '@/types';
 import * as api from './api';
 import { generateId } from '@/utils/db/topics';
 import { getDB } from '@/utils/db/database';
@@ -380,4 +380,166 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
   } catch (error) {
     console.error('❌ Error in createNotification:', error);
   }
+}
+
+/**
+ * Run all active research agents for a topic to fetch new findings
+ * This is used by the integrated refresh functionality
+ */
+export async function runAllResearchAgents(topicId: string): Promise<ResearchFinding[]> {
+  console.log(`Running all research agents for topic ${topicId}`);
+
+  const db = await getDB();
+
+  // Get the topic
+  const topic = await db.get('topics', topicId);
+  if (!topic) {
+    throw new Error(`Topic ${topicId} not found`);
+  }
+
+  // Get all active agents for this topic
+  const allAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+  const activeAgents = allAgents.filter(a => a.status !== 'disabled');
+
+  if (activeAgents.length === 0) {
+    console.log('No active agents found for topic');
+    return [];
+  }
+
+  const allFindings: ResearchFinding[] = [];
+  const errors: string[] = [];
+
+  // Run agents in parallel for better performance
+  const agentPromises = activeAgents.map(async (agent) => {
+    try {
+      console.log(`Running agent ${agent.name} (${agent.type})`);
+      const findings = await runAgentWithAPI(agent, topic);
+      return findings;
+    } catch (error) {
+      const errorMsg = `Agent ${agent.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(errorMsg);
+      errors.push(errorMsg);
+      return [];
+    }
+  });
+
+  const agentResults = await Promise.all(agentPromises);
+
+  // Combine all findings
+  for (const findings of agentResults) {
+    allFindings.push(...findings);
+  }
+
+  console.log(`Research complete: ${allFindings.length} new findings from ${activeAgents.length} agents`);
+
+  if (errors.length > 0) {
+    console.warn(`${errors.length} agents failed during research:`, errors);
+  }
+
+  return allFindings;
+}
+
+/**
+ * Run specific research agents for a topic
+ */
+export async function runResearchAgents(
+  topicId: string,
+  agentTypes: AgentType[]
+): Promise<ResearchFinding[]> {
+  console.log(`Running specific research agents for topic ${topicId}:`, agentTypes);
+
+  const db = await getDB();
+
+  // Get the topic
+  const topic = await db.get('topics', topicId);
+  if (!topic) {
+    throw new Error(`Topic ${topicId} not found`);
+  }
+
+  // Get requested agents
+  const allAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+  const requestedAgents = allAgents.filter(
+    a => agentTypes.includes(a.type as AgentType) && a.status !== 'disabled'
+  );
+
+  if (requestedAgents.length === 0) {
+    console.log('No matching active agents found');
+    return [];
+  }
+
+  const allFindings: ResearchFinding[] = [];
+
+  // Run agents sequentially to avoid rate limits
+  for (const agent of requestedAgents) {
+    try {
+      console.log(`Running agent ${agent.name}`);
+      const findings = await runAgentWithAPI(agent, topic);
+      allFindings.push(...findings);
+    } catch (error) {
+      console.error(`Agent ${agent.name} failed:`, error);
+      // Continue with other agents even if one fails
+    }
+  }
+
+  return allFindings;
+}
+
+/**
+ * Get or create default agents for a topic
+ */
+export async function ensureDefaultAgents(topicId: string): Promise<Agent[]> {
+  const db = await getDB();
+  const existingAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+
+  if (existingAgents.length > 0) {
+    return existingAgents;
+  }
+
+  // Create default agents if none exist
+  const topic = await db.get('topics', topicId);
+  if (!topic) {
+    throw new Error(`Topic ${topicId} not found`);
+  }
+
+  const defaultAgentTypes: AgentType[] = [
+    'treatment_breakthrough',
+    'clinical_trial',
+    'medical_literature'
+  ];
+
+  const newAgents: Agent[] = [];
+
+  for (const type of defaultAgentTypes) {
+    const agent: Agent = {
+      id: generateId(),
+      topicId,
+      name: `${type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Agent`,
+      type,
+      status: 'idle',
+      config: {
+        searchDepth: 10,
+        updateFrequency: 'daily',
+        sources: [],
+        keywords: []
+      },
+      lastRun: null,
+      createdAt: Date.now(),
+      metrics: {
+        totalRuns: 0,
+        successfulRuns: 0,
+        failedRuns: 0,
+        findingsGenerated: 0,
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        apiCostTotal: 0
+      }
+    };
+
+    await db.add('agents', agent);
+    newAgents.push(agent);
+  }
+
+  console.log(`Created ${newAgents.length} default agents for topic ${topicId}`);
+  return newAgents;
 }

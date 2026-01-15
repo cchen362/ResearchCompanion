@@ -147,6 +147,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [isManualRefresh, setIsManualRefresh] = useState(false);
   // Track if refresh button is disabled due to debounce
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Track if topic data is being loaded to prevent duplicate calls
+  const [isLoadingTopicData, setIsLoadingTopicData] = useState(false);
 
   // Pagination for findings
   const [findingsPage, setFindingsPage] = useState(1);
@@ -164,6 +166,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   // Progressive loading when topic changes
   useEffect(() => {
     if (selectedTopicId) {
+      // Add a flag to track if we're already loading to prevent duplicate calls
       loadTopicDataProgressive(selectedTopicId);
     }
   }, [selectedTopicId, digestTimeframe]);
@@ -258,11 +261,20 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   };
 
   const loadTopicDataProgressive = async (topicId: string) => {
+    // Prevent duplicate calls
+    if (isLoadingTopicData) {
+      console.log('Already loading topic data, skipping duplicate call');
+      return;
+    }
+
+    setIsLoadingTopicData(true);
+
     try {
       // Step 1: Load topic info immediately
       const topic = await getTopic(topicId);
       if (!topic) {
         console.error('Topic not found:', topicId);
+        setIsLoadingTopicData(false);
         return;
       }
       setCurrentTopic(topic);
@@ -327,36 +339,19 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setCachedDigest(null);
         setLoadingDigest(false);
 
-        // Step 4: Queue digest generation in background (non-blocking)
-        if (topicFindings.length > 0 && !isManualRefresh) {
-          // Add small delay to prevent race condition
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          const existingQueue = await digestQueueService.getQueueStatus(topicId);
-          // Also check if we have a queueItem in state
-          if (!existingQueue && !queueItem) {
-            const newQueueItem = await digestQueueService.queueDigestGeneration(
-              topicId,
-              digestTimeframe,
-              topicFindings.map(f => f.id),
-              'normal',
-              'user'
-            );
-            setQueueItem(newQueueItem);
-            setDigestGeneration({
-              isGenerating: true,
-              progress: 0,
-              message: 'Queued for generation...'
-            });
-          } else if (existingQueue) {
-            setQueueItem(existingQueue);
-          }
-        }
+        // Step 4: Don't automatically queue digest generation
+        // Users should explicitly click "Update Research & Digest" button
+        // This prevents generating digest from stale data
+        setLoadingDigest(false);
       }
     } catch (error) {
       console.error('Error loading topic data:', error);
       setLoadingFindings(false);
       setLoadingDigest(false);
+      setIsLoadingTopicData(false);
+    } finally {
+      // Always clear the loading flag
+      setIsLoadingTopicData(false);
     }
   };
 
@@ -370,7 +365,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   };
 
   const handleRefreshDigest = async () => {
-    if (!selectedTopicId || findings.length === 0) return;
+    if (!selectedTopicId) return;
 
     // Prevent rapid clicks with debouncing
     if (isRefreshing || digestGeneration.isGenerating) {
@@ -390,21 +385,29 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         await digestQueueService.cancelQueueItem(queueItem.id);
       }
 
-      // Queue new generation with high priority
-      const newQueueItem = await digestQueueService.queueDigestGeneration(
+      // Use the new integrated refresh method that fetches research first
+      const newQueueItem = await digestQueueService.refreshResearchAndDigest(
         selectedTopicId,
         digestTimeframe,
-        findings.map(f => f.id),
-        'high',
-        'user'
+        'high'
       );
 
       setQueueItem(newQueueItem);
       setDigestGeneration({
         isGenerating: true,
         progress: 0,
-        message: 'Priority generation started...'
+        message: 'Fetching new research...'
       });
+
+      // Reload findings after research is complete
+      // Note: The digest-completed event will trigger the UI update
+      const db = await getDB();
+      const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', selectedTopicId);
+      updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
+      setFindings(updatedFindings);
+
+      // Update visible findings
+      setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
 
       // Clear debounce flag after 1 second to prevent rapid re-clicks
       setTimeout(() => {
@@ -546,15 +549,19 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 </Button>
               </div>
 
-              {/* Refresh button */}
+              {/* Refresh button - Updated text */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleRefreshDigest}
                 disabled={digestGeneration.isGenerating || isRefreshing}
-                title={isRefreshing ? 'Please wait...' : 'Refresh digest'}
+                title={isRefreshing ? 'Updating research and digest...' : 'Update Research & Digest'}
+                className="gap-1"
               >
                 <RefreshCw className={`h-4 w-4 ${digestGeneration.isGenerating || isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline text-xs">
+                  {digestGeneration.isGenerating ? 'Updating...' : 'Update'}
+                </span>
               </Button>
 
               {/* Settings button */}
@@ -697,8 +704,17 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 {digestGeneration.isGenerating ? (
                   <div className="space-y-4">
                     <Sparkles className="h-12 w-12 mx-auto text-primary animate-pulse" />
-                    <CardTitle className="mb-2">Processing...</CardTitle>
+                    <CardTitle className="mb-2">
+                      {digestGeneration.message || 'Processing...'}
+                    </CardTitle>
                     <Progress value={digestGeneration.progress} className="max-w-xs mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      {digestGeneration.progress < 40
+                        ? 'Searching for new research updates...'
+                        : digestGeneration.progress < 80
+                        ? 'Generating AI insights...'
+                        : 'Finalizing digest...'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -715,7 +731,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                     <div className="flex justify-center">
                       <Button onClick={handleRefreshDigest} size="lg" className="gap-2">
                         <Sparkles className="h-5 w-5" />
-                        Generate AI Digest
+                        Fetch Research & Generate Digest
                       </Button>
                     </div>
                     <div className="text-center">

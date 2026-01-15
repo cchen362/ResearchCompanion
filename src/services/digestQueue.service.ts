@@ -1,5 +1,6 @@
 import { getDB } from '@/utils/db/database';
 import { api, longOperationApi } from '@/services/api';
+import { runAllResearchAgents, ensureDefaultAgents } from '@/services/agentRunner';
 import type {
   DigestQueueItem,
   DigestQueueStatus,
@@ -16,6 +17,7 @@ export class DigestQueueService {
   private processingQueue = false;
   private currentProcessingId: string | null = null;
   private retryTimeouts = new Map<string, NodeJS.Timeout>();
+  private queueLocks = new Set<string>();
 
   private constructor() {
     // Start processing queue on instantiation
@@ -39,21 +41,38 @@ export class DigestQueueService {
   ): Promise<DigestQueueItem> {
     const db = await getDB();
 
-    // Check if there's already a pending request for this topic/timeframe
-    const existingQueue = await db.getAllFromIndex('digestQueue', 'by-topic', topicId);
-    const existing = existingQueue.find(
-      q => q.timeframe === timeframe &&
-      (q.status === 'pending' || q.status === 'processing')
-    );
-
-    if (existing) {
-      // Update priority if new request is higher priority
-      if (this.getPriorityLevel(priority) > this.getPriorityLevel(existing.priority)) {
-        existing.priority = priority;
-        await db.put('digestQueue', existing);
+    // Add mutex-like check to prevent race conditions
+    const lockKey = `queue_${topicId}_${timeframe}`;
+    if (this.queueLocks.has(lockKey)) {
+      console.log(`Queue generation already in progress for ${topicId}/${timeframe}, returning existing`);
+      // Wait a moment for the other request to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const existingQueue = await this.getQueueStatus(topicId);
+      if (existingQueue) {
+        return existingQueue;
       }
-      return existing;
     }
+
+    // Set lock
+    this.queueLocks.add(lockKey);
+
+    try {
+      // Check if there's already a pending request for this topic/timeframe
+      const existingQueue = await db.getAllFromIndex('digestQueue', 'by-topic', topicId);
+      const existing = existingQueue.find(
+        q => q.timeframe === timeframe &&
+        (q.status === 'pending' || q.status === 'processing')
+      );
+
+      if (existing) {
+        console.log(`Found existing queue item for ${topicId}/${timeframe}, reusing`);
+        // Update priority if new request is higher priority
+        if (this.getPriorityLevel(priority) > this.getPriorityLevel(existing.priority)) {
+          existing.priority = priority;
+          await db.put('digestQueue', existing);
+        }
+        return existing;
+      }
 
     // Create new queue item
     const queueItem: DigestQueueItem = {
@@ -75,12 +94,16 @@ export class DigestQueueService {
       }
     };
 
-    await db.add('digestQueue', queueItem);
+      await db.add('digestQueue', queueItem);
 
-    // Trigger queue processing
-    this.processQueue();
+      // Trigger queue processing
+      this.processQueue();
 
-    return queueItem;
+      return queueItem;
+    } finally {
+      // Always clear the lock
+      this.queueLocks.delete(lockKey);
+    }
   }
 
   // Get queue status for a topic
@@ -282,6 +305,185 @@ export class DigestQueueService {
         // Notify UI of failure
         this.notifyFailure(item);
       }
+    }
+  }
+
+  /**
+   * Integrated method to refresh research and regenerate digest
+   * This fetches new findings first, then generates a digest from all findings
+   */
+  async refreshResearchAndDigest(
+    topicId: string,
+    timeframe: DigestTimeframe = 'all-time',
+    priority: DigestPriority = 'high'
+  ): Promise<DigestQueueItem> {
+    console.log(`Starting integrated refresh for topic ${topicId}`);
+
+    const db = await getDB();
+
+    // Get the topic
+    const topic = await db.get('topics', topicId);
+    if (!topic) {
+      throw new Error(`Topic ${topicId} not found`);
+    }
+
+    // Step 1: Ensure agents exist for the topic
+    await ensureDefaultAgents(topicId);
+
+    // Step 2: Create a special queue item for research + digest
+    const queueItem: DigestQueueItem = {
+      id: `refresh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      topicId,
+      timeframe,
+      status: 'processing',
+      priority,
+      createdAt: Date.now(),
+      startedAt: Date.now(),
+      attempts: 1,
+      maxAttempts: 3,
+      findingIds: [], // Will be populated after research
+      requestedBy: 'user',
+      estimatedCompletionTime: Date.now() + 120000, // Estimate 2 minutes for research + digest
+      progress: {
+        stage: 'fetching',
+        percentage: 0,
+        message: 'Starting research agents...'
+      }
+    };
+
+    // Save the queue item
+    await db.add('digestQueue', queueItem);
+    this.notifyProgressUpdate(queueItem);
+
+    try {
+      // Step 3: Run research agents to fetch new findings
+      await this.updateProgress(
+        queueItem.id,
+        'fetching',
+        10,
+        'Searching PubMed for latest research...'
+      );
+
+      const newFindings = await runAllResearchAgents(topicId);
+      console.log(`Research complete: ${newFindings.length} new findings`);
+
+      await this.updateProgress(
+        queueItem.id,
+        'fetching',
+        40,
+        `Found ${newFindings.length} new findings. Processing...`
+      );
+
+      // Step 4: Get all findings for the topic (including existing ones)
+      const allFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+      console.log(`Total findings for digest: ${allFindings.length}`);
+
+      // Update queue item with all finding IDs
+      queueItem.findingIds = allFindings.map(f => f.id);
+      await db.put('digestQueue', queueItem);
+
+      await this.updateProgress(
+        queueItem.id,
+        'generating',
+        50,
+        'Generating AI digest from all findings...'
+      );
+
+      // Step 5: Generate digest from all findings
+      const digest = await this.generateDigestFromFindings(
+        queueItem,
+        topic,
+        allFindings,
+        timeframe
+      );
+
+      // Step 6: Complete the queue item
+      queueItem.status = 'completed';
+      queueItem.completedAt = Date.now();
+      queueItem.result = digest;
+      await db.put('digestQueue', queueItem);
+
+      await this.updateProgress(
+        queueItem.id,
+        'validating',
+        100,
+        'Complete!'
+      );
+
+      // Notify UI of completion
+      this.notifyCompletion(queueItem, digest);
+
+      console.log(`Integrated refresh complete for topic ${topicId}`);
+      return queueItem;
+
+    } catch (error) {
+      console.error('Error in refreshResearchAndDigest:', error);
+
+      // Update queue item as failed
+      queueItem.status = 'failed';
+      queueItem.completedAt = Date.now();
+      queueItem.error = error instanceof Error ? error.message : 'Unknown error';
+      await db.put('digestQueue', queueItem);
+
+      this.notifyFailure(queueItem);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Helper method to generate digest from findings
+   */
+  private async generateDigestFromFindings(
+    queueItem: DigestQueueItem,
+    topic: Topic,
+    findings: ResearchFinding[],
+    timeframe: DigestTimeframe
+  ): Promise<SmartDigest> {
+    // Filter findings based on timeframe
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    let filteredFindings = findings;
+
+    switch (timeframe) {
+      case 'daily':
+        filteredFindings = findings.filter(f => f.timestamp > now - day);
+        break;
+      case 'weekly':
+        filteredFindings = findings.filter(f => f.timestamp > now - (7 * day));
+        break;
+      case 'monthly':
+        filteredFindings = findings.filter(f => f.timestamp > now - (30 * day));
+        break;
+      // 'all-time' uses all findings
+    }
+
+    console.log(`Generating digest from ${filteredFindings.length} findings (${timeframe})`);
+
+    // Call backend to generate digest
+    try {
+      const response = await longOperationApi.post('/generate-digest', {
+        findings: filteredFindings.slice(0, 100), // Limit to 100 findings
+        topic,
+        timeframe
+      });
+
+      // Backend returns digest directly, not wrapped in { digest: ... }
+      if (!response.data) {
+        throw new Error('No digest data returned from backend');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error calling generate-digest API:', error);
+      // Check if it's an axios error with response
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        if (axiosError.response?.data?.error) {
+          throw new Error(axiosError.response.data.error);
+        }
+      }
+      throw error;
     }
   }
 
