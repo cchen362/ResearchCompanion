@@ -114,11 +114,29 @@ export class DigestCacheService {
 
     // Check age first
     const age = Date.now() - currentDigest.generatedAt;
+
+    // Implement cooldown period - don't refresh if digest is less than 30 seconds old
+    const COOLDOWN_PERIOD = 30 * 1000; // 30 seconds
+    if (age < COOLDOWN_PERIOD) {
+      console.log(`Digest is too fresh (${Math.round(age/1000)}s old), skipping refresh`);
+      return false;
+    }
+
+    // Also enforce minimum age before considering refresh (1 minute)
+    const MINIMUM_AGE = 60 * 1000; // 1 minute
+    if (age < MINIMUM_AGE) {
+      // Even if there are new findings, don't refresh if digest is very recent
+      return false;
+    }
+
     if (age > config.maxAge) return true;
 
     // Check for new findings since digest generation
     const findings = await db.getAllFromIndex('findings', 'by-topic', topicId);
-    const newFindings = findings.filter(f => f.timestamp > currentDigest.generatedAt);
+
+    // Add a small buffer (1 second) to avoid edge cases with timestamps
+    const bufferTime = 1000;
+    const newFindings = findings.filter(f => f.timestamp > (currentDigest.generatedAt + bufferTime));
 
     // If there are enough new findings, refresh
     if (newFindings.length >= config.refreshThreshold) {

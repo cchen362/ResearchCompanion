@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getDB } from '@/utils/db/database';
 import { getTopic } from '@/utils/db/topics';
 import { digestQueueService } from '@/services/digestQueue.service';
@@ -143,6 +143,11 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [showFindingDetail, setShowFindingDetail] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Track manual refresh to prevent auto-refresh race condition
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+  // Track if refresh button is disabled due to debounce
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Pagination for findings
   const [findingsPage, setFindingsPage] = useState(1);
   const findingsPerPage = 20;
@@ -172,6 +177,11 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setQueueItem(null);
         setDigestGeneration({ isGenerating: false, progress: 100, message: 'Complete!' });
 
+        // Clear manual refresh flag after completion
+        setIsManualRefresh(false);
+        // Clear refreshing flag
+        setIsRefreshing(false);
+
         // Save to cache
         await digestCacheService.saveDigest(newDigest);
       }
@@ -196,6 +206,10 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       if (failedItem.topicId === selectedTopicId) {
         setQueueItem(failedItem);
         setDigestGeneration({ isGenerating: false, progress: 0, message: 'Failed' });
+        // Clear manual refresh flag on failure
+        setIsManualRefresh(false);
+        // Clear refreshing flag
+        setIsRefreshing(false);
       }
     };
 
@@ -277,30 +291,36 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setDigest(cachedDigest);
         setLoadingDigest(false);
 
-        // Check if we should refresh the digest
-        const shouldRefresh = await digestCacheService.shouldRefreshDigest(
-          topicId,
-          digestTimeframe,
-          cachedDigest
-        );
+        // Check if we should refresh the digest (but skip if manual refresh is in progress)
+        if (!isManualRefresh) {
+          const shouldRefresh = await digestCacheService.shouldRefreshDigest(
+            topicId,
+            digestTimeframe,
+            cachedDigest
+          );
 
-        if (shouldRefresh || isStale) {
-          // Queue background refresh if stale or needs update
-          const existingQueue = await digestQueueService.getQueueStatus(topicId);
-          if (!existingQueue) {
-            const newQueueItem = await digestQueueService.queueDigestGeneration(
-              topicId,
-              digestTimeframe,
-              topicFindings.map(f => f.id),
-              isStale ? 'high' : 'normal',
-              'system'
-            );
-            setQueueItem(newQueueItem);
-            setDigestGeneration({
-              isGenerating: true,
-              progress: 0,
-              message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
-            });
+          if (shouldRefresh || isStale) {
+            // Add small delay to prevent race condition with queue status
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Queue background refresh if stale or needs update
+            const existingQueue = await digestQueueService.getQueueStatus(topicId);
+            // Also check if we have a queueItem in state
+            if (!existingQueue && !queueItem) {
+              const newQueueItem = await digestQueueService.queueDigestGeneration(
+                topicId,
+                digestTimeframe,
+                topicFindings.map(f => f.id),
+                isStale ? 'high' : 'normal',
+                'system'
+              );
+              setQueueItem(newQueueItem);
+              setDigestGeneration({
+                isGenerating: true,
+                progress: 0,
+                message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
+              });
+            }
           }
         }
       } else {
@@ -308,9 +328,13 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setLoadingDigest(false);
 
         // Step 4: Queue digest generation in background (non-blocking)
-        if (topicFindings.length > 0) {
+        if (topicFindings.length > 0 && !isManualRefresh) {
+          // Add small delay to prevent race condition
+          await new Promise(resolve => setTimeout(resolve, 100));
+
           const existingQueue = await digestQueueService.getQueueStatus(topicId);
-          if (!existingQueue) {
+          // Also check if we have a queueItem in state
+          if (!existingQueue && !queueItem) {
             const newQueueItem = await digestQueueService.queueDigestGeneration(
               topicId,
               digestTimeframe,
@@ -324,7 +348,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
               progress: 0,
               message: 'Queued for generation...'
             });
-          } else {
+          } else if (existingQueue) {
             setQueueItem(existingQueue);
           }
         }
@@ -348,26 +372,49 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const handleRefreshDigest = async () => {
     if (!selectedTopicId || findings.length === 0) return;
 
-    // Cancel existing queue item if any
-    if (queueItem) {
-      await digestQueueService.cancelQueueItem(queueItem.id);
+    // Prevent rapid clicks with debouncing
+    if (isRefreshing || digestGeneration.isGenerating) {
+      console.log('Refresh already in progress, ignoring duplicate request');
+      return;
     }
 
-    // Queue new generation with high priority
-    const newQueueItem = await digestQueueService.queueDigestGeneration(
-      selectedTopicId,
-      digestTimeframe,
-      findings.map(f => f.id),
-      'high',
-      'user'
-    );
+    // Set debounce flag
+    setIsRefreshing(true);
 
-    setQueueItem(newQueueItem);
-    setDigestGeneration({
-      isGenerating: true,
-      progress: 0,
-      message: 'Priority generation started...'
-    });
+    // Set manual refresh flag to prevent auto-refresh race condition
+    setIsManualRefresh(true);
+
+    try {
+      // Cancel existing queue item if any
+      if (queueItem) {
+        await digestQueueService.cancelQueueItem(queueItem.id);
+      }
+
+      // Queue new generation with high priority
+      const newQueueItem = await digestQueueService.queueDigestGeneration(
+        selectedTopicId,
+        digestTimeframe,
+        findings.map(f => f.id),
+        'high',
+        'user'
+      );
+
+      setQueueItem(newQueueItem);
+      setDigestGeneration({
+        isGenerating: true,
+        progress: 0,
+        message: 'Priority generation started...'
+      });
+
+      // Clear debounce flag after 1 second to prevent rapid re-clicks
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Error refreshing digest:', error);
+      setIsRefreshing(false);
+      setIsManualRefresh(false);
+    }
   };
 
   const handleTimeframeChange = async (newTimeframe: DigestTimeframe) => {
@@ -504,9 +551,10 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 size="sm"
                 variant="outline"
                 onClick={handleRefreshDigest}
-                disabled={digestGeneration.isGenerating}
+                disabled={digestGeneration.isGenerating || isRefreshing}
+                title={isRefreshing ? 'Please wait...' : 'Refresh digest'}
               >
-                <RefreshCw className={`h-4 w-4 ${digestGeneration.isGenerating ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${digestGeneration.isGenerating || isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
 
               {/* Settings button */}
