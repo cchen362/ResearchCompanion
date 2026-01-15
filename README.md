@@ -37,9 +37,10 @@ An autonomous medical research companion Progressive Web App designed to help ca
 
 ### Installation
 
-1. Clone or download the project:
+1. Clone the repository:
 ```bash
-cd Desktop/medical-companion-pwa
+git clone [repository-url]
+cd medical-companion-pwa
 ```
 
 2. Install dependencies:
@@ -129,13 +130,16 @@ Agents can run in two modes:
 
 ### API Keys (Required for Full Functionality)
 
-Create a `.env` file in the project root:
+The API keys should be configured in the backend service. Create a `.env` file in the `backend/` directory:
 
 ```env
-VITE_API_URL=http://localhost:3001/api
-VITE_ANTHROPIC_API_KEY=your_key_here
-VITE_OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+BRAVE_API_KEY=your_brave_api_key_here
+JWT_SECRET=your_secure_jwt_secret_here
 ```
+
+**Important:** Never commit API keys to version control. The `.env` file is gitignored by default.
 
 ### Agent Configuration
 
@@ -234,6 +238,12 @@ Agents can be customized per topic:
 2. Audio recording requires HTTPS in production
 3. Some agent features require API keys
 4. Conversational interface not yet implemented (Phase 2)
+
+## 🔧 Development
+
+### Logging
+
+The application uses a centralized logging utility (`src/utils/logger.ts`) that automatically disables console output in production builds. All debug statements are wrapped to only appear in development mode.
 
 ## 📝 License
 

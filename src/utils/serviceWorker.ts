@@ -1,21 +1,22 @@
 // Service Worker Registration and Management
+import { logger } from './logger';
 
 export async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker registered:', registration);
+      logger.log('Service Worker registered:', registration);
 
       // Check for updates
       registration.addEventListener('updatefound', () => {
-        console.log('Service Worker update found');
+        logger.log('Service Worker update found');
         const newWorker = registration.installing;
 
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New service worker is ready
-              console.log('New Service Worker ready');
+              logger.log('New Service Worker ready');
               // Optionally show a notification to the user
               showUpdateNotification();
             }
@@ -31,11 +32,11 @@ export async function registerServiceWorker() {
 
       return registration;
     } catch (error) {
-      console.error('Service Worker registration failed:', error);
+      logger.error('Service Worker registration failed:', error);
       throw error;
     }
   } else {
-    console.warn('Service Workers not supported in this browser');
+    logger.warn('Service Workers not supported in this browser');
     return null;
   }
 }
@@ -46,7 +47,7 @@ export async function unregisterServiceWorker() {
     for (const registration of registrations) {
       await registration.unregister();
     }
-    console.log('Service Worker unregistered');
+    logger.log('Service Worker unregistered');
   }
 }
 
@@ -54,10 +55,10 @@ async function requestNotificationPermission() {
   if ('Notification' in window) {
     try {
       const permission = await Notification.requestPermission();
-      console.log('Notification permission:', permission);
+      logger.log('Notification permission:', permission);
       return permission === 'granted';
     } catch (error) {
-      console.warn('Notification permission request failed:', error);
+      logger.warn('Notification permission request failed:', error);
       return false;
     }
   }
@@ -71,9 +72,9 @@ async function registerPeriodicSync(registration: ServiceWorkerRegistration) {
       await registration.periodicSync.register('check-agents', {
         minInterval: 12 * 60 * 60 * 1000 // 12 hours
       });
-      console.log('Periodic sync registered');
+      logger.log('Periodic sync registered');
     } catch (error) {
-      console.log('Periodic sync registration failed:', error);
+      logger.log('Periodic sync registration failed:', error);
     }
   }
 }
@@ -90,7 +91,7 @@ function showUpdateNotification() {
 // Send message to service worker
 export async function sendMessageToSW(message: any): Promise<any> {
   if (!navigator.serviceWorker.controller) {
-    console.warn('No service worker controller available');
+    logger.warn('No service worker controller available');
     return null;
   }
 
@@ -152,9 +153,9 @@ export async function requestBackgroundSync(tag: string) {
     try {
       // @ts-ignore - Background Sync API
       await registration.sync.register(tag);
-      console.log(`Background sync registered: ${tag}`);
+      logger.log(`Background sync registered: ${tag}`);
     } catch (error) {
-      console.error('Background sync registration failed:', error);
+      logger.error('Background sync registration failed:', error);
     }
   }
 }
@@ -179,7 +180,7 @@ export async function promptInstallPWA() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
     const choiceResult = await deferredPrompt.userChoice;
-    console.log('PWA install prompt result:', choiceResult.outcome);
+    logger.log('PWA install prompt result:', choiceResult.outcome);
 
     // Clear the deferred prompt
     // @ts-ignore
@@ -201,7 +202,7 @@ export function listenForInstallPrompt() {
     // @ts-ignore
     window.deferredPrompt = e;
 
-    console.log('PWA install prompt ready');
+    logger.log('PWA install prompt ready');
 
     // Optionally show custom install UI
     showCustomInstallUI();

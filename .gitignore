@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Development and debug files
+dev-dist/
+**/test-*.html
+**/test-*.js
+**/clear-*.html
+**/clear-*.js
+**/debug*.html
+manual-cleanup.js
+
+# Environment and config files
+.env.docker
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

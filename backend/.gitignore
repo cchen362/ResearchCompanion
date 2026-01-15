@@ -6,6 +6,12 @@ node_modules/
 .env.local
 .env.production
 
+# Database files - NEVER commit user data!
+data/
+*.db
+*.sqlite
+*.sqlite3
+
 # Build output
 dist/
 

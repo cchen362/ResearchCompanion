@@ -1,5 +1,9 @@
 # Medical Companion PWA - Deployment Guide
 
+## ⚠️ Security Notice
+
+This application handles sensitive medical research data and requires API keys with billing implications. Please follow all security best practices outlined in this document.
+
 ## Overview
 
 This guide will help you deploy the Medical Companion PWA on your Debian server using Docker. The application will be accessible on port 6767 with nginx as the reverse proxy.
@@ -59,13 +63,16 @@ sudo apt install docker-compose -y
 Edit the `.env` file with your actual API keys:
 
 ```bash
-# REQUIRED: Your API Keys
-ANTHROPIC_API_KEY=sk-ant-api03-xxxxx
-OPENAI_API_KEY=sk-proj-xxxxx
-BRAVE_API_KEY=BSAxxxxx
+# 🚨 SECURITY WARNING: NEVER commit this file to version control!
+# These are PRODUCTION API keys with real billing implications
 
-# REQUIRED: Change this to a secure random string
-JWT_SECRET=generate-a-long-random-string-here-use-openssl-rand-base64-32
+# REQUIRED: Your API Keys (get from respective dashboards)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+BRAVE_API_KEY=your_brave_search_key_here
+
+# REQUIRED: Generate a secure random string (use: openssl rand -base64 32)
+JWT_SECRET=CHANGE_THIS_TO_YOUR_SECURE_RANDOM_STRING
 
 # Optional: Adjust if needed
 NODE_ENV=production
@@ -283,6 +290,38 @@ For issues or questions:
 - [ ] Regular backups scheduled
 - [ ] HTTPS enabled (recommended)
 - [ ] API keys are valid and have appropriate limits
+
+## Security Best Practices
+
+### API Key Management
+
+1. **Never commit API keys to version control**
+   - Use `.env` files (already gitignored)
+   - Store production keys securely
+   - Rotate keys regularly
+
+2. **Use environment-specific keys**
+   - Development keys separate from production
+   - Set spending limits on all API keys
+   - Monitor usage regularly
+
+3. **Secure the server**
+   - Keep Docker and system packages updated
+   - Use HTTPS in production (required for PWA features)
+   - Implement rate limiting if exposed to internet
+   - Regular security audits
+
+### Data Protection
+
+1. **User data is stored locally**
+   - All medical research data stays in browser IndexedDB
+   - Backend only processes requests, doesn't store health data
+   - User database only contains authentication info
+
+2. **Backup considerations**
+   - Backend database contains only user accounts
+   - Users should export their research data regularly
+   - No automatic cloud sync (privacy by design)
 
 ## License
 
