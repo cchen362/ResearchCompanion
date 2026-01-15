@@ -2,31 +2,69 @@
 
 An autonomous medical research companion Progressive Web App designed to help caregivers of rare disease patients stay up-to-date with the latest medical research, clinical trials, and treatment breakthroughs.
 
-## 🌟 Key Features
+## 🌟 Current Features
 
-### Autonomous Research Agents
+### Autonomous Research Agents (2 Active, 2 Planned)
+
+**Currently Active:**
 - **Treatment Breakthrough Monitor**: Continuously scans FDA approvals, new therapies, and treatment guidelines
 - **Clinical Trial Scanner**: Tracks new trials, enrollment changes, and trial results
-- **Medical Literature Researcher**: Monitors medical journals and research publications
-- **Pattern Recognition Agent**: Identifies patterns and connections across research findings
 
-### Smart Learning & Adaptation
-- Agents learn from user engagement patterns
-- Adaptive scheduling based on disease progression rates
-- Personalized source preferences
-- Intelligent relevance scoring
+**Planned for Phase 3:**
+- **Medical Literature Researcher**: Will monitor medical journals and research publications
+- **Pattern Recognition Agent**: Will identify patterns and connections across research findings
+
+### Smart Digest System
+- AI-powered analysis of research findings
+- Executive summaries with key themes and contradictions
+- Breakthrough detection and knowledge gap identification
+- Daily, weekly, and monthly digest generation
+- Automatic prioritization of critical findings
+
+### Conversational Interface (85% Complete)
+- Real-time chat with AI about research findings
+- Streaming responses for immediate feedback
+- Citation linking to specific findings
+- Suggested follow-up questions
+- Message persistence and search
+- Export conversations to TXT/JSON
+
+**Still in development:**
+- Citation click navigation (currently logs only)
+- Chat history sidebar UI
+- Message feedback buttons
+- Context accumulation from finding clicks
+
+### Research Insights Dashboard
+- Research progress tracking and metrics
+- Source diversity analysis
+- Finding patterns over time
+- Knowledge gap visualization
+- Research velocity metrics
+- Replaced the deprecated Knowledge Graph feature
 
 ### Patient Care Management
 - Timeline-based event tracking
 - Voice recording and transcription for doctor visits
-- Photo capture with OCR for lab results
-- Family collaboration support (up to 5 members)
+- Event categorization (appointments, symptoms, treatments)
+- Chronological health journey visualization
+
+### User Authentication
+- Secure login and registration system
+- JWT-based authentication
+- Password reset functionality
+- Session management
+
+### Data Export
+- Professional PDF reports with research summaries
+- Formatted for medical professionals
+- Includes findings, timeline events, and insights
 
 ### Privacy-First Design
 - All sensitive data stored locally using IndexedDB
-- End-to-end encryption capability (Web Crypto API)
-- Zero-knowledge server architecture
 - No cloud storage of personal health information
+- User controls all data export
+- Backend only processes requests, doesn't store health data
 
 ## 🚀 Getting Started
 
@@ -43,25 +81,56 @@ git clone [repository-url]
 cd medical-companion-pwa
 ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
 ```bash
 npm install
 ```
 
-3. Start the development server:
+3. Install backend dependencies:
+```bash
+cd backend
+npm install
+cd ..
+```
+
+4. Configure API keys in `backend/.env`:
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+BRAVE_API_KEY=your_brave_api_key_here
+JWT_SECRET=your_secure_jwt_secret_here
+```
+
+**Important:** Never commit API keys to version control. The `.env` file is gitignored by default.
+
+5. Start both servers:
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm run build
+npm start
+```
+
+**Terminal 2 - Frontend:**
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+6. Open your browser and navigate to `http://localhost:5173`
 
 ### Building for Production
 
 ```bash
+# Build frontend
+npm run build
+
+# Build backend
+cd backend
 npm run build
 ```
 
-The built files will be in the `dist` directory.
+The built files will be in the `dist` directory (frontend) and `backend/dist` (backend).
 
 ## 📱 PWA Installation
 
@@ -79,12 +148,20 @@ medical-companion-pwa/
 │   ├── types/              # TypeScript type definitions
 │   ├── utils/
 │   │   ├── db/             # IndexedDB operations
-│   │   └── agents/         # Agent utilities
-│   ├── services/           # API and agent services
+│   │   └── logger.ts       # Centralized logging
+│   ├── services/           # Business logic (13+ files)
+│   ├── stores/             # Zustand state management
 │   ├── components/         # React components
 │   │   ├── agents/         # Agent-specific components
-│   │   └── patient/        # Patient care components
+│   │   ├── auth/           # Authentication components
+│   │   └── ui/             # Radix UI components
 │   └── App.tsx            # Main application component
+├── backend/
+│   ├── src/
+│   │   ├── routes/         # API endpoints
+│   │   ├── services/       # Backend services
+│   │   └── middleware/     # Auth middleware
+│   └── dist/              # Compiled JavaScript
 ├── public/                 # Static assets
 └── vite.config.ts         # Vite configuration
 ```
@@ -98,27 +175,37 @@ medical-companion-pwa/
 3. Enter:
    - Topic name (e.g., "My Child's Condition")
    - Disease name (e.g., "Mitochondrial Disease")
-   - Disease characteristics (rare, progression rate)
+   - Update frequency preference (hourly, daily, weekly, or adaptive)
    - Patient age group
 
-The app will automatically create monitoring agents for your topic.
+The app will automatically create 2 monitoring agents for your topic.
 
 ### Running Agents
 
 Agents can run in two modes:
 
-1. **Automatic**: Agents run on schedule based on disease progression rate
-   - Rapid progression: Every 12 hours
-   - Moderate: Daily
-   - Slow: Weekly
+1. **Automatic**: Agents run on schedule based on update frequency
+   - Hourly: Fast-changing conditions
+   - Daily: Most conditions
+   - Weekly: Stable conditions
+   - Adaptive: AI determines frequency
 
 2. **Manual**: Click "Run Now" on any agent in the Agents tab
+
+### Using the Chat Interface
+
+1. Select a topic with findings
+2. Click the chat icon in the top toolbar
+3. Ask questions about your research findings
+4. Citations link to specific findings (navigation coming soon)
+5. Export conversations for medical appointments
 
 ### Viewing Research Findings
 
 - **Dashboard**: See recent findings and agent updates
-- **Notifications**: Get alerted for breakthrough treatments and important updates
-- **Topics**: Deep dive into research for specific conditions
+- **Research Insights**: Analyze patterns and metrics
+- **Smart Digests**: Review AI-generated summaries
+- **Timeline**: Track your health journey chronologically
 
 ### Cost Management
 
@@ -128,26 +215,14 @@ Agents can run in two modes:
 
 ## 🔧 Configuration
 
-### API Keys (Required for Full Functionality)
-
-The API keys should be configured in the backend service. Create a `.env` file in the `backend/` directory:
-
-```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-BRAVE_API_KEY=your_brave_api_key_here
-JWT_SECRET=your_secure_jwt_secret_here
-```
-
-**Important:** Never commit API keys to version control. The `.env` file is gitignored by default.
-
 ### Agent Configuration
 
 Agents can be customized per topic:
 - Update frequency (hourly, daily, weekly, adaptive)
 - Search depth (quick, standard, deep)
 - Priority (critical, high, medium, low)
-- Location filters for clinical trials
+
+Location filters for clinical trials are defined in types but not yet exposed in UI.
 
 ## 🛡️ Privacy & Security
 
@@ -155,89 +230,90 @@ Agents can be customized per topic:
 - **Local Storage**: All personal data stored in browser IndexedDB
 - **Capacity**: Gigabytes of storage for research data
 - **Persistence**: Request persistent storage to prevent eviction
-
-### Encryption
-- AES-GCM 256-bit encryption available
-- Password-derived keys (PBKDF2)
-- User controls all encryption keys
+- **No Encryption**: Data encryption is planned but not yet implemented
 
 ### API Usage
 - Stateless API calls only
-- No server-side storage of queries
-- Encrypted search parameters
-
-## 🤝 Family Collaboration
-
-### Roles
-- **Owner**: Full control, can add/remove members
-- **Caregiver**: Can edit and run agents
-- **Viewer**: Read-only access
-
-### Sharing
-- Generate secure invite links
-- Control permissions per family member
-- Synchronized across devices
+- No server-side storage of health data
+- User database contains only authentication info
 
 ## 📊 Technical Stack
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS
-- **Storage**: IndexedDB + OPFS
+### Frontend
+- **Framework**: React 19.2.0 + TypeScript 5.9.3
+- **Build Tool**: Vite 7.2.4
+- **Styling**: Tailwind CSS + Radix UI
+- **Storage**: IndexedDB via idb
+- **State**: Zustand (installed, minimally used)
 - **PWA**: Vite PWA Plugin + Workbox
-- **State**: Zustand
-- **AI Services**: Anthropic Claude, OpenAI Whisper
-- **Search**: Brave Search API, PubMed E-utilities
 
-## 🔮 Roadmap
+### Backend
+- **Runtime**: Node.js + Express
+- **Language**: TypeScript
+- **AI Services**:
+  - Anthropic Claude Sonnet 4.5 (reasoning)
+  - OpenAI Whisper (transcription)
+- **Search APIs**:
+  - PubMed E-utilities
+  - ClinicalTrials.gov API
+  - FDA API
+  - Brave Search API (requires key)
 
-### Phase 1 (Complete)
-- ✅ Core PWA structure
-- ✅ Autonomous agent framework
-- ✅ Basic UI components
-- ✅ IndexedDB integration
-- ✅ Cost tracking
+## 🔮 Development Roadmap
+
+### ✅ Phase 1 - Core Platform (COMPLETED)
+- ✅ 2 Autonomous research agents
+- ✅ Smart digest generation
+- ✅ Voice recording & transcription
+- ✅ Timeline event management
+- ✅ Research Insights Dashboard
+- ✅ User authentication system
+- ✅ PDF export functionality
 - ✅ Backend API server
-- ✅ Real API integrations (PubMed, ClinicalTrials.gov)
-- ✅ Service Worker scheduling
-- ✅ Audio recording interface
-- ✅ Smart digest generation with AI analysis
+- ✅ Real API integrations
 
-### Phase 2: Conversational Interface (4-6 weeks)
-- [ ] Chat interface for research findings
-- [ ] Context-aware Q&A about medical research
-- [ ] Citation linking to specific findings
-- [ ] Suggested follow-up questions
-- [ ] Conversation history management
-- [ ] Streaming AI responses for real-time interaction
+### 🔄 Phase 2 - Conversational Interface (85% COMPLETE)
+- ✅ Chat UI with streaming responses
+- ✅ Citation linking system
+- ✅ Message persistence
+- ✅ Suggested questions
+- ✅ Search through messages
+- ✅ Export to TXT/JSON
+- ⏳ Citation click navigation
+- ⏳ Chat history management UI
+- ⏳ Context accumulation from clicks
+- ⏳ Message feedback UI
 
-### Phase 3A: Research Insights Dashboard (3-4 weeks)
-- [ ] Research progress tracking and visualization
-- [ ] Source diversity and credibility analysis
-- [ ] Finding patterns and trend detection
-- [ ] Knowledge gap identification from Smart Digests
-- [ ] PDF report generation with research summaries
-- [ ] CSV/Excel export for research data
+### 📋 Phase 3 - Enhanced Research (PLANNED)
+- [ ] Medical Literature Agent implementation
+- [ ] Pattern Recognition Agent implementation
+- [ ] Advanced chat features (threading, branching)
+- [ ] Message regeneration and editing
+- [ ] Chat settings panel (model, temperature)
+- [ ] PDF export for chat conversations
 
-### Phase 3B: Advanced Research Analytics (Future)
-- [ ] Research velocity and coverage metrics
-- [ ] Topic comparison and exploration depth
-- [ ] Agent performance analytics
-- [ ] Collaborative research features
-- [ ] Integration with medical databases
-- [ ] Advanced pattern recognition in findings
+### 🚀 Future Enhancements
+- [ ] Data encryption (AES-GCM)
+- [ ] Family collaboration features
+- [ ] Smart learning & adaptation from user patterns
+- [ ] OCR for lab results
+- [ ] Additional export formats (Excel, FHIR)
+- [ ] Multi-language support
+- [ ] Advanced symptom tracking
 
-### Future Enhancements
-- [ ] Multi-language support (starting with Spanish/Mandarin)
-- [ ] Enhanced symptom tracking with severity scales
-- [ ] Predictive insights based on timeline patterns
-- [ ] Advanced analytics dashboard
+## 🐛 Known Limitations
 
-## 🐛 Known Issues
+### Current Limitations
+1. Only 2 of 4 planned agents are available
+2. No UI to manually add additional agents
+3. Chat citation clicks don't navigate to findings yet
+4. Excel/FHIR exports implemented but disabled in UI
+5. Voice recording and attachments in chat disabled by default
+6. Brave Search returns empty results without API key
 
-1. Web search using mock data (real API integration pending)
-2. Audio recording requires HTTPS in production
-3. Some agent features require API keys
-4. Conversational interface not yet implemented (Phase 2)
+### Deprecated Features
+- **Knowledge Graph**: Removed as it violated "Facts, Not Scores™" principle
+- **Insurance Access Agent**: Dropped due to complexity and regional variations
 
 ## 🔧 Development
 
@@ -245,9 +321,16 @@ Agents can be customized per topic:
 
 The application uses a centralized logging utility (`src/utils/logger.ts`) that automatically disables console output in production builds. All debug statements are wrapped to only appear in development mode.
 
+### Running Tests
+
+```bash
+npm run test        # Run tests (when implemented)
+npm run type-check  # Check TypeScript types
+```
+
 ## 📝 License
 
-This project is for personal, non-commercial use only.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
@@ -255,4 +338,4 @@ Built with love for caregivers managing rare diseases, inspired by the need for 
 
 ---
 
-**Note**: This is a prototype/MVP. Always consult with medical professionals for health decisions. This tool provides information only, not medical advice.
+**Medical Disclaimer**: This is a research information tool only. Always consult with qualified healthcare professionals for medical decisions. This tool provides information, not medical advice.
