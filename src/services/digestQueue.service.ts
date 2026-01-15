@@ -317,7 +317,7 @@ export class DigestQueueService {
       try {
         // API call using long operation API with 5-minute timeout
         const response = await longOperationApi.post('/generate-digest', {
-          findings: findings.slice(0, 50), // Limit to 50 findings to reduce payload
+          findings: findings.slice(0, 100), // Increased limit to 100 findings for more comprehensive digests
           topic,
           timeframe
         });

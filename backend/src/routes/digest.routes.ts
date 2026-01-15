@@ -7,8 +7,8 @@ const router = Router();
  * Generate a smart digest from research findings
  */
 router.post('/generate-digest', async (req, res) => {
-  // Set a longer timeout for this specific route (3 minutes)
-  req.setTimeout(180000); // 3 minutes for AI processing
+  // Set a longer timeout for this specific route (5 minutes)
+  req.setTimeout(300000); // 5 minutes for AI processing (increased for handling more findings)
 
   try {
     const { findings, topic, timeframe } = req.body;

@@ -107,7 +107,7 @@ Previous context: ${context}`
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
+      max_tokens: 3000,  // Increased from 2000 to handle more search results
       temperature: 0.5,
       system: systemPrompt,
       messages: [

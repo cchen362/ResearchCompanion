@@ -47,19 +47,27 @@ export class SearchService {
   private clinicalTrialsBaseUrl = 'https://clinicaltrials.gov/api/v2';
   private fdaBaseUrl = 'https://api.fda.gov';
 
+  // Configurable search limits from environment variables
+  private readonly pubmedLimit = parseInt(process.env.PUBMED_RESULT_LIMIT || '20');
+  private readonly trialsLimit = parseInt(process.env.CLINICAL_TRIALS_LIMIT || '20');
+  private readonly fdaLimit = parseInt(process.env.FDA_RESULT_LIMIT || '15');
+  private readonly webLimit = parseInt(process.env.WEB_SEARCH_LIMIT || '10');
+
   /**
    * Search PubMed for peer-reviewed medical literature
    * @param query Search query
    * @param limit Maximum number of results
    * @returns Array of PubMed articles
    */
-  async searchPubMed(query: string, limit: number = 10): Promise<any[]> {
+  async searchPubMed(query: string, limit?: number): Promise<any[]> {
+    // Use provided limit or fall back to configured default
+    const maxResults = limit || this.pubmedLimit;
     try {
       // Build base params
       const searchParams: any = {
         db: 'pubmed',
         term: query,
-        retmax: limit,
+        retmax: maxResults,
         retmode: 'json',
         sort: 'relevance',
         datetype: 'pdat',
@@ -160,7 +168,7 @@ export class SearchService {
       const params: any = {
         'filter.overallStatus': status,
         'query.cond': condition,
-        'pageSize': 10,
+        'pageSize': this.trialsLimit,  // Use configurable limit
         'format': 'json'
       };
 
@@ -248,7 +256,7 @@ export class SearchService {
       const response = await axios.get(`${this.fdaBaseUrl}/drug/label.json`, {
         params: {
           search: query,
-          limit: 10
+          limit: this.fdaLimit  // Use configurable limit
         }
       });
 
@@ -297,7 +305,9 @@ export class SearchService {
    * @param limit Maximum number of results
    * @returns Array of web results
    */
-  async searchWeb(query: string, limit: number = 5): Promise<any[]> {
+  async searchWeb(query: string, limit?: number): Promise<any[]> {
+    // Use provided limit or fall back to configured default
+    const maxResults = limit || this.webLimit;
     const braveApiKey = process.env.BRAVE_API_KEY;
 
     if (!braveApiKey) {
@@ -312,7 +322,7 @@ export class SearchService {
       const response = await axios.get('https://api.search.brave.com/res/v1/web/search', {
         params: {
           q: medicalQuery,
-          count: limit,
+          count: maxResults,
           search_lang: 'en',
           // Focus on recent medical content
           freshness: 'py', // Past year
@@ -373,7 +383,8 @@ export class SearchService {
     const searchPromises = [];
 
     if (sources.includes('pubmed')) {
-      searchPromises.push(this.searchPubMed(query, 5));
+      // Use half of configured limit for aggregate searches
+      searchPromises.push(this.searchPubMed(query, Math.floor(this.pubmedLimit / 2)));
     }
 
     if (sources.includes('trials')) {
@@ -385,7 +396,8 @@ export class SearchService {
     }
 
     if (sources.includes('web')) {
-      searchPromises.push(this.searchWeb(query, 5));
+      // Use half of configured limit for aggregate searches
+      searchPromises.push(this.searchWeb(query, Math.floor(this.webLimit / 2)));
     }
 
     const results = await Promise.all(searchPromises);

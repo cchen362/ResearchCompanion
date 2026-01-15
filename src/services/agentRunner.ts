@@ -41,8 +41,9 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
     switch (agent.type) {
       case 'treatment_breakthrough':
         // Search for FDA approvals and new treatments
-        const webResults = await api.searchWeb(`${query} FDA approval new treatment`, 5);
-        const pubmedResults = await api.searchPubMed(`${query} treatment therapy`, 5);
+        // Use higher limits to leverage PubMed API key benefits (backend configured: 20 PubMed, 10 web)
+        const webResults = await api.searchWeb(`${query} FDA approval new treatment`, 10);
+        const pubmedResults = await api.searchPubMed(`${query} treatment therapy`, 10);
         searchResults = [...(webResults.results || []), ...(pubmedResults.articles || [])];
         break;
 
@@ -58,7 +59,8 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
 
       case 'medical_literature':
         // Search medical literature
-        const literature = await api.searchPubMed(query, 10);
+        // Use higher limit to leverage PubMed API key benefits (backend configured: 20)
+        const literature = await api.searchPubMed(query, 20);
         searchResults = literature.articles || [];
         break;
 
@@ -69,8 +71,9 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
 
       default:
         // General search
-        const generalWeb = await api.searchWeb(query, 5);
-        const generalPubmed = await api.searchPubMed(query, 5);
+        // Use higher limits to leverage PubMed API key benefits
+        const generalWeb = await api.searchWeb(query, 10);
+        const generalPubmed = await api.searchPubMed(query, 10);
         searchResults = [...(generalWeb.results || []), ...(generalPubmed.articles || [])];
     }
 

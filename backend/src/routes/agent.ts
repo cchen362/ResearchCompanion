@@ -61,11 +61,11 @@ router.post('/run-agent', async (req, res) => {
             break;
 
           case 'medical_literature':
-            const pubmedResults = await searchService.searchPubMed(query, 10);
+            const pubmedResults = await searchService.searchPubMed(query); // Uses configured limit
             searchResults = pubmedResults;
             // Add web search for broader coverage
             if (enableWebSearch) {
-              const webResults = await searchService.searchWeb(query, 5);
+              const webResults = await searchService.searchWeb(query); // Uses configured limit
               searchResults = [...pubmedResults, ...webResults];
             }
             break;
