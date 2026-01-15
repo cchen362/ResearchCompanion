@@ -11,7 +11,6 @@ export default function NotificationCenter() {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   useEffect(() => {
-    console.log('NotificationCenter mounted');
     loadNotifications();
     checkForOrphans();
 
@@ -22,12 +21,10 @@ export default function NotificationCenter() {
 
     // Listen for custom notification events
     const handleNotificationCreated = () => {
-      console.log('Notification event received, loading notifications...');
       loadNotifications();
     };
 
     const handleNotificationsCleaned = () => {
-      console.log('Notifications cleaned, reloading...');
       loadNotifications();
       checkForOrphans();
     };
@@ -49,7 +46,6 @@ export default function NotificationCenter() {
       const db = await getDB();
       // Use getAll instead of getAllFromIndex to ensure we get all notifications
       const allNotifications = await db.getAll('notifications');
-      console.log('Loaded notifications using getAll:', allNotifications.length, 'total notifications');
 
       // Sort by createdAt manually (most recent first)
       allNotifications.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -58,7 +54,6 @@ export default function NotificationCenter() {
       setNotifications(recent);
 
       const unread = recent.filter(n => !n.readAt).length;
-      console.log('Unread notifications:', unread);
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error loading notifications:', error);

@@ -38,7 +38,6 @@ function MainApp() {
   const refreshTopics = async () => {
     try {
       const allTopics = await getAllTopics();
-      console.log('Refreshed topics:', allTopics.length, 'topics found');
       setTopics(allTopics);
 
       // Auto-select first topic if none selected and topics exist
@@ -89,17 +88,14 @@ function MainApp() {
   // Listen for events that should trigger topic refresh
   useEffect(() => {
     const handleAgentComplete = () => {
-      console.log('Agent complete event received, refreshing topics...');
       refreshTopics();
     };
 
     const handleTopicCreated = () => {
-      console.log('Topic created event received, refreshing topics...');
       refreshTopics();
     };
 
     const handleDigestCompleted = () => {
-      console.log('Digest completed event received, refreshing topics...');
       refreshTopics();
     };
 

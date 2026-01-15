@@ -9,11 +9,9 @@ const urlsToCache = [
 
 // Install event - cache essential files
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[ServiceWorker] Caching app shell');
         return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
@@ -22,13 +20,11 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -90,8 +86,6 @@ self.addEventListener('fetch', (event) => {
 
 // Background sync for agent runs
 self.addEventListener('sync', (event) => {
-  console.log('[ServiceWorker] Background sync event:', event.tag);
-
   if (event.tag === 'run-agents') {
     event.waitUntil(runScheduledAgents());
   }
@@ -99,8 +93,6 @@ self.addEventListener('sync', (event) => {
 
 // Periodic background sync (if supported)
 self.addEventListener('periodicsync', (event) => {
-  console.log('[ServiceWorker] Periodic sync event:', event.tag);
-
   if (event.tag === 'check-agents') {
     event.waitUntil(checkAndRunAgents());
   }
@@ -108,8 +100,6 @@ self.addEventListener('periodicsync', (event) => {
 
 // Push notification event
 self.addEventListener('push', (event) => {
-  console.log('[ServiceWorker] Push event');
-
   const options = {
     body: event.data ? event.data.text() : 'New medical research update available',
     icon: '/icon-192.png',
@@ -138,8 +128,6 @@ self.addEventListener('push', (event) => {
 
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
-  console.log('[ServiceWorker] Notification click:', event.action);
-
   event.notification.close();
 
   if (event.action === 'explore') {
@@ -151,8 +139,6 @@ self.addEventListener('notificationclick', (event) => {
 
 // Message event for communication with the app
 self.addEventListener('message', (event) => {
-  console.log('[ServiceWorker] Message received:', event.data);
-
   if (event.data && event.data.type === 'SCHEDULE_AGENT_CHECK') {
     scheduleAgentCheck(event.data.delay);
     // Send response back to prevent timeout
@@ -172,8 +158,6 @@ self.addEventListener('message', (event) => {
 
 // Helper function to run scheduled agents
 async function runScheduledAgents() {
-  console.log('[ServiceWorker] Running scheduled agents');
-
   try {
     // Open IndexedDB
     const dbRequest = indexedDB.open('MedCompanionDB', 5);
@@ -204,7 +188,6 @@ async function runScheduledAgents() {
               return agent.nextScheduledRun <= now;
             });
 
-            console.log(`[ServiceWorker] Found ${agentsToRun.length} agents to run`);
 
             // Run each agent
             for (const agent of agentsToRun) {
@@ -222,7 +205,6 @@ async function runScheduledAgents() {
 
                   if (response.ok) {
                     const result = await response.json();
-                    console.log(`[ServiceWorker] Agent ${agent.name} completed:`, result);
 
                     // Show notification if findings were found
                     if (result.findingsCount > 0) {
@@ -258,7 +240,6 @@ async function runScheduledAgents() {
 
 // Helper function to check and run agents based on schedule
 async function checkAndRunAgents() {
-  console.log('[ServiceWorker] Checking agent schedules');
 
   try {
     // Open IndexedDB
@@ -297,7 +278,6 @@ async function checkAndRunAgents() {
             }
 
             if (shouldRun) {
-              console.log(`[ServiceWorker] Topic ${topic.name} needs agent run`);
               // Trigger agent run
               runScheduledAgents();
             }
@@ -319,13 +299,8 @@ async function checkAndRunAgents() {
 
 // Helper function to schedule agent check
 function scheduleAgentCheck(delayMinutes = 60) {
-  console.log(`[ServiceWorker] Scheduling agent check in ${delayMinutes} minutes`);
-
   // Use setTimeout for simple scheduling
   setTimeout(() => {
     checkAndRunAgents();
   }, delayMinutes * 60 * 1000);
 }
-
-// Initial setup
-console.log('[ServiceWorker] Service worker loaded');
