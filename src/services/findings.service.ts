@@ -37,6 +37,45 @@ class FindingsService {
     await store.delete(id);
     await tx.done;
   }
+
+  async markFindingsAsRead(topicId?: string): Promise<void> {
+    const db = await getDB();
+    const tx = db.transaction('findings', 'readwrite');
+    const store = tx.objectStore('findings');
+
+    let findings: ResearchFinding[];
+
+    if (topicId) {
+      const index = store.index('by-topic');
+      findings = await index.getAll(topicId);
+    } else {
+      findings = await store.getAll();
+    }
+
+    // Update each finding to mark as read
+    for (const finding of findings) {
+      if (finding.isNew) {
+        finding.isNew = false;
+        await store.put(finding);
+      }
+    }
+
+    await tx.done;
+  }
+
+  async markFindingAsRead(id: string): Promise<void> {
+    const db = await getDB();
+    const tx = db.transaction('findings', 'readwrite');
+    const store = tx.objectStore('findings');
+
+    const finding = await store.get(id);
+    if (finding && finding.isNew) {
+      finding.isNew = false;
+      await store.put(finding);
+    }
+
+    await tx.done;
+  }
 }
 
 export const findingsService = new FindingsService();

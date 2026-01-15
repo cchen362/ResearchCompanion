@@ -3,6 +3,7 @@ import { getDB } from '@/utils/db/database';
 import { getTopic } from '@/utils/db/topics';
 import { digestQueueService } from '@/services/digestQueue.service';
 import { digestCacheService } from '@/services/digestCache.service';
+import { findingsService } from '@/services/findings.service';
 import type {
   ResearchFinding,
   Topic,
@@ -312,6 +313,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       setVisibleFindings(topicFindings.slice(0, findingsPerPage));
       setFindingsPage(1);
       setLoadingFindings(false);
+
+      // Mark all findings for this topic as read
+      await findingsService.markFindingsAsRead(topicId);
 
       // Step 3: Check for cached digest using cache service
       setLoadingDigest(true);

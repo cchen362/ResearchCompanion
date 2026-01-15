@@ -4,8 +4,9 @@ import { getAgentsToRun, getAgentsByTopic } from '@/utils/db/agents';
 import { getMonthlyApiCost } from '@/utils/db/agents';
 import type { Topic, Agent, ResearchFinding } from '@/types';
 import { getDB } from '@/utils/db/database';
-import { FileText, Bot, MessageSquare, TrendingUp, Plus } from 'lucide-react';
+import { FileText, Bot, MessageSquare, TrendingUp, Plus, X } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
+import { findingsService } from '@/services/findings.service';
 
 interface DashboardProps {
   setCurrentView?: (view: string) => void;
@@ -18,6 +19,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
   const [monthlyCost, setMonthlyCost] = useState<number>(0);
   const [agentCounts, setAgentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const showToast = useUIStore(state => state.showToast);
   const setChatPanelOpen = useUIStore(state => state.setChatPanelOpen);
@@ -77,10 +79,19 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Insights Banner - Only show if there's something to highlight */}
-      {(hasNewFindings || pendingAgents.length > 0 || needsAttention) && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
+      {/* Insights Banner - Only show if there's something to highlight and not dismissed */}
+      {!bannerDismissed && (hasNewFindings || pendingAgents.length > 0 || needsAttention) && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4 relative">
+          {/* Close button */}
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="absolute top-2 right-2 p-1 rounded-md hover:bg-white/50 transition-colors"
+            aria-label="Dismiss banner"
+          >
+            <X className="h-4 w-4 text-gray-500" />
+          </button>
+
+          <div className="flex items-center justify-between pr-8">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Welcome back!</h2>
               <div className="mt-1 text-sm text-gray-600 space-y-1">
@@ -100,8 +111,10 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
             </div>
             {hasNewFindings && (
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (setCurrentView) {
+                    // Mark findings as read when navigating to them
+                    await findingsService.markFindingsAsRead();
                     setCurrentView('findings');
                   }
                 }}

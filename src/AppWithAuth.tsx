@@ -403,7 +403,7 @@ function MainApp() {
               topics={topics}
               selectedTopic={selectedTopic}
               onSelectTopic={setSelectedTopic}
-              onNavigate={setCurrentView}
+              setCurrentView={setCurrentView}
             />
           )}
           {currentView === 'topics' && (
