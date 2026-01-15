@@ -55,17 +55,25 @@ export class SearchService {
    */
   async searchPubMed(query: string, limit: number = 10): Promise<any[]> {
     try {
+      // Build base params
+      const searchParams: any = {
+        db: 'pubmed',
+        term: query,
+        retmax: limit,
+        retmode: 'json',
+        sort: 'relevance',
+        datetype: 'pdat',
+        reldate: 365, // Last year
+      };
+
+      // Add API key if available (increases rate limit from 3 to 10 requests/second)
+      if (process.env.PUBMED_API_KEY) {
+        searchParams.api_key = process.env.PUBMED_API_KEY;
+      }
+
       // Step 1: Search for PMIDs
       const searchResponse = await axios.get(`${this.pubmedBaseUrl}/esearch.fcgi`, {
-        params: {
-          db: 'pubmed',
-          term: query,
-          retmax: limit,
-          retmode: 'json',
-          sort: 'relevance',
-          datetype: 'pdat',
-          reldate: 365, // Last year
-        }
+        params: searchParams
       });
 
       const pmids = searchResponse.data?.esearchresult?.idlist || [];
@@ -75,12 +83,19 @@ export class SearchService {
       }
 
       // Step 2: Fetch article details
+      const summaryParams: any = {
+        db: 'pubmed',
+        id: pmids.join(','),
+        retmode: 'json'
+      };
+
+      // Add API key if available
+      if (process.env.PUBMED_API_KEY) {
+        summaryParams.api_key = process.env.PUBMED_API_KEY;
+      }
+
       const summaryResponse = await axios.get(`${this.pubmedBaseUrl}/esummary.fcgi`, {
-        params: {
-          db: 'pubmed',
-          id: pmids.join(','),
-          retmode: 'json'
-        }
+        params: summaryParams
       });
 
       const articles = [];

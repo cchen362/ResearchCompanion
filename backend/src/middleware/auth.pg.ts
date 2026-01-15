@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { authService } from '../services/auth.service.js';
+import { authServicePG } from '../services/auth.service.pg.js';
 
 /**
- * Middleware to authenticate requests using JWT token
+ * Middleware to authenticate requests using JWT token with PostgreSQL session validation
  */
 export async function authenticate(
   req: Request,
@@ -23,10 +23,10 @@ export async function authenticate(
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    // Verify token
-    const payload = authService.verifyToken(token);
+    // Verify token and get user from PostgreSQL
+    const user = await authServicePG.verifyTokenAndGetUser(token);
 
-    if (!payload) {
+    if (!user) {
       res.status(401).json({
         success: false,
         error: 'Invalid or expired token',
@@ -36,10 +36,12 @@ export async function authenticate(
 
     // Attach user info to request
     req.user = {
-      id: payload.userId,
-      userId: payload.userId, // For backward compatibility
-      email: payload.email,
+      id: user.id,
+      userId: user.id, // For backward compatibility
+      email: user.email,
+      name: user.name,
     };
+    req.token = token;
 
     next();
   } catch (error) {
@@ -65,14 +67,16 @@ export async function optionalAuthenticate(
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const payload = authService.verifyToken(token);
+      const user = await authServicePG.verifyTokenAndGetUser(token);
 
-      if (payload) {
+      if (user) {
         req.user = {
-          id: payload.userId,
-          userId: payload.userId, // For backward compatibility
-          email: payload.email,
+          id: user.id,
+          userId: user.id, // For backward compatibility
+          email: user.email,
+          name: user.name,
         };
+        req.token = token;
       }
     }
 

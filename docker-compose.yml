@@ -1,6 +1,27 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: medcompanion-postgres
+    environment:
+      POSTGRES_DB: medcompanion
+      POSTGRES_USER: meduser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-medpass123}
+    ports:
+      - "5432:5432"  # Expose PostgreSQL port (optional, for debugging)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meduser -d medcompanion"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - medcompanion-network
+
+  # Medical Companion Application (Frontend + Backend)
   medical-companion:
     build:
       context: .
@@ -11,8 +32,13 @@ services:
         ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
         OPENAI_API_KEY: ${OPENAI_API_KEY}
         BRAVE_API_KEY: ${BRAVE_API_KEY}
+        PUBMED_API_KEY: ${PUBMED_API_KEY}
 
     container_name: medical-companion
+
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     ports:
       - "6767:6767"  # nginx frontend
@@ -23,6 +49,9 @@ services:
       NODE_ENV: production
       PORT: 3001
 
+      # Database connection
+      DATABASE_URL: postgresql://meduser:${DB_PASSWORD:-medpass123}@postgres:5432/medcompanion
+
       # JWT Secret for authentication (change this!)
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
 
@@ -30,6 +59,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
+      PUBMED_API_KEY: ${PUBMED_API_KEY}
 
       # Medical search configuration
       ENABLE_REAL_MEDICAL_SEARCH: "true"
@@ -41,6 +71,9 @@ services:
       - medical-logs:/var/log/nginx
 
     restart: unless-stopped
+
+    networks:
+      - medcompanion-network
 
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6767/api/health"]
@@ -60,7 +93,13 @@ services:
           memory: 1G
 
 volumes:
+  postgres_data:
+    driver: local
   medical-data:
     driver: local
   medical-logs:
     driver: local
+
+networks:
+  medcompanion-network:
+    driver: bridge

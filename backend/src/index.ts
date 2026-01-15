@@ -11,10 +11,13 @@ import digestRoutes from './routes/digest.routes.js';
 import agentRoute from './routes/agent.js';
 import chatRoutes from './routes/chat.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import topicsRoutes from './routes/topics.routes.js';
+import findingsRoutes from './routes/findings.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
 import { userDatabase } from './database/users.db.js';
+import { testConnection } from './db/database.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -24,10 +27,23 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize database on startup
-userDatabase.initialize().catch(error => {
-  console.error('Failed to initialize user database:', error);
-});
+// Initialize databases on startup
+const initializeDatabases = async () => {
+  try {
+    // Initialize PostgreSQL connection
+    const pgConnected = await testConnection();
+    if (!pgConnected) {
+      console.error('⚠️ PostgreSQL connection failed - some features may not work');
+    }
+
+    // Initialize legacy user database (for backward compatibility)
+    await userDatabase.initialize();
+  } catch (error) {
+    console.error('Failed to initialize databases:', error);
+  }
+};
+
+initializeDatabases();
 
 // Configure server timeout for long-running AI operations (5 minutes)
 app.set('timeout', 300000); // 5 minutes in milliseconds
@@ -63,6 +79,8 @@ app.use('/api', authenticate, transcribeRoute);
 app.use('/api', authenticate, digestRoutes);
 app.use('/api', authenticate, agentRoute);
 app.use('/api/chat', authenticate, chatRoutes);
+app.use('/api', authenticate, topicsRoutes);
+app.use('/api', authenticate, findingsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

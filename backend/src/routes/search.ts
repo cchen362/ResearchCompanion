@@ -58,8 +58,9 @@ router.post('/pubmed-search', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    // PubMed E-utilities API (no key required for basic usage)
-    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json`;
+    // PubMed E-utilities API (with API key for higher rate limit: 10 req/sec vs 3)
+    const apiKeyParam = process.env.PUBMED_API_KEY ? `&api_key=${process.env.PUBMED_API_KEY}` : '';
+    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${apiKeyParam}`;
 
     const searchResponse = await axios.get(searchUrl);
     const idList = searchResponse.data.esearchresult?.idlist || [];
@@ -68,8 +69,8 @@ router.post('/pubmed-search', async (req, res) => {
       return res.json({ articles: [] });
     }
 
-    // Fetch article summaries
-    const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${idList.join(',')}&retmode=json`;
+    // Fetch article summaries (with API key if available)
+    const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${idList.join(',')}&retmode=json${apiKeyParam}`;
     const summaryResponse = await axios.get(summaryUrl);
 
     const articles = idList.map((id: string) => {
