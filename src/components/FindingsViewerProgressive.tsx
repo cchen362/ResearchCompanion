@@ -149,6 +149,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Track if topic data is being loaded to prevent duplicate calls
   const [isLoadingTopicData, setIsLoadingTopicData] = useState(false);
+  // Track the active refresh queue item ID to ensure proper cleanup
+  const [activeRefreshQueueId, setActiveRefreshQueueId] = useState<string | null>(null);
 
   // Pagination for findings
   const [findingsPage, setFindingsPage] = useState(1);
@@ -175,7 +177,17 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   useEffect(() => {
     const handleDigestCompleted = async (event: CustomEvent) => {
       const { queueItem: completedItem, digest: newDigest } = event.detail;
-      if (completedItem.topicId === selectedTopicId) {
+      console.log('Digest completed event received:', {
+        completedTopicId: completedItem.topicId,
+        selectedTopicId,
+        match: completedItem.topicId === selectedTopicId,
+        queueItemId: completedItem.id,
+        activeRefreshQueueId
+      });
+
+      // Check if this completion is for our topic or our specific refresh operation
+      if (completedItem.topicId === selectedTopicId ||
+          (activeRefreshQueueId && completedItem.id === activeRefreshQueueId)) {
         setDigest(newDigest);
         setQueueItem(null);
         setDigestGeneration({ isGenerating: false, progress: 100, message: 'Complete!' });
@@ -183,6 +195,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         // Clear ALL refresh-related flags after completion
         setIsManualRefresh(false);
         setIsRefreshing(false);
+        setActiveRefreshQueueId(null);
+        console.log('Cleared isRefreshing flag in digest-completed handler');
 
         // Save to cache
         await digestCacheService.saveDigest(newDigest);
@@ -212,13 +226,15 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
     const handleDigestFailed = (event: CustomEvent) => {
       const { queueItem: failedItem } = event.detail;
-      if (failedItem.topicId === selectedTopicId) {
+      if (failedItem.topicId === selectedTopicId ||
+          (activeRefreshQueueId && failedItem.id === activeRefreshQueueId)) {
         setQueueItem(failedItem);
         setDigestGeneration({ isGenerating: false, progress: 0, message: 'Failed' });
         // Clear manual refresh flag on failure
         setIsManualRefresh(false);
         // Clear refreshing flag
         setIsRefreshing(false);
+        setActiveRefreshQueueId(null);
       }
     };
 
@@ -231,7 +247,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       window.removeEventListener('digest-progress', handleDigestProgress as any);
       window.removeEventListener('digest-failed', handleDigestFailed as any);
     };
-  }, [selectedTopicId]);
+  }, [selectedTopicId, activeRefreshQueueId, queueItem, findingsPerPage]);
 
   // Setup infinite scroll observer
   useEffect(() => {
@@ -392,21 +408,36 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       }
 
       // Use the new integrated refresh method that fetches research first
+      // This method runs the complete operation synchronously and returns when done
       const newQueueItem = await digestQueueService.refreshResearchAndDigest(
         selectedTopicId,
         digestTimeframe,
         'high'
       );
 
-      setQueueItem(newQueueItem);
-      setDigestGeneration({
-        isGenerating: true,
-        progress: 0,
-        message: 'Fetching new research...'
+      console.log('Refresh operation completed:', {
+        id: newQueueItem.id,
+        topicId: newQueueItem.topicId,
+        status: newQueueItem.status
       });
 
+      // Since refreshResearchAndDigest completes the entire operation,
+      // the digest is already generated and events have been fired.
+      // We should clear the refreshing state here.
+      setQueueItem(newQueueItem);
+      setActiveRefreshQueueId(null);
+      setDigestGeneration({
+        isGenerating: false,
+        progress: 100,
+        message: 'Complete!'
+      });
+
+      // Clear the refresh flags since operation is complete
+      setIsRefreshing(false);
+      setIsManualRefresh(false);
+      console.log('Cleared isRefreshing after refreshResearchAndDigest completed');
+
       // Reload findings after research is complete
-      // Note: The digest-completed event will trigger the UI update
       const db = await getDB();
       const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', selectedTopicId);
       updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
@@ -414,9 +445,6 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
       // Update visible findings
       setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
-
-      // Don't clear isRefreshing here - let the digest-completed event handle it
-      // The event handlers will clear it when the digest is actually done
     } catch (error) {
       console.error('Error refreshing digest:', error);
       setIsRefreshing(false);
