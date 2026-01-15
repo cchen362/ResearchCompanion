@@ -2,6 +2,15 @@
 
 An autonomous medical research companion Progressive Web App designed to help caregivers of rare disease patients stay up-to-date with the latest medical research, clinical trials, and treatment breakthroughs.
 
+## 🎯 Version 2.0 - Major Update
+
+### What's New
+- **PostgreSQL Persistent Storage**: All data now persists in PostgreSQL database
+- **Multi-Device Sync**: Access your research from any device
+- **User Authentication**: Secure login with JWT tokens
+- **Automatic Backups**: Data is automatically backed up to PostgreSQL
+- **Improved Performance**: Connection pooling and optimized queries
+
 ## 🌟 Current Features
 
 ### Autonomous Research Agents (2 Active, 2 Planned)
@@ -61,19 +70,47 @@ An autonomous medical research companion Progressive Web App designed to help ca
 - Includes findings, timeline events, and insights
 
 ### Privacy-First Design
-- All sensitive data stored locally using IndexedDB
-- No cloud storage of personal health information
-- User controls all data export
-- Backend only processes requests, doesn't store health data
+- **Hybrid Storage**: PostgreSQL for persistence, IndexedDB for offline cache
+- **Data Encryption**: Passwords hashed with bcrypt, JWT for sessions
+- **User-Controlled**: You own your data, can export or delete anytime
+- **HIPAA-Ready Architecture**: Designed for healthcare compliance
+- **Offline Support**: Full functionality without network via local cache
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- Docker and Docker Compose (for PostgreSQL)
 - Modern web browser with IndexedDB support
 
-### Installation
+### Quick Start with Docker (Recommended)
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd medical-companion-pwa
+```
+
+2. Copy environment template:
+```bash
+cp .env.example .env
+# Edit .env and add your API keys
+```
+
+3. Start with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+4. Initialize the database and start the application:
+```bash
+npm run start:postgres
+```
+
+5. Open your browser and navigate to `http://localhost:5173`
+
+### Manual Installation (Alternative)
 
 1. Clone the repository:
 ```bash
@@ -93,17 +130,37 @@ npm install
 cd ..
 ```
 
-4. Configure API keys in `backend/.env`:
-```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-BRAVE_API_KEY=your_brave_api_key_here
-JWT_SECRET=your_secure_jwt_secret_here
+4. Set up PostgreSQL:
+```bash
+# Start PostgreSQL with Docker
+docker run -d \
+  --name medcompanion-postgres \
+  -e POSTGRES_DB=medcompanion \
+  -e POSTGRES_USER=meduser \
+  -e POSTGRES_PASSWORD=medpass123 \
+  -p 5432:5432 \
+  postgres:15-alpine
+
+# Initialize database schema
+psql -h localhost -U meduser -d medcompanion -f backend/src/db/init.sql
 ```
 
-**Important:** Never commit API keys to version control. The `.env` file is gitignored by default.
+5. Configure environment variables:
+```bash
+# Copy the example files
+cp .env.example .env
+cp backend/.env.example backend/.env
 
-5. Start both servers:
+# Edit both .env files and add:
+# - API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, BRAVE_API_KEY)
+# - Database URL: postgresql://meduser:medpass123@localhost:5432/medcompanion
+# - JWT_SECRET: generate a secure random string
+# - Set USE_POSTGRESQL=true
+```
+
+**Important:** Never commit API keys or passwords to version control. All `.env` files are gitignored by default.
+
+6. Start both servers:
 
 **Terminal 1 - Backend:**
 ```bash
@@ -227,15 +284,18 @@ Location filters for clinical trials are defined in types but not yet exposed in
 ## 🛡️ Privacy & Security
 
 ### Data Storage
-- **Local Storage**: All personal data stored in browser IndexedDB
-- **Capacity**: Gigabytes of storage for research data
-- **Persistence**: Request persistent storage to prevent eviction
-- **No Encryption**: Data encryption is planned but not yet implemented
+- **PostgreSQL Database**: Primary persistent storage for all data
+- **IndexedDB Cache**: Local cache for offline access and performance
+- **Automatic Sync**: Changes sync between local and server storage
+- **Multi-Device**: Access your data from any device with login
+- **Backup & Recovery**: Automatic PostgreSQL backups
+- **Encryption**: Passwords hashed with bcrypt, JWT for sessions
 
 ### API Usage
-- Stateless API calls only
-- No server-side storage of health data
-- User database contains only authentication info
+- Secure API endpoints with JWT authentication
+- All health data stored in PostgreSQL with user isolation
+- Row-level security for multi-tenant data
+- SSL/TLS encryption for production deployments
 
 ## 📊 Technical Stack
 
@@ -243,13 +303,21 @@ Location filters for clinical trials are defined in types but not yet exposed in
 - **Framework**: React 19.2.0 + TypeScript 5.9.3
 - **Build Tool**: Vite 7.2.4
 - **Styling**: Tailwind CSS + Radix UI
-- **Storage**: IndexedDB via idb
+- **Local Cache**: IndexedDB via idb
 - **State**: Zustand (installed, minimally used)
 - **PWA**: Vite PWA Plugin + Workbox
 
 ### Backend
 - **Runtime**: Node.js + Express
 - **Language**: TypeScript
+- **Database**:
+  - PostgreSQL 15 (primary storage)
+  - SQLite 3 (legacy fallback)
+  - Connection pooling with pg library
+- **Authentication**:
+  - JWT tokens (30-day expiry)
+  - bcrypt password hashing
+  - Multi-device sessions
 - **AI Services**:
   - Anthropic Claude Sonnet 4.5 (reasoning)
   - OpenAI Whisper (transcription)
@@ -258,6 +326,44 @@ Location filters for clinical trials are defined in types but not yet exposed in
   - ClinicalTrials.gov API
   - FDA API
   - Brave Search API (requires key)
+
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx (production)
+- **Process Manager**: PM2 (production)
+
+## 🔄 Database Migration
+
+### Migrating from IndexedDB to PostgreSQL
+
+If you have existing data in IndexedDB:
+
+1. Export your data before migration:
+```bash
+# In the browser console:
+await exportAllData(); // Exports to JSON file
+```
+
+2. Start PostgreSQL and initialize:
+```bash
+docker-compose up -d
+npm run migrate:db
+```
+
+3. Import your exported data:
+```bash
+npm run import:data path/to/exported-data.json
+```
+
+### Database Backup & Recovery
+
+```bash
+# Backup PostgreSQL database
+docker exec medcompanion-postgres pg_dump -U meduser medcompanion > backup.sql
+
+# Restore from backup
+docker exec -i medcompanion-postgres psql -U meduser medcompanion < backup.sql
+```
 
 ## 🔮 Development Roadmap
 

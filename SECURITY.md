@@ -38,20 +38,46 @@ We take security seriously in the Medical Companion PWA. If you discover a secur
 
 ### Data Privacy
 
-**User Data Protection:**
-- All medical research data stored locally in IndexedDB
-- No automatic cloud synchronization
+**User Data Protection (v2.0 with PostgreSQL):**
+- Medical research data stored in PostgreSQL with user isolation
+- Local IndexedDB cache for offline access
+- Row-level security in PostgreSQL for multi-tenant isolation
+- Encrypted passwords with bcrypt (10 salt rounds)
 - User controls all data export/import
-- Backend stores only authentication data
-- No personal health information in server logs
+- No personal health information in application logs
+- Automatic session expiry after 30 days
+- SSL/TLS encryption for production database connections
 
 ### Authentication
 
 **JWT Security:**
-- Use strong, randomly generated JWT secrets
-- Implement token expiration (default: 7 days)
+- Use strong, randomly generated JWT secrets (minimum 64 characters)
+- Session expiration: 30 days (configurable)
+- Refresh token support for seamless re-authentication
+- Multi-device session management in PostgreSQL
 - Secure token storage in httpOnly cookies (when possible)
 - Regular token rotation
+
+### Database Security (PostgreSQL)
+
+**PostgreSQL Security Measures:**
+- **Connection Security:**
+  - Use SSL/TLS for production connections
+  - Connection pooling with pg library (max 20 connections default)
+  - Parameterized queries to prevent SQL injection
+  - Database credentials in environment variables only
+
+- **Access Control:**
+  - Row-level security for multi-tenant data isolation
+  - Each user can only access their own data
+  - Prepared statements for all queries
+  - No direct database access from frontend
+
+- **Data Protection:**
+  - Passwords hashed with bcrypt (10 salt rounds)
+  - JSONB fields for flexible, validated metadata
+  - Automatic timestamps for audit trails
+  - Regular automated backups (configurable schedule)
 
 ### Dependencies
 

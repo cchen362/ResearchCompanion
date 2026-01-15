@@ -1,41 +1,53 @@
-# Medical Companion PWA - Deployment Guide
+# Medical Companion PWA - Production Deployment Guide
 
 ## ⚠️ Security Notice
 
 This application handles sensitive medical research data and requires API keys with billing implications. Please follow all security best practices outlined in this document.
 
+## What's New in Version 2.0
+
+- **PostgreSQL Database**: Persistent storage for all user data
+- **Multi-Device Sync**: Access from any device with the same login
+- **Automatic Backups**: PostgreSQL data is automatically backed up
+- **Improved Performance**: Connection pooling and optimized queries
+- **Enhanced Security**: JWT authentication with session management
+
 ## Overview
 
-This guide will help you deploy the Medical Companion PWA on your Debian server using Docker. The application will be accessible on port 6767 with nginx as the reverse proxy.
+This guide will help you deploy the Medical Companion PWA with PostgreSQL database support using Docker. The application will be accessible on port 6767 with nginx as the reverse proxy.
 
 ## Prerequisites
 
-- Debian server with sudo access
+- Debian/Ubuntu server with sudo access
 - Docker and docker-compose installed
-- Port 6767 available
+- Ports available: 6767 (app), 5432 (PostgreSQL)
+- Minimum 2GB RAM, 10GB disk space
 - API keys for:
   - Anthropic Claude
   - OpenAI (for Whisper transcription)
   - Brave Search
 
-## Quick Start
+## Quick Start with Docker Compose
 
 ```bash
-# 1. Clone or copy the application to your server
+# 1. Clone the repository
 git clone <repository-url> medical-companion
 cd medical-companion
 
-# 2. Copy environment template
-cp .env.docker .env
+# 2. Copy environment templates
+cp .env.example .env
+cp backend/.env.example backend/.env
 
-# 3. Edit .env and add your API keys
+# 3. Edit both .env files and add your API keys
 nano .env
+nano backend/.env
 
-# 4. Make deployment script executable
-chmod +x deploy.sh
+# 4. Deploy with Docker Compose (Production)
+docker-compose -f docker-compose.prod.yml up -d
 
-# 5. Run deployment
-./deploy.sh
+# 5. Verify deployment
+docker-compose ps
+curl http://localhost:6767/api/health
 ```
 
 ## Detailed Setup
@@ -60,37 +72,54 @@ sudo apt install docker-compose -y
 
 ### 2. Configure Environment Variables
 
-Edit the `.env` file with your actual API keys:
+#### Root `.env` file:
+```bash
+# Frontend configuration
+VITE_API_BASE_URL=http://localhost:3001
+VITE_USE_SERVER_STORAGE=true
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+```
 
+#### Backend `.env` file:
 ```bash
 # 🚨 SECURITY WARNING: NEVER commit this file to version control!
 # These are PRODUCTION API keys with real billing implications
 
-# REQUIRED: Your API Keys (get from respective dashboards)
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://meduser:SECURE_PASSWORD_HERE@postgres:5432/medcompanion
+USE_POSTGRESQL=true
+DB_MAX_CONNECTIONS=50
+
+# Authentication
+JWT_SECRET=CHANGE_THIS_TO_YOUR_SECURE_RANDOM_STRING
+
+# API Keys (get from respective dashboards)
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 BRAVE_API_KEY=your_brave_search_key_here
 
-# REQUIRED: Generate a secure random string (use: openssl rand -base64 32)
-JWT_SECRET=CHANGE_THIS_TO_YOUR_SECURE_RANDOM_STRING
-
-# Optional: Adjust if needed
+# Production settings
 NODE_ENV=production
 PORT=3001
+LOG_LEVEL=info
 ```
 
-**Security Note**: The JWT_SECRET should be a long, random string. Generate one with:
+**Generate secure secrets**:
 ```bash
+# JWT Secret
+openssl rand -base64 64
+
+# Database Password
 openssl rand -base64 32
 ```
 
 ### 3. Build and Deploy
 
 ```bash
-# Option 1: Use the deployment script
-./deploy.sh
+# Production deployment with PostgreSQL
+docker-compose -f docker-compose.prod.yml up -d --build
 
-# Option 2: Manual deployment
+# Or use standard docker-compose for development
 docker-compose up -d --build
 ```
 
@@ -130,9 +159,10 @@ curl http://localhost:6767/api/health
 
 ### Data Storage
 
-- **User accounts**: SQLite database at `/app/data/users.db`
-- **Medical data**: Browser IndexedDB (client-side)
-- **Backups**: Located in Docker volume `medical-data`
+- **PostgreSQL Database**: All user data, findings, and research at `postgres_data` volume
+- **IndexedDB Cache**: Browser-side cache for offline access
+- **Session Storage**: JWT tokens in PostgreSQL `user_sessions` table
+- **Backups**: PostgreSQL dumps and volume snapshots
 
 ## nginx Configuration
 
@@ -169,14 +199,30 @@ docker-compose logs medical-companion | grep -v nginx
 docker-compose logs -f
 ```
 
-### Backup Database
+### Backup PostgreSQL Database
 
 ```bash
-# Backup user database
-docker exec medical-companion cat /app/data/users.db > backup-users-$(date +%Y%m%d).db
+# Full database backup
+docker exec medcompanion-postgres pg_dump -U meduser medcompanion > backup-$(date +%Y%m%d-%H%M%S).sql
 
-# Backup entire data directory
-docker run --rm -v medical-companion_medical-data:/data -v $(pwd):/backup alpine tar czf /backup/data-backup-$(date +%Y%m%d).tar.gz /data
+# Compressed backup
+docker exec medcompanion-postgres pg_dump -U meduser -Fc medcompanion > backup-$(date +%Y%m%d).dump
+
+# Backup specific tables
+docker exec medcompanion-postgres pg_dump -U meduser -t findings -t digests medcompanion > findings-backup.sql
+
+# Automated daily backups (add to crontab)
+0 2 * * * docker exec medcompanion-postgres pg_dump -U meduser medcompanion | gzip > /backups/medcompanion-$(date +\%Y\%m\%d).sql.gz
+```
+
+### Restore Database
+
+```bash
+# Restore from SQL backup
+docker exec -i medcompanion-postgres psql -U meduser medcompanion < backup.sql
+
+# Restore from compressed backup
+docker exec -i medcompanion-postgres pg_restore -U meduser -d medcompanion < backup.dump
 ```
 
 ### Update Application
@@ -282,14 +328,42 @@ For issues or questions:
 3. Ensure all API keys are valid
 4. Check disk space: `df -h`
 
-## Security Checklist
+## Production Deployment Checklist
 
-- [ ] Changed JWT_SECRET from default
-- [ ] Set strong passwords for user accounts
-- [ ] Configured firewall rules
-- [ ] Regular backups scheduled
-- [ ] HTTPS enabled (recommended)
-- [ ] API keys are valid and have appropriate limits
+### Pre-Deployment
+- [ ] Generate secure JWT_SECRET (64+ characters)
+- [ ] Generate secure database password
+- [ ] Obtain production API keys with appropriate limits
+- [ ] Configure domain name and SSL certificates
+- [ ] Set up backup storage location
+- [ ] Review firewall rules (ports 6767, 5432)
+
+### Deployment
+- [ ] Use docker-compose.prod.yml for production
+- [ ] Set NODE_ENV=production
+- [ ] Configure CORS for production domain
+- [ ] Enable PostgreSQL SSL mode
+- [ ] Set appropriate resource limits in Docker
+- [ ] Configure log rotation
+
+### Post-Deployment
+- [ ] Verify all services are running
+- [ ] Test user registration and login
+- [ ] Verify API integrations work
+- [ ] Set up automated backups (cron)
+- [ ] Configure monitoring/alerting
+- [ ] Test backup and restore procedures
+- [ ] Document admin procedures
+
+### Security Checklist
+- [ ] Changed all default passwords
+- [ ] JWT_SECRET is unique and secure
+- [ ] Database password is strong
+- [ ] HTTPS/SSL enabled
+- [ ] Firewall configured properly
+- [ ] API keys have spending limits
+- [ ] Regular security updates scheduled
+- [ ] Access logs monitored
 
 ## Security Best Practices
 

@@ -22,8 +22,26 @@ dev-dist/
 manual-cleanup.js
 
 # Environment and config files
+.env
+.env.local
+.env.production
 .env.docker
+backend/.env
+backend/.env.local
+backend/.env.production
 .claude/settings.local.json
+
+# PostgreSQL and database files
+postgres_data/
+*.sql
+*.dump
+backup-*.sql.gz
+backend/data/*.db
+backend/data/users.db
+
+# Docker volumes
+medical-data/
+uploads/
 
 # Editor directories and files
 .vscode/*

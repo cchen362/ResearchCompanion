@@ -6,11 +6,12 @@ The Medical Companion PWA is a research-focused medical information companion th
 
 ## Core Architecture Principles
 
-### 1. Local-First Design
-- **Primary Storage**: IndexedDB for all user data
-- **Offline Capability**: Full functionality without network connection
-- **Privacy by Default**: No cloud storage of personal health information
-- **Sync Strategy**: Future cloud sync will be opt-in with end-to-end encryption
+### 1. Hybrid Storage Architecture
+- **Server Storage**: PostgreSQL for persistent, multi-device data
+- **Local Storage**: IndexedDB for offline caching and performance
+- **Sync Strategy**: Automatic sync between server and local storage
+- **Privacy by Design**: All sensitive data encrypted, HIPAA-compliant architecture
+- **Offline Capability**: Full functionality without network via IndexedDB cache
 
 ### 2. Progressive Web App (PWA)
 - **Installable**: Works as standalone app on all platforms
@@ -31,19 +32,36 @@ The Medical Companion PWA is a research-focused medical information companion th
 - **Factual Metadata Only**: Study type, participant count, publication date - never invented scores
 - **Trust Through Transparency**: Users can verify every claim through source links
 
+### 5. Data Persistence Strategy
+- **PostgreSQL Primary Storage**: All user data, findings, digests, and preferences stored in PostgreSQL
+- **Multi-Device Sync**: Automatic synchronization across devices via user sessions
+- **IndexedDB Cache**: Local cache for offline access and performance
+- **Dual-Mode Operation**:
+  - Server mode: PostgreSQL + IndexedDB cache
+  - Offline mode: IndexedDB only (with sync on reconnection)
+- **Migration Support**: Seamless migration from IndexedDB-only to PostgreSQL
+
 ## Technology Stack
 
 ### Frontend
 - **Framework**: React 19.2.0 with TypeScript 5.9.3
 - **Build Tool**: Vite 7.2.4 (fast HMR, optimized builds)
 - **State Management**: Zustand 5.0.9 (installed, ready for activation)
-- **Database**: IndexedDB via idb 8.0.3
+- **Local Database**: IndexedDB via idb 8.0.3 (offline cache)
 - **Styling**: Tailwind CSS with Radix UI components
 - **API Client**: Axios with request/response interceptors
 
 ### Backend
 - **Runtime**: Node.js with Express 4.19.2
 - **Language**: TypeScript with strict mode
+- **Database**:
+  - PostgreSQL 15 (primary persistent storage)
+  - SQLite 3 (legacy fallback)
+  - Connection pooling via pg library
+- **Authentication**:
+  - JWT tokens with 30-day expiry
+  - bcrypt for password hashing
+  - Multi-device session management
 - **AI Services**:
   - Anthropic SDK 0.71.2
   - OpenAI SDK 6.15.0
@@ -55,11 +73,18 @@ The Medical Companion PWA is a research-focused medical information companion th
 - **Validation**: Zod 4.3.5 for runtime type safety
 - **API Design**: RESTful with structured error handling
 
+### Infrastructure
+- **Containerization**: Docker with multi-stage builds
+- **Database**: PostgreSQL 15 Alpine in Docker
+- **Web Server**: Nginx for static assets
+- **Process Management**: PM2 for Node.js
+
 ### Development Tools
 - **Package Manager**: npm (lockfile v3)
 - **Linting**: ESLint with TypeScript rules
 - **Type Checking**: TypeScript strict mode
 - **Testing**: Vitest (to be implemented)
+- **Database Migrations**: SQL init scripts
 
 ## Development Best Practices
 
@@ -229,29 +254,74 @@ function FindingsSearch() {
 
 ### 6. Database Design Patterns
 
-**IndexedDB Best Practices**:
+**PostgreSQL Best Practices**:
 
 ```typescript
-// Always use transactions for multiple operations
+// Transaction management with PostgreSQL
 async function updateFindingAndTimeline(finding: Finding, event: TimelineEvent) {
-  const tx = db.transaction(['findings', 'timeline'], 'readwrite');
+  return await db.transaction(async (client) => {
+    // All queries in this function run in a single transaction
+    await client.query(
+      'INSERT INTO findings (id, topic_id, content, source) VALUES ($1, $2, $3, $4)',
+      [finding.id, finding.topicId, finding.content, finding.source]
+    );
 
-  try {
-    await tx.objectStore('findings').put(finding);
-    await tx.objectStore('timeline').add(event);
-    await tx.done;
-  } catch (error) {
-    tx.abort();
-    throw error;
-  }
+    await client.query(
+      'INSERT INTO timeline_events (id, user_id, event_type, data) VALUES ($1, $2, $3, $4)',
+      [event.id, event.userId, event.eventType, JSON.stringify(event.data)]
+    );
+
+    return { finding, event };
+  });
 }
 
-// Index Strategy
-// Create indexes for commonly queried fields
-const findingsStore = db.createObjectStore('findings', { keyPath: 'id' });
-findingsStore.createIndex('topic', 'topicId');
-findingsStore.createIndex('date', 'createdAt');
-findingsStore.createIndex('source', 'source.type');
+// Connection pooling
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum connections
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+// JSONB for flexible data
+CREATE TABLE findings (
+  id UUID PRIMARY KEY,
+  content TEXT NOT NULL,
+  source JSONB NOT NULL, -- Flexible source metadata
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**IndexedDB Cache Strategy**:
+
+```typescript
+// Sync between PostgreSQL and IndexedDB
+class StorageService {
+  async syncToLocal(findings: Finding[]) {
+    const tx = db.transaction(['findings'], 'readwrite');
+    const store = tx.objectStore('findings');
+
+    // Clear old data and insert fresh from server
+    await store.clear();
+    for (const finding of findings) {
+      await store.add(finding);
+    }
+    await tx.done;
+  }
+
+  async getWithFallback(id: string): Promise<Finding> {
+    // Try server first
+    try {
+      const serverData = await api.get(`/findings/${id}`);
+      await this.cacheLocally(serverData);
+      return serverData;
+    } catch (error) {
+      // Fall back to local cache
+      return await db.get('findings', id);
+    }
+  }
+}
 ```
 
 ### 7. AI Integration Patterns
@@ -504,7 +574,67 @@ async function callAI(prompt: string) {
 }
 ```
 
-### 3. Input Validation
+### 3. Database Security
+
+```typescript
+// PostgreSQL Security Best Practices
+
+// Always use parameterized queries
+// ❌ BAD - SQL injection vulnerable
+const query = `SELECT * FROM users WHERE email = '${email}'`;
+
+// ✅ GOOD - Parameterized query
+const query = 'SELECT * FROM users WHERE email = $1';
+const result = await db.query(query, [email]);
+
+// Connection string security
+// Store in environment variables, never in code
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: true
+  } : false
+});
+
+// Row-level security for multi-tenant data
+CREATE POLICY user_data_policy ON findings
+  FOR ALL
+  USING (user_id = current_user_id());
+```
+
+### 4. Authentication & Sessions
+
+```typescript
+// JWT token management
+interface SessionToken {
+  userId: string;
+  deviceId: string;
+  exp: number;
+  iat: number;
+}
+
+// Secure password hashing
+import bcrypt from 'bcrypt';
+const saltRounds = 10;
+const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+
+// Session validation middleware
+async function validateSession(req: Request) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) throw new UnauthorizedError();
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const session = await db.queryOne(
+    'SELECT * FROM user_sessions WHERE token_id = $1 AND expires_at > NOW()',
+    [decoded.jti]
+  );
+
+  if (!session) throw new SessionExpiredError();
+  return decoded;
+}
+```
+
+### 5. Input Validation
 
 ```typescript
 // Always validate user input
@@ -890,10 +1020,24 @@ Closes #123
   - Transformed Analytics from health tracking to research insights
   - Aligned with "Facts, Not Scores™" principle
   - Now uses existing findings data instead of non-existent timeline events
-- **v2.0.0** (Planned) - Conversational interface
-- **v3.0.0** (Planned) - Advanced Research Analytics
+- **v2.0.0** - PostgreSQL Persistent Storage (January 2026)
+  - **Major Architecture Change**: Migrated from IndexedDB-only to PostgreSQL + IndexedDB hybrid
+  - **New Features**:
+    - Multi-device sync via PostgreSQL backend
+    - User authentication and session management
+    - Persistent data storage across browser clears
+    - Automatic data backup and recovery
+  - **Technical Improvements**:
+    - 13 PostgreSQL tables for structured data
+    - Connection pooling for performance
+    - JSONB fields for flexible metadata
+    - JWT-based authentication
+  - **Migration Support**: Automatic migration from IndexedDB to PostgreSQL
+  - **Deployment**: Docker containerization with PostgreSQL 15
+- **v3.0.0** (Planned) - Conversational interface
+- **v4.0.0** (Planned) - Advanced Research Analytics
 
 ---
 
-*Last Updated: January 13, 2025*
+*Last Updated: January 16, 2026*
 *Maintained by: Development Team*
