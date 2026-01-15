@@ -180,13 +180,19 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setQueueItem(null);
         setDigestGeneration({ isGenerating: false, progress: 100, message: 'Complete!' });
 
-        // Clear manual refresh flag after completion
+        // Clear ALL refresh-related flags after completion
         setIsManualRefresh(false);
-        // Clear refreshing flag
         setIsRefreshing(false);
 
         // Save to cache
         await digestCacheService.saveDigest(newDigest);
+
+        // Also reload findings to show any new ones from the research
+        const db = await getDB();
+        const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', selectedTopicId);
+        updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
+        setFindings(updatedFindings);
+        setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
       }
     };
 
@@ -409,10 +415,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       // Update visible findings
       setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
 
-      // Clear debounce flag after 1 second to prevent rapid re-clicks
-      setTimeout(() => {
-        setIsRefreshing(false);
-      }, 1000);
+      // Don't clear isRefreshing here - let the digest-completed event handle it
+      // The event handlers will clear it when the digest is actually done
     } catch (error) {
       console.error('Error refreshing digest:', error);
       setIsRefreshing(false);
