@@ -3,7 +3,7 @@ import { query, queryOne, transaction } from '../db/database.js';
 export interface Conversation {
   id: string;
   user_id: string;
-  topic_id?: string;
+  topic_id?: string | null;
   title?: string;
   context?: any;
   message_count: number;
@@ -23,7 +23,7 @@ export interface Message {
 }
 
 export interface CreateConversationData {
-  topic_id?: string;
+  topic_id?: string | null;
   title?: string;
   context?: any;
 }

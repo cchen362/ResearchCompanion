@@ -140,9 +140,23 @@ Previous context: ${context}`
  */
 export async function transcribeAudio(audioBuffer: Buffer, mimeType: string) {
   try {
-    // Convert buffer to File object for OpenAI API
-    // TypeScript workaround for Node.js File API
-    const file = new File([audioBuffer as any], 'audio.webm', { type: mimeType });
+    console.log(`Transcribing audio: ${audioBuffer.length} bytes, type: ${mimeType}`);
+
+    // Determine file extension from mime type
+    const extMap: Record<string, string> = {
+      'audio/webm': 'webm',
+      'audio/mp3': 'mp3',
+      'audio/mpeg': 'mp3',
+      'audio/wav': 'wav',
+      'audio/ogg': 'ogg',
+      'audio/m4a': 'm4a',
+      'audio/mp4': 'mp4'
+    };
+    const ext = extMap[mimeType] || 'webm';
+    const filename = `audio.${ext}`;
+
+    // Create a File-like object that OpenAI SDK can handle
+    const file = new File([audioBuffer], filename, { type: mimeType });
 
     const transcription = await openai.audio.transcriptions.create({
       file: file,
@@ -150,9 +164,11 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string) {
       language: 'en'
     });
 
+    console.log(`Transcription successful: ${transcription.text.length} chars`);
     return transcription.text;
-  } catch (error) {
-    console.error('Error transcribing audio:', error);
+  } catch (error: any) {
+    console.error('Error transcribing audio:', error?.message || error);
+    console.error('Error details:', JSON.stringify(error?.response?.data || error, null, 2));
     throw error;
   }
 }

@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Validation schemas
 const CreateDigestSchema = z.object({
-  topic_id: z.string().uuid().optional(),
+  topic_id: z.string().uuid().nullable().optional(),
   type: z.string().min(1).max(50),
   title: z.string().optional(),
   executive_summary: z.string().optional(),

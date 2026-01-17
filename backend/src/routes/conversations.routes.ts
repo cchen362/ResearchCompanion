@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Validation schemas
 const CreateConversationSchema = z.object({
-  topic_id: z.string().uuid().optional(),
+  topic_id: z.string().uuid().nullable().optional(),
   title: z.string().optional(),
   context: z.record(z.string(), z.any()).optional()
 });

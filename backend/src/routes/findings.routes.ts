@@ -15,14 +15,14 @@ const FindingSourceSchema = z.object({
 });
 
 const CreateFindingSchema = z.object({
-  topic_id: z.string().uuid().optional(),
-  agent_id: z.string().uuid().optional(),
+  topic_id: z.string().uuid().nullable().optional(),
+  agent_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1),
   content: z.string().min(1),
-  summary: z.string().optional(),
+  summary: z.string().optional().default(''),
   source: FindingSourceSchema,
   metadata: z.record(z.string(), z.any()).optional(),
-  relevance_score: z.number().min(0).max(1).optional(),
+  relevance_score: z.number().min(0).max(1).nullable().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional()
 });
@@ -151,6 +151,8 @@ router.post('/findings', async (req, res) => {
     // Validate request body
     const validation = CreateFindingSchema.safeParse(req.body);
     if (!validation.success) {
+      console.error('Finding validation failed:', JSON.stringify(validation.error.issues, null, 2));
+      console.error('Request body:', JSON.stringify(req.body, null, 2));
       return res.status(400).json({
         success: false,
         error: 'Invalid request data',

@@ -30,13 +30,22 @@ class TopicsService {
 
   async saveTopic(topic: Topic): Promise<Topic> {
     if (this.isUsingAPI) {
+      // For server storage, always create new (server assigns UUID)
       return await topicsAPIService.saveTopic(topic);
     }
 
+    // For local storage, use existing logic
     if (topic.id) {
       return await updateTopic(topic.id, topic);
     }
     return await createTopic(topic);
+  }
+
+  async updateTopicById(id: string, updates: Partial<Topic>): Promise<Topic> {
+    if (this.isUsingAPI) {
+      return await topicsAPIService.updateTopic(id, updates);
+    }
+    return await updateTopic(id, updates as Topic);
   }
 
   async deleteTopic(id: string): Promise<void> {

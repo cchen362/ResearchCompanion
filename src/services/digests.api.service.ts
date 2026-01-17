@@ -147,29 +147,35 @@ class DigestsAPIService {
     try {
       const backendData = this.transformToBackend(digest);
 
-      // Check if this is an update or create
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(digest.id);
-
-      if (isUUID) {
-        // Update existing
-        const response = await api.put<DigestResponse>(
-          `${this.baseUrl}/${digest.id}`,
-          backendData
-        );
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.digest);
-        }
-      } else {
-        // Create new
-        const response = await api.post<DigestResponse>(this.baseUrl, backendData);
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.digest);
-        }
+      // Always create new - POST to let server assign UUID
+      // For updates, use updateDigest() method
+      const response = await api.post<DigestResponse>(this.baseUrl, backendData);
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.digest);
       }
 
       throw new Error('Failed to save digest');
     } catch (error) {
       console.error('Error saving digest:', error);
+      throw error;
+    }
+  }
+
+  async updateDigest(id: string, updates: Partial<SmartDigest>): Promise<SmartDigest> {
+    try {
+      const backendData = this.transformToBackend(updates);
+      const response = await api.put<DigestResponse>(
+        `${this.baseUrl}/${id}`,
+        backendData
+      );
+
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.digest);
+      }
+
+      throw new Error('Failed to update digest');
+    } catch (error) {
+      console.error('Error updating digest:', error);
       throw error;
     }
   }

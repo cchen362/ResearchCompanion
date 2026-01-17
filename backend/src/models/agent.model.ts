@@ -3,7 +3,7 @@ import { query, queryOne } from '../db/database.js';
 export interface Agent {
   id: string;
   user_id: string;
-  topic_id?: string;
+  topic_id?: string | null;
   name: string;
   type: string;
   enabled: boolean;
@@ -19,7 +19,7 @@ export interface Agent {
 }
 
 export interface CreateAgentData {
-  topic_id?: string;
+  topic_id?: string | null;
   name: string;
   type: string;
   enabled?: boolean;

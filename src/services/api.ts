@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import type { VoiceTranscriptionResult } from '@/types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Standard timeout for regular operations
 const STANDARD_TIMEOUT = 60000; // 60 seconds

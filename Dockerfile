@@ -36,9 +36,15 @@ FROM node:20-alpine AS production
 # Install nginx for serving frontend
 RUN apk add --no-cache nginx
 
-# Create app user for security
-RUN addgroup -g 1001 -S appuser && \
-    adduser -u 1001 -S appuser -G appuser
+# Fix nginx permissions - create temp directories and set ownership
+RUN mkdir -p /var/lib/nginx/tmp/client_body \
+    /var/lib/nginx/tmp/proxy \
+    /var/lib/nginx/tmp/fastcgi \
+    /var/lib/nginx/tmp/uwsgi \
+    /var/lib/nginx/tmp/scgi \
+    /var/log/nginx \
+    /run/nginx && \
+    chmod -R 777 /var/lib/nginx /var/log/nginx /run/nginx
 
 # Setup directory structure
 WORKDIR /app
@@ -46,30 +52,28 @@ WORKDIR /app
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copy frontend build from stage 1
+# Copy frontend build from stage 1 (will be overwritten by volume mount in dev)
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 
 # Copy backend from stage 2
-COPY --from=backend-builder --chown=appuser:appuser /app/backend/dist ./backend/dist
-COPY --from=backend-builder --chown=appuser:appuser /app/backend/node_modules ./backend/node_modules
-COPY --from=backend-builder --chown=appuser:appuser /app/backend/package.json ./backend/
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/
 
-# Create data directory for SQLite database
-RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
+# Create data directories with proper permissions
+RUN mkdir -p /app/data /app/backend/data && \
+    chmod -R 777 /app/data /app/backend/data /usr/share/nginx/html
 
-# Create startup script
+# Create startup script that runs nginx in foreground
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'nginx' >> /app/start.sh && \
     echo 'cd /app/backend && node dist/index.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 
-# Expose port 6767 for the application
-EXPOSE 6767
+# Expose ports
+EXPOSE 6767 3001
 
-# Run as non-root user
-USER appuser
-
-# Set environment variables (these will be overridden by docker-compose or runtime)
+# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
 

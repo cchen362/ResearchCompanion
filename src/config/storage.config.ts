@@ -9,7 +9,7 @@
 export const USE_SERVER_STORAGE = import.meta.env.VITE_USE_SERVER_STORAGE === 'true' || false;
 
 // API base URL
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Storage configuration
 export const storageConfig = {

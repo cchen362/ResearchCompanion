@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: meduser
       POSTGRES_PASSWORD: ${DB_PASSWORD:-medpass123}
     ports:
-      - "5432:5432"  # Expose PostgreSQL port (optional, for debugging)
+      - "5434:5432"  # Mapped to 5434 to avoid conflicts
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -26,14 +26,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # API keys are baked into the image during build
-        # Replace these with your actual API keys
-        ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-        OPENAI_API_KEY: ${OPENAI_API_KEY}
-        BRAVE_API_KEY: ${BRAVE_API_KEY}
-        PUBMED_API_KEY: ${PUBMED_API_KEY}
-
     container_name: medical-companion
 
     depends_on:
@@ -42,62 +34,43 @@ services:
 
     ports:
       - "6767:6767"  # nginx frontend
-      - "3001:3001"  # backend API (optional, for direct access)
+      - "3001:3001"  # backend API
 
     environment:
-      # Runtime environment variables
       NODE_ENV: production
       PORT: 3001
-
-      # Database connection
-      DATABASE_URL: postgresql://meduser:${DB_PASSWORD:-medpass123}@postgres:5432/medcompanion
-
-      # JWT Secret for authentication (change this!)
+      # Database connection with SSL disabled for local
+      DATABASE_URL: postgresql://meduser:${DB_PASSWORD:-medpass123}@postgres:5432/medcompanion?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-
-      # Baked-in API keys (set during build)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       PUBMED_API_KEY: ${PUBMED_API_KEY}
-
-      # Medical search configuration
       ENABLE_REAL_MEDICAL_SEARCH: "true"
       ENABLE_WEB_SEARCH: "true"
 
     volumes:
-      # Persist user database and data
+      # Persist data
       - medical-data:/app/data
-      - medical-logs:/var/log/nginx
+      - backend-data:/app/backend/data
 
     restart: unless-stopped
-
     networks:
       - medcompanion-network
 
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6767/api/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6767"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
+      start_period: 30s
 
 volumes:
   postgres_data:
     driver: local
   medical-data:
     driver: local
-  medical-logs:
+  backend-data:
     driver: local
 
 networks:

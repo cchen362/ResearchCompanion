@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { createTopic, getAllTopics, deleteTopic, updateTopic } from '@/utils/db/topics';
-import { createAgent, getAgentsByTopic } from '@/utils/db/agents';
+import { topicsService } from '@/services/topics.service';
+import { agentsService } from '@/services/agents.service';
 import type { Topic, DiseaseProfile, PatientContext, AgentType } from '@/types';
 
 interface TopicManagerProps {
@@ -20,13 +20,13 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
 
   const loadTopics = async () => {
     try {
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
 
       // Fetch agent counts for each topic
       const counts: Record<string, number> = {};
       for (const topic of allTopics) {
-        const agents = await getAgentsByTopic(topic.id);
+        const agents = await agentsService.getAgents(topic.id);
         counts[topic.id] = agents.length;
       }
       setAgentCounts(counts);
@@ -44,7 +44,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
 
   const handleDeleteTopic = async (id: string) => {
     if (confirm('Are you sure you want to delete this topic and all associated data?')) {
-      await deleteTopic(id);
+      await topicsService.deleteTopic(id);
       await loadTopics();
     }
   };
@@ -191,24 +191,48 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         currentStage: 'monitoring'
       };
 
-      const topic = await createTopic(name, diseaseProfile, patientContext);
+      // Create topic object
+      const topicData: Topic = {
+        id: '', // Will be assigned by server
+        name,
+        diseaseProfile,
+        patientContext,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+
+      const topic = await topicsService.saveTopic(topicData);
 
       // Create default agents for the topic
       const agentTypes: AgentType[] = ['treatment_breakthrough', 'clinical_trial'];
 
       for (const type of agentTypes) {
-        await createAgent(
-          topic.id,
+        await agentsService.saveAgent({
+          id: '', // Will be assigned by server
+          topicId: topic.id,
+          name: `${type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent`,
           type,
-          `${type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent`,
-          `Monitoring ${type.split('_').map(w => w.toLowerCase()).join(' ')} for ${diseaseName}`,
-          {
+          status: 'idle',
+          config: {
             updateFrequency: progressionRate === 'rapid' ? 'hourly' :
                            progressionRate === 'moderate' ? 'daily' : 'weekly',
-            priority: 'medium',
-            searchDepth: 'standard'
+            searchDepth: 10,
+            sources: [],
+            keywords: []
+          },
+          lastRun: null,
+          createdAt: Date.now(),
+          metrics: {
+            totalRuns: 0,
+            successfulRuns: 0,
+            failedRuns: 0,
+            findingsGenerated: 0,
+            lastSuccessAt: null,
+            lastErrorAt: null,
+            lastError: null,
+            apiCostTotal: 0
           }
-        );
+        });
       }
 
       onSuccess();
@@ -344,7 +368,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
         }
       };
 
-      await updateTopic(updatedTopic);
+      await topicsService.updateTopicById(topic.id, updatedTopic);
       onSuccess();
     } catch (error) {
       console.error('Error updating topic:', error);

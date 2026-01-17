@@ -8,14 +8,19 @@ const router = Router();
  */
 router.post('/transcribe', async (req, res) => {
   try {
+    console.log('Transcribe request received');
     const { audio, mimeType } = req.body;
 
     if (!audio) {
+      console.log('Error: No audio data in request');
       return res.status(400).json({ error: 'Audio data is required' });
     }
 
+    console.log(`Audio data received: ${audio.length} chars (base64), mimeType: ${mimeType}`);
+
     // Convert base64 audio to buffer
     const audioBuffer = Buffer.from(audio, 'base64');
+    console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
 
     // Transcribe audio using Whisper
     const transcript = await transcribeAudio(audioBuffer, mimeType || 'audio/webm');

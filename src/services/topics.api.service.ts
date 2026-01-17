@@ -26,7 +26,7 @@ class TopicsAPIService {
       );
 
       if (response.data.success) {
-        return response.data.topics;
+        return response.data.topics.map(topic => this.transformApiTopic(topic));
       }
 
       throw new Error('Failed to fetch topics');
@@ -43,12 +43,12 @@ class TopicsAPIService {
       );
 
       if (response.data.success) {
-        return response.data.topic;
+        return this.transformApiTopic(response.data.topic);
       }
 
       return undefined;
     } catch (error) {
-      if (error.response?.status === 404) {
+      if ((error as any).response?.status === 404) {
         return undefined;
       }
       console.error('Error fetching topic:', error);
@@ -71,31 +71,50 @@ class TopicsAPIService {
         sort_order: 0
       };
 
-      if (topic.id) {
-        // Update existing topic
-        const response = await api.put<TopicResponse>(
-          `${this.baseUrl}/${topic.id}`,
-          topicData
-        );
+      // Always create new - POST to let server assign UUID
+      // For updates, use updateTopic() method
+      const response = await api.post<TopicResponse>(
+        this.baseUrl,
+        topicData
+      );
 
-        if (response.data.success) {
-          return this.transformApiTopic(response.data.topic);
-        }
-      } else {
-        // Create new topic
-        const response = await api.post<TopicResponse>(
-          this.baseUrl,
-          topicData
-        );
-
-        if (response.data.success) {
-          return this.transformApiTopic(response.data.topic);
-        }
+      if (response.data.success) {
+        return this.transformApiTopic(response.data.topic);
       }
 
       throw new Error('Failed to save topic');
     } catch (error) {
       console.error('Error saving topic:', error);
+      throw error;
+    }
+  }
+
+  async updateTopic(id: string, updates: Partial<Topic>): Promise<Topic> {
+    try {
+      const topicData = {
+        name: updates.name,
+        description: updates.description || '',
+        metadata: {
+          diseaseProfile: updates.diseaseProfile || {},
+          isSearching: updates.isSearching || false,
+          searchProgress: updates.searchProgress || 0
+        },
+        patient_context: updates.patientContext || {},
+        sort_order: 0
+      };
+
+      const response = await api.put<TopicResponse>(
+        `${this.baseUrl}/${id}`,
+        topicData
+      );
+
+      if (response.data.success) {
+        return this.transformApiTopic(response.data.topic);
+      }
+
+      throw new Error('Failed to update topic');
+    } catch (error) {
+      console.error('Error updating topic:', error);
       throw error;
     }
   }

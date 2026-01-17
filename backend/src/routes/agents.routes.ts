@@ -6,10 +6,10 @@ const router = express.Router();
 
 // Validation schemas
 const CreateAgentSchema = z.object({
-  topic_id: z.string().uuid().optional(),
+  topic_id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(255),
   type: z.string().min(1).max(50),
-  enabled: z.boolean().optional(),
+  enabled: z.boolean().optional().default(true),
   config: z.record(z.string(), z.any()).optional(),
   schedule: z.string().optional()
 });

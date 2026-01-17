@@ -3,7 +3,7 @@ import { query, queryOne } from '../db/database.js';
 export interface Digest {
   id: string;
   user_id: string;
-  topic_id?: string;
+  topic_id?: string | null;
   type: string;
   title?: string;
   executive_summary?: string;
@@ -18,7 +18,7 @@ export interface Digest {
 }
 
 export interface CreateDigestData {
-  topic_id?: string;
+  topic_id?: string | null;
   type: string;
   title?: string;
   executive_summary?: string;

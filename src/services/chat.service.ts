@@ -170,7 +170,7 @@ class ChatService {
       });
 
       // Create event source for SSE
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/chat/stream`;
+      const url = `${import.meta.env.VITE_API_URL || '/api'}/chat/stream`;
 
       // Get auth token for streaming request
       const token = localStorage.getItem('auth_token');

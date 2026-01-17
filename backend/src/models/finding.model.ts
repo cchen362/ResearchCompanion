@@ -3,8 +3,8 @@ import { query, queryOne } from '../db/database.js';
 export interface Finding {
   id: string;
   user_id: string;
-  topic_id?: string;
-  agent_id?: string;
+  topic_id?: string | null;
+  agent_id?: string | null;
   title: string;
   content: string;
   summary?: string;
@@ -17,7 +17,7 @@ export interface Finding {
     publishDate?: string;
   };
   metadata?: any;
-  relevance_score?: number;
+  relevance_score?: number | null;
   category?: string;
   tags?: string[];
   is_read: boolean;

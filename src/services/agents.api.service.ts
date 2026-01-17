@@ -106,29 +106,35 @@ class AgentsAPIService {
     try {
       const backendData = this.transformToBackend(agent);
 
-      // Check if this is an update or create
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent.id);
-
-      if (isUUID) {
-        // Update existing
-        const response = await api.put<AgentResponse>(
-          `${this.baseUrl}/${agent.id}`,
-          backendData
-        );
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.agent);
-        }
-      } else {
-        // Create new
-        const response = await api.post<AgentResponse>(this.baseUrl, backendData);
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.agent);
-        }
+      // Always create new - POST to let server assign UUID
+      // For updates, use updateAgent() method
+      const response = await api.post<AgentResponse>(this.baseUrl, backendData);
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.agent);
       }
 
       throw new Error('Failed to save agent');
     } catch (error) {
       console.error('Error saving agent:', error);
+      throw error;
+    }
+  }
+
+  async updateAgent(id: string, updates: Partial<Agent>): Promise<Agent> {
+    try {
+      const backendData = this.transformToBackend(updates);
+      const response = await api.put<AgentResponse>(
+        `${this.baseUrl}/${id}`,
+        backendData
+      );
+
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.agent);
+      }
+
+      throw new Error('Failed to update agent');
+    } catch (error) {
+      console.error('Error updating agent:', error);
       throw error;
     }
   }

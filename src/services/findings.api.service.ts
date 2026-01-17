@@ -136,30 +136,35 @@ class FindingsAPIService {
     try {
       const backendData = this.transformToBackend(finding);
 
-      // Check if this is an update or create by looking at the ID format
-      // Backend uses UUIDs, frontend uses timestamp-based IDs
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finding.id);
-
-      if (isUUID) {
-        // Update existing
-        const response = await api.put<FindingResponse>(
-          `${this.baseUrl}/${finding.id}`,
-          backendData
-        );
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.finding);
-        }
-      } else {
-        // Create new
-        const response = await api.post<FindingResponse>(this.baseUrl, backendData);
-        if (response.data.success) {
-          return this.transformToFrontend(response.data.finding);
-        }
+      // Always create new - POST to let server assign UUID
+      // For updates, use updateFinding() method
+      const response = await api.post<FindingResponse>(this.baseUrl, backendData);
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.finding);
       }
 
       throw new Error('Failed to save finding');
     } catch (error) {
       console.error('Error saving finding:', error);
+      throw error;
+    }
+  }
+
+  async updateFinding(id: string, updates: Partial<ResearchFinding>): Promise<ResearchFinding> {
+    try {
+      const backendData = this.transformToBackend(updates);
+      const response = await api.put<FindingResponse>(
+        `${this.baseUrl}/${id}`,
+        backendData
+      );
+
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.finding);
+      }
+
+      throw new Error('Failed to update finding');
+    } catch (error) {
+      console.error('Error updating finding:', error);
       throw error;
     }
   }
