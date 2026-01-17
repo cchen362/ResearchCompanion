@@ -7,8 +7,16 @@ import { digestQueueService } from './digestQueue.service';
 
 /**
  * Run a comprehensive agent search with real API integration
+ * @param agent - The agent to run
+ * @param topic - The topic to search for
+ * @param options - Optional settings
+ * @param options.skipDigestGeneration - Skip auto-digest when running as part of bulk operations
  */
-export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<ResearchFinding[]> {
+export async function runAgentWithAPI(
+  agent: Agent,
+  topic: Topic,
+  options?: { skipDigestGeneration?: boolean }
+): Promise<ResearchFinding[]> {
   console.log(`Running agent ${agent.name} for topic ${topic.name}`);
 
   // Check budget
@@ -173,7 +181,7 @@ export async function runAgentWithAPI(agent: Agent, topic: Topic): Promise<Resea
 
       // Create notification for new findings
       if (actualNewFindings > 0) {
-        await createNotification(topic, actualNewFindings);
+        await createNotification(topic, actualNewFindings, options?.skipDigestGeneration);
       }
     }
 
@@ -314,8 +322,15 @@ function calculateCost(resultCount: number): number {
 
 /**
  * Create notification for important findings
+ * @param topic - The topic the findings belong to
+ * @param findingsCount - Number of new findings
+ * @param skipDigestGeneration - If true, skip auto-digest (used in bulk operations)
  */
-async function createNotification(topic: Topic, findingsCount: number): Promise<void> {
+async function createNotification(
+  topic: Topic,
+  findingsCount: number,
+  skipDigestGeneration?: boolean
+): Promise<void> {
   try {
     const db = await getDB();
     const notification = {
@@ -352,8 +367,8 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
         detail: { topicId: topic.id, findingsCount }
       }));
 
-      // Auto-queue digest generation if we have findings
-      if (findingsCount > 0) {
+      // Auto-queue digest generation if we have findings (skip if in bulk mode)
+      if (findingsCount > 0 && !skipDigestGeneration) {
         try {
           console.log(`Auto-queueing digest generation for topic ${topic.id} with ${findingsCount} findings`);
           await digestQueueService.queueDigestFromExistingFindings(topic.id, 'weekly');
@@ -362,6 +377,8 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
           console.error('Failed to auto-queue digest generation:', digestError);
           // Don't throw - digest generation failure shouldn't break the agent completion
         }
+      } else if (skipDigestGeneration) {
+        console.log('Skipping auto-digest (bulk operation mode)');
       }
 
     } catch (dbError) {
@@ -386,8 +403,8 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
           detail: { topicId: topic.id, findingsCount }
         }));
 
-        // Auto-queue digest generation if we have findings (fallback path)
-        if (findingsCount > 0) {
+        // Auto-queue digest generation if we have findings (fallback path, skip if in bulk mode)
+        if (findingsCount > 0 && !skipDigestGeneration) {
           try {
             console.log(`Auto-queueing digest generation for topic ${topic.id} with ${findingsCount} findings (fallback)`);
             await digestQueueService.queueDigestFromExistingFindings(topic.id, 'weekly');
@@ -395,6 +412,8 @@ async function createNotification(topic: Topic, findingsCount: number): Promise<
           } catch (digestError) {
             console.error('Failed to auto-queue digest generation (fallback):', digestError);
           }
+        } else if (skipDigestGeneration) {
+          console.log('Skipping auto-digest in fallback path (bulk operation mode)');
         }
       } catch (putError) {
         console.error('❌ Put also failed:', putError);
@@ -434,10 +453,11 @@ export async function runAllResearchAgents(topicId: string): Promise<ResearchFin
   const errors: string[] = [];
 
   // Run agents in parallel for better performance
+  // Skip per-agent digest generation - we'll trigger once after all complete
   const agentPromises = activeAgents.map(async (agent) => {
     try {
       console.log(`Running agent ${agent.name} (${agent.type})`);
-      const findings = await runAgentWithAPI(agent, topic);
+      const findings = await runAgentWithAPI(agent, topic, { skipDigestGeneration: true });
       return findings;
     } catch (error) {
       const errorMsg = `Agent ${agent.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -458,6 +478,19 @@ export async function runAllResearchAgents(topicId: string): Promise<ResearchFin
 
   if (errors.length > 0) {
     console.warn(`${errors.length} agents failed during research:`, errors);
+  }
+
+  // Trigger digest generation once AFTER all agents have completed
+  // This ensures all findings are in the database before digest is generated
+  if (allFindings.length > 0) {
+    try {
+      console.log(`Queueing digest generation after all ${activeAgents.length} agents completed`);
+      await digestQueueService.queueDigestFromExistingFindings(topicId, 'weekly');
+      console.log('✅ Digest queued after all agents completed');
+    } catch (digestError) {
+      console.error('Failed to queue digest after bulk agent run:', digestError);
+      // Don't throw - digest failure shouldn't break the agent completion
+    }
   }
 
   return allFindings;
@@ -494,14 +527,26 @@ export async function runResearchAgents(
   const allFindings: ResearchFinding[] = [];
 
   // Run agents sequentially to avoid rate limits
+  // Skip per-agent digest generation - we'll trigger once after all complete
   for (const agent of requestedAgents) {
     try {
       console.log(`Running agent ${agent.name}`);
-      const findings = await runAgentWithAPI(agent, topic);
+      const findings = await runAgentWithAPI(agent, topic, { skipDigestGeneration: true });
       allFindings.push(...findings);
     } catch (error) {
       console.error(`Agent ${agent.name} failed:`, error);
       // Continue with other agents even if one fails
+    }
+  }
+
+  // Trigger digest generation once AFTER all requested agents have completed
+  if (allFindings.length > 0) {
+    try {
+      console.log(`Queueing digest generation after ${requestedAgents.length} agents completed`);
+      await digestQueueService.queueDigestFromExistingFindings(topicId, 'weekly');
+      console.log('✅ Digest queued after specific agents completed');
+    } catch (digestError) {
+      console.error('Failed to queue digest after specific agent run:', digestError);
     }
   }
 

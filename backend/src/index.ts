@@ -13,6 +13,10 @@ import chatRoutes from './routes/chat.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import topicsRoutes from './routes/topics.routes.js';
 import findingsRoutes from './routes/findings.routes.js';
+// New CRUD routes for server storage
+import agentsRoutes from './routes/agents.routes.js';
+import digestsCrudRoutes from './routes/digests.crud.routes.js';
+import conversationsRoutes from './routes/conversations.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
@@ -48,15 +52,33 @@ initializeDatabases();
 // Configure server timeout for long-running AI operations (5 minutes)
 app.set('timeout', 300000); // 5 minutes in milliseconds
 
-// Middleware - Allow all localhost ports for development
+// Middleware - CORS configuration
+const allowedOrigins = [
+  'http://localhost:6767',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://cl.zyroi.com',
+  'http://cl.zyroi.com'
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow all localhost origins in development
-    if (!origin || origin.startsWith('http://localhost:')) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) {
       callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+    // Allow localhost in development
+    if (origin.startsWith('http://localhost:')) {
+      callback(null, true);
+      return;
+    }
+    // Allow configured origins
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -81,6 +103,10 @@ app.use('/api', authenticate, agentRoute);
 app.use('/api/chat', authenticate, chatRoutes);
 app.use('/api', authenticate, topicsRoutes);
 app.use('/api', authenticate, findingsRoutes);
+// New CRUD routes for server storage
+app.use('/api', authenticate, agentsRoutes);
+app.use('/api', authenticate, digestsCrudRoutes);
+app.use('/api', authenticate, conversationsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
