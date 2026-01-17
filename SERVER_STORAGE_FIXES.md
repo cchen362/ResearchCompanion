@@ -194,10 +194,131 @@ pool.query(\"SELECT id, email, created_at FROM users;\").then(r => {
 
 ---
 
+---
+
+## Production Deployment Fixes (January 2026)
+
+The following issues were discovered and fixed during production deployment to `cl.zyroi.com`.
+
+### Issue 7: Double API Path `/api/api/` (FIXED)
+**Problem:** API requests were going to `/api/api/topics` instead of `/api/topics`, resulting in 404 errors.
+
+**Root Cause:** The API service files had `baseUrl = '/api/topics'` but the axios client in `src/utils/api.ts` already had `baseURL: '/api'`, causing double `/api/api/` paths.
+
+**Fix:** Changed `baseUrl` in all API service files from `/api/xxx` to `/xxx`.
+
+**Files Modified:**
+- `src/services/topics.api.service.ts` - Changed `/api/topics` to `/topics`
+- `src/services/agents.api.service.ts` - Changed `/api/agents` to `/agents`
+- `src/services/findings.api.service.ts` - Changed `/api/findings` to `/findings`
+- `src/services/digests.api.service.ts` - Changed `/api/digests` to `/digests`
+- `src/services/conversations.api.service.ts` - Changed `/api/conversations` to `/conversations`
+
+### Issue 8: Patient Context Fields Missing from Zod Schema (FIXED)
+**Problem:** Patient age group and current stage were not being saved when creating topics.
+
+**Root Cause:** Backend Zod validation schema in `topics.routes.ts` didn't include `ageGroup` and `currentStage` fields.
+
+**Fix:** Added missing fields to the schema and used `.passthrough()` to allow additional fields.
+
+**Files Modified:**
+- `backend/src/routes/topics.routes.ts` - Added `ageGroup: z.string().optional()` and `currentStage: z.string().optional()` to patient_context schema
+
+### Issue 9: AgentMonitor Using IndexedDB Instead of API (FIXED)
+**Problem:** Agents page showed "No agents" even though API was returning agents correctly.
+
+**Root Cause:** `AgentMonitor.tsx` was importing and using IndexedDB utilities directly instead of the unified `agentsService`.
+
+**Fix:** Updated imports to use `agentsService` and `topicsService`.
+
+**Files Modified:**
+- `src/components/agents/AgentMonitor.tsx` - Changed imports and function calls to use API services
+
+### Issue 10: FindingsViewerProgressive Using IndexedDB (FIXED)
+**Problem:** Findings tab showed "No Research Topics" even though topics existed.
+
+**Root Cause:** `FindingsViewerProgressive.tsx` was using direct IndexedDB access for topics and findings.
+
+**Fix:** Updated to use `topicsService` and `findingsService`.
+
+**Files Modified:**
+- `src/components/FindingsViewerProgressive.tsx` - Changed imports and function calls to use API services
+
+### Issue 11: Frontend Defaulting to IndexedDB Storage (FIXED)
+**Problem:** Data was being saved to browser IndexedDB instead of PostgreSQL server, causing:
+- Data appeared to work but only existed locally
+- Server database was empty
+- Delete operations returned 404
+
+**Root Cause:** `VITE_USE_SERVER_STORAGE` environment variable was not set during Docker build, so `storageConfig.useServerStorage` defaulted to `false`.
+
+**Fix:** Added environment variables to the Dockerfile build stage.
+
+**Files Modified:**
+- `Dockerfile` - Added `ENV VITE_USE_SERVER_STORAGE=true` and `ENV VITE_API_URL=/api` before `npm run build`
+
+### Issue 12: Database SSL Connection Error (FIXED)
+**Problem:** Backend failed to connect to PostgreSQL with SSL errors.
+
+**Root Cause:** Database connection code was forcing SSL in production, but the local Docker PostgreSQL doesn't use SSL.
+
+**Fix:** Added `DB_SSL` environment variable check to conditionally enable SSL.
+
+**Files Modified:**
+- `backend/src/db/database.ts` - Added `const useSSL = process.env.DB_SSL !== 'false' && process.env.NODE_ENV === 'production';`
+- `docker-compose.prod.yml` - Added `DB_SSL=false` to environment
+
+### Issue 13: Docker Port Conflicts (FIXED)
+**Problem:** PostgreSQL port 5432 was already in use on the server.
+
+**Fix:** Changed PostgreSQL port mapping to 5434.
+
+**Files Modified:**
+- `docker-compose.prod.yml` - Changed port from `5432:5432` to `5434:5432`
+
+---
+
+## Important Notes for Future Agents
+
+### Build & Deployment Checklist
+1. **Always rebuild with `--no-cache`** when changing environment variables or Dockerfile:
+   ```bash
+   docker-compose -f docker-compose.prod.yml build --no-cache medical-companion
+   ```
+
+2. **Force recreate containers** to use new images:
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d --force-recreate medical-companion
+   ```
+
+3. **Clear browser data** after deployment - service workers cache aggressively:
+   - DevTools → Application → Storage → Clear site data
+   - Unregister service workers
+
+### Key Architecture Points
+1. **Storage Mode:** Controlled by `VITE_USE_SERVER_STORAGE` at build time (not runtime)
+2. **API Base URL:** Axios client uses `/api` as baseURL, so service files should use relative paths like `/topics`, not `/api/topics`
+3. **Unified Services:** Always use `topicsService`, `agentsService`, `findingsService` etc. instead of direct IndexedDB imports
+4. **Zod Schemas:** Use `.passthrough()` when you want to allow additional fields not explicitly defined
+
+### Files That Should Use API Services (Not IndexedDB)
+- `src/components/agents/AgentMonitor.tsx` ✅ Fixed
+- `src/components/FindingsViewerProgressive.tsx` ✅ Fixed
+- `src/components/TopicManager.tsx` ✅ Previously fixed
+- `src/services/agentRunner.ts` - Check this file if agent execution has issues
+
+### Database Connection
+- Production uses PostgreSQL via `DATABASE_URL`
+- SSL is disabled for Docker deployment (`DB_SSL=false`)
+- Port 5434 is mapped to internal 5432
+
+---
+
 ## Next Steps
 
-1. Debug why topics are still not working correctly
-2. Check all API services have proper `transformApiXxx()` functions
-3. Ensure `agentRunner.ts` uses unified services
+1. ~~Debug why topics are still not working correctly~~ ✅ RESOLVED
+2. ~~Check all API services have proper `transformApiXxx()` functions~~ ✅ RESOLVED
+3. ~~Ensure `agentRunner.ts` uses unified services~~ Verify if needed
 4. Add error handling for API failures
 5. Consider adding retry logic for network issues
+6. Review any other components that might still use direct IndexedDB access
