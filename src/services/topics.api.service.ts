@@ -17,7 +17,7 @@ interface DeleteResponse {
 }
 
 class TopicsAPIService {
-  private baseUrl = '/api/topics';
+  private baseUrl = '/topics';
 
   async getTopics(includeArchived = false): Promise<Topic[]> {
     try {

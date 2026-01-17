@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getDB } from '@/utils/db/database';
-import { getTopic } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 import { digestQueueService } from '@/services/digestQueue.service';
 import { digestCacheService } from '@/services/digestCache.service';
 import { findingsService } from '@/services/findings.service';
@@ -203,8 +203,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         await digestCacheService.saveDigest(newDigest);
 
         // Also reload findings to show any new ones from the research
-        const db = await getDB();
-        const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', selectedTopicId);
+        const updatedFindings = await findingsService.getFindings(selectedTopicId);
         updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
         setFindings(updatedFindings);
         setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
@@ -296,8 +295,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         }, 500);
 
         // Also reload findings to show new ones
-        const db = await getDB();
-        const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+        const updatedFindings = await findingsService.getFindings(topicId);
         updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
         setFindings(updatedFindings);
         setVisibleFindings(updatedFindings.slice(0, findingsPerPage));
@@ -333,8 +331,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const loadTopics = async () => {
     try {
       setLoadingTopics(true);
-      const db = await getDB();
-      const allTopics = await db.getAll('topics');
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
       if (!selectedTopicId && allTopics.length > 0) {
         setSelectedTopicId(allTopics[0].id);
@@ -357,7 +354,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
     try {
       // Step 1: Load topic info immediately
-      const topic = await getTopic(topicId);
+      const topic = await topicsService.getTopic(topicId);
       if (!topic) {
         console.error('Topic not found:', topicId);
         setIsLoadingTopicData(false);
@@ -367,8 +364,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
       // Step 2: Load findings (fast)
       setLoadingFindings(true);
-      const db = await getDB();
-      const topicFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+      const topicFindings = await findingsService.getFindings(topicId);
       topicFindings.sort((a, b) => b.timestamp - a.timestamp);
       setFindings(topicFindings);
 
@@ -577,8 +573,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       console.log('Cleared isRefreshing after refreshResearchAndDigest completed');
 
       // Reload findings after research is complete
-      const db = await getDB();
-      const updatedFindings = await db.getAllFromIndex('findings', 'by-topic', selectedTopicId);
+      const updatedFindings = await findingsService.getFindings(selectedTopicId);
       updatedFindings.sort((a, b) => b.timestamp - a.timestamp);
       setFindings(updatedFindings);
 

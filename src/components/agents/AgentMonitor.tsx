@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getDB } from '@/utils/db/database';
-import { getAgentsToRun, getAgentsForForceRun, setAgentStatus } from '@/utils/db/agents';
+import { agentsService } from '@/services/agents.service';
+import { topicsService } from '@/services/topics.service';
 import { runAgentWithAPI } from '@/services/agentRunner';
-import { getTopic } from '@/utils/db/topics';
 import AgentConfigModal from './AgentConfigModal';
 import { useUIStore } from '@/stores/uiStore';
 import type { Agent } from '@/types';
@@ -25,8 +24,7 @@ export default function AgentMonitor() {
 
   const loadAgents = async () => {
     try {
-      const db = await getDB();
-      const allAgents = await db.getAll('agents');
+      const allAgents = await agentsService.getAgents();
       setAgents(allAgents);
     } catch (error) {
       console.error('Error loading agents:', error);
@@ -38,7 +36,7 @@ export default function AgentMonitor() {
   const handleRunAgent = async (agent: Agent) => {
     try {
       setRunningAgentId(agent.id);
-      const topic = await getTopic(agent.topicId);
+      const topic = await topicsService.getTopic(agent.topicId);
 
       if (!topic) {
         throw new Error('Topic not found');
@@ -72,11 +70,11 @@ export default function AgentMonitor() {
   };
 
   const handleRunAllPending = async () => {
-    let pendingAgents = await getAgentsToRun();
+    let pendingAgents = await agentsService.getAgentsToRun();
 
     if (pendingAgents.length === 0) {
       // No pending agents, try to get all agents that can be force-run
-      const forceRunAgents = await getAgentsForForceRun();
+      const forceRunAgents = await agentsService.getAgentsForForceRun();
 
       if (forceRunAgents.length === 0) {
         showToast({
@@ -112,7 +110,7 @@ export default function AgentMonitor() {
       const agent = pendingAgents[i];
       setRunningAllProgress({ current: i + 1, total: pendingAgents.length });
 
-      const topic = await getTopic(agent.topicId);
+      const topic = await topicsService.getTopic(agent.topicId);
       if (topic) {
         try {
           showToast({

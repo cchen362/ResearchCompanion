@@ -26,7 +26,7 @@ interface StatsResponse {
 }
 
 class DigestsAPIService {
-  private baseUrl = '/api/digests';
+  private baseUrl = '/digests';
 
   /**
    * Transform backend digest to frontend SmartDigest interface

@@ -37,7 +37,7 @@ interface StatsResponse {
 }
 
 class ConversationsAPIService {
-  private baseUrl = '/api/conversations';
+  private baseUrl = '/conversations';
 
   /**
    * Transform backend message to frontend ChatMessage interface

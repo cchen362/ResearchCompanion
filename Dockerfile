@@ -12,6 +12,10 @@ RUN npm ci
 # Copy frontend source
 COPY . ./
 
+# Set Vite environment variables for build
+ENV VITE_USE_SERVER_STORAGE=true
+ENV VITE_API_URL=/api
+
 # Build frontend
 RUN npm run build
 

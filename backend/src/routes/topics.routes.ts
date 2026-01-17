@@ -11,12 +11,14 @@ const CreateTopicSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   patient_context: z.object({
     age: z.number().optional(),
+    ageGroup: z.string().optional(),
     gender: z.string().optional(),
+    currentStage: z.string().optional(),
     symptoms: z.array(z.string()).optional(),
     comorbidities: z.array(z.string()).optional(),
     medications: z.array(z.string()).optional(),
     familyHistory: z.array(z.string()).optional()
-  }).optional(),
+  }).passthrough().optional(),
   sort_order: z.number().optional()
 });
 

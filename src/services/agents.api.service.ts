@@ -17,7 +17,7 @@ interface DeleteResponse {
 }
 
 class AgentsAPIService {
-  private baseUrl = '/api/agents';
+  private baseUrl = '/agents';
 
   /**
    * Transform backend agent to frontend Agent interface

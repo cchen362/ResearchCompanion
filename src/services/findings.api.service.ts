@@ -29,7 +29,7 @@ interface StatsResponse {
 }
 
 class FindingsAPIService {
-  private baseUrl = '/api/findings';
+  private baseUrl = '/findings';
 
   /**
    * Transform backend finding to frontend ResearchFinding interface
