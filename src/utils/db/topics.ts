@@ -1,9 +1,9 @@
 import { getDB } from './database';
 import type { Topic, DiseaseProfile, PatientContext } from '@/types';
 
-// Generate a unique ID
+// Generate a unique UUID (compatible with PostgreSQL UUID type)
 export function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return crypto.randomUUID();
 }
 
 // Create a new topic

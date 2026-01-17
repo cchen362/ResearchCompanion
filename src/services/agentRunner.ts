@@ -4,6 +4,7 @@ import { generateId } from '@/utils/db/topics';
 import { getDB } from '@/utils/db/database';
 import { updateAgentAfterRun, setAgentStatus, isWithinBudget } from '@/utils/db/agents';
 import { digestQueueService } from './digestQueue.service';
+import { findingsService } from './findings.service';
 
 /**
  * Run a comprehensive agent search with real API integration
@@ -149,10 +150,8 @@ export async function runAgentWithAPI(
       }
 
       // Step 5: Store findings in database with deduplication
-      const db = await getDB();
-
-      // Get existing findings for this topic to check for duplicates
-      existingFindings = await db.getAllFromIndex('findings', 'by-topic', topic.id);
+      // Use findingsService to respect storage config (server vs local)
+      existingFindings = await findingsService.getFindings(topic.id);
 
       duplicatesSkipped = 0;  // Reset counter for this batch
       for (const finding of findings) {
@@ -169,7 +168,7 @@ export async function runAgentWithAPI(
         });
 
         if (!isDuplicate) {
-          await db.add('findings', finding);
+          await findingsService.saveFinding(finding);
         } else {
           duplicatesSkipped++;
           console.log(`Skipping duplicate finding: ${finding.title}`);
@@ -252,8 +251,8 @@ function buildSearchQuery(topic: Topic, agentType: string): string {
  * Analyze existing findings for patterns
  */
 async function analyzeExistingFindings(topic: Topic): Promise<any[]> {
-  const db = await getDB();
-  const findings = await db.getAllFromIndex('findings', 'by-topic', topic.id);
+  // Use findingsService to respect storage config (server vs local)
+  const findings = await findingsService.getFindings(topic.id);
 
   // Group by common themes
   const themes = new Map<string, number>();
