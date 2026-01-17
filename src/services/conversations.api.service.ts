@@ -1,4 +1,4 @@
-import { api } from '@/utils/api';
+import { api } from '@/services/api';
 import type { FindingsChat, ChatMessage } from '@/types';
 
 interface ConversationsResponse {

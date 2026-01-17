@@ -203,11 +203,16 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
 
       const topic = await topicsService.saveTopic(topicData);
 
+      if (!topic || !topic.id) {
+        throw new Error('Topic was not created properly - no ID returned');
+      }
+
       // Create default agents for the topic
       const agentTypes: AgentType[] = ['treatment_breakthrough', 'clinical_trial'];
 
       for (const type of agentTypes) {
-        await agentsService.saveAgent({
+        try {
+          await agentsService.saveAgent({
           id: '', // Will be assigned by server
           topicId: topic.id,
           name: `${type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent`,
@@ -233,12 +238,17 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             apiCostTotal: 0
           }
         });
+        } catch (agentError) {
+          console.error(`Error creating ${type} agent:`, agentError);
+          // Continue with next agent even if one fails
+        }
       }
 
       onSuccess();
     } catch (error) {
       console.error('Error creating topic:', error);
-      alert('Failed to create topic. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to create topic: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. You are logged in (if using server storage)\n3. Network connection is working`);
     } finally {
       setCreating(false);
     }

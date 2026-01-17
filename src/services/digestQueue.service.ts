@@ -1,6 +1,9 @@
 import { getDB } from '@/utils/db/database';
 import { api, longOperationApi } from '@/services/api';
 import { runAllResearchAgents, ensureDefaultAgents } from '@/services/agentRunner';
+import { findingsService } from '@/services/findings.service';
+import { topicsService } from '@/services/topics.service';
+import { digestService } from '@/services/digest.service';
 import type {
   DigestQueueItem,
   DigestQueueStatus,
@@ -231,10 +234,10 @@ export class DigestQueueService {
       // Update progress: Fetching data
       await this.updateProgress(item.id, 'fetching', 10, 'Fetching research findings...');
 
-      // Get topic and findings
-      const topic = await db.get('topics', item.topicId);
+      // Get topic and findings using services (respects storage config)
+      const topic = await topicsService.getTopic(item.topicId);
       const findings = await Promise.all(
-        item.findingIds.map(id => db.get('findings', id))
+        item.findingIds.map(id => findingsService.getFinding(id))
       );
 
       const validFindings = findings.filter(f => f !== undefined) as ResearchFinding[];
@@ -257,19 +260,19 @@ export class DigestQueueService {
       // Update progress: Validating
       await this.updateProgress(item.id, 'validating', 90, 'Validating and saving digest...');
 
-      // Save the digest
-      await db.add('digests', digest);
+      // Save the digest using service (respects storage config)
+      await digestService.saveDigest(digest);
 
       // Mark all findings in this digest as read (not new)
       for (const findingId of digest.allFindingIds) {
-        const finding = await db.get('findings', findingId);
+        const finding = await findingsService.getFinding(findingId);
         if (finding && finding.isNew) {
           finding.isNew = false;
           finding.userEngagement = {
             ...finding.userEngagement,
             viewed: true
           };
-          await db.put('findings', finding);
+          await findingsService.saveFinding(finding);
         }
       }
 
@@ -381,7 +384,7 @@ export class DigestQueueService {
       );
 
       // Step 4: Get all findings for the topic (including existing ones)
-      const allFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+      const allFindings = await findingsService.getFindings(topicId);
       console.log(`Total findings for digest: ${allFindings.length}`);
 
       // Update queue item with all finding IDs
@@ -450,8 +453,8 @@ export class DigestQueueService {
     const db = await getDB();
 
     try {
-      // Get existing findings for the topic
-      const findings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+      // Get existing findings for the topic using the service (respects storage config)
+      const findings = await findingsService.getFindings(topicId);
 
       if (findings.length === 0) {
         throw new Error('No findings available to generate digest');
