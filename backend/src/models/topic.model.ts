@@ -93,11 +93,18 @@ export class TopicModel {
 
   // Delete a topic
   static async delete(id: string, userId: string): Promise<boolean> {
-    const result = await query(
+    // First check if topic exists
+    const topic = await this.getById(id, userId);
+    if (!topic) {
+      return false;
+    }
+
+    // Delete the topic
+    await query(
       'DELETE FROM topics WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    return result.length > 0;
+    return true;
   }
 
   // Archive/unarchive a topic

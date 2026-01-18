@@ -546,13 +546,28 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
               />
             </div>
           </div>
-        ) : (
+        ) : generatingDigest ? (
           <Card className="p-8 text-center">
             <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
-            <CardTitle className="mb-2">Preparing Digest...</CardTitle>
+            <CardTitle className="mb-2">Generating Digest...</CardTitle>
             <p className="text-muted-foreground">
               Analyzing {findings.length} findings to create your research digest.
             </p>
+          </Card>
+        ) : (
+          <Card className="p-8 text-center">
+            <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <CardTitle className="mb-2">No Digest Available</CardTitle>
+            <p className="text-muted-foreground mb-4">
+              Generate a digest to see AI-powered insights from your research findings.
+            </p>
+            <Button
+              onClick={handleGenerateDigest}
+              disabled={findings.length === 0}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Generate Digest
+            </Button>
           </Card>
         )
       ) : (
