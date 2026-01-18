@@ -529,10 +529,64 @@ ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && docker-compose build medical
 
 ---
 
+## Issue 7: Chat Feature Cannot Access Research Findings (January 2026) [FIXED]
+
+### Problem
+The chat feature was completely unable to access research findings from the database. When users asked questions about their research, the AI responded "I don't see any specific findings or documents" even though the topic had 20+ findings.
+
+### Root Cause
+Multiple architectural issues:
+1. **Chat service bypassed the service layer**: Used `useFindingsStore` directly which only accesses IndexedDB, not PostgreSQL
+2. **Dual storage not integrated**: Chat didn't respect the server storage mode
+3. **No backend enrichment**: Backend didn't fetch findings from database
+4. **Limited context**: Only used manually selected findings, not all topic findings
+
+### Fix Applied
+1. **Frontend fixes** (`src/services/chat.service.ts`):
+   - Replaced `useFindingsStore` with `findingsService`
+   - Updated `getContextFindings()` to use unified service layer
+   - Now properly fetches findings from PostgreSQL when in server mode
+
+2. **Backend enrichment** (`backend/src/routes/chat.routes.ts`):
+   - Added `FindingModel` import
+   - Created `enrichFindingsContext()` function to fetch full details from DB
+   - Backend now validates and enriches findings before sending to AI
+
+3. **Auto-context loading** (`src/components/ChatPanel.tsx`):
+   - Auto-loads all topic findings on mount
+   - Combines selected + topic findings for full context (up to 20)
+   - No longer requires manual finding selection
+
+4. **Citation navigation** (`src/components/ChatPanel.tsx`):
+   - Implemented `handleCitationClick` to navigate to finding details
+   - Citations now clickable and functional
+
+### Files Modified
+- `src/services/chat.service.ts` - Use findingsService instead of store
+- `backend/src/routes/chat.routes.ts` - Added database enrichment
+- `src/components/ChatPanel.tsx` - Auto-load findings & citation navigation
+
+### Testing
+- Builds successfully (both frontend and backend)
+- Ready for production deployment
+
+### Deployment (Pending)
+Will be deployed to Debian server via:
+```bash
+git push origin fix/digest-findings-race-condition
+# SSH to server
+git pull origin fix/digest-findings-race-condition
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+---
+
 ## Next Steps
 
-1. Investigate and fix voice recording persistence
-2. Add comprehensive error handling
+1. Deploy chat fixes to production
+2. Add chat history persistence to PostgreSQL
 3. Implement retry logic for network failures
 4. Add batch operations for performance
 5. Create data migration tools

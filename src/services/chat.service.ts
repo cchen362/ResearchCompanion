@@ -1,12 +1,13 @@
 import { api } from './api';
 import { useChatStore } from '../stores/chatStore';
-import { useFindingsStore } from '../stores/findingsStore';
+import { findingsService } from './findings.service';
 import type {
   ChatMessage,
   FindingsChat,
   ChatContext,
   SourceCitation,
-  Finding
+  Finding,
+  ResearchFinding
 } from '../types';
 
 interface ChatRequest {
@@ -76,7 +77,9 @@ class ChatService {
             title: f.title || f.summary || 'Untitled Finding',
             content: (f.content || f.details || f.summary || '').substring(0, 500), // Truncate for context
             priority: f.priority || 'medium',
-            source: f.source?.displayName || f.source?.title || f.source?.name || 'Unknown Source'
+            source: f.source?.displayName || f.source?.name || 'Unknown Source',
+            type: f.type,
+            createdAt: f.createdAt
           })),
           previousMessages: await this.getRecentMessages(request.chatId, 5)
         },
@@ -306,33 +309,76 @@ class ChatService {
     topicId: string,
     context: ChatContext,
     citationIds?: string[]
-  ): Promise<Finding[]> {
-    const findingsStore = useFindingsStore.getState();
+  ): Promise<ResearchFinding[]> {
+    // Get all findings for the topic using the unified service layer
+    const allTopicFindings = await findingsService.getFindings(topicId);
 
-    // Load findings if not already loaded
-    await findingsStore.loadFindings(topicId);
+    if (!allTopicFindings || allTopicFindings.length === 0) {
+      console.log(`No findings found for topic ${topicId}`);
+      return [];
+    }
 
-    const findings: Finding[] = [];
+    const findings: ResearchFinding[] = [];
+    const addedIds = new Set<string>();
 
-    // Add explicitly cited findings
+    // Helper to add unique findings
+    const addUnique = (finding: ResearchFinding) => {
+      if (!addedIds.has(finding.id)) {
+        findings.push(finding);
+        addedIds.add(finding.id);
+      }
+    };
+
+    // 1. Add explicitly cited findings first (highest priority)
     if (citationIds && citationIds.length > 0) {
-      const cited = await findingsStore.loadFindingsByIds(citationIds);
-      findings.push(...cited);
+      for (const citationId of citationIds) {
+        const cited = allTopicFindings.find(f => f.id === citationId);
+        if (cited) {
+          addUnique(cited);
+        } else {
+          // Try to fetch individually if not in topic findings
+          const individualFinding = await findingsService.getFinding(citationId);
+          if (individualFinding) {
+            addUnique(individualFinding);
+          }
+        }
+      }
     }
 
-    // Add context findings
+    // 2. Add current context findings (user selected)
     if (context.currentFindings && context.currentFindings.length > 0) {
-      const contextual = await findingsStore.loadFindingsByIds(context.currentFindings);
-      findings.push(...contextual);
+      for (const contextId of context.currentFindings) {
+        const contextual = allTopicFindings.find(f => f.id === contextId);
+        if (contextual) {
+          addUnique(contextual);
+        }
+      }
     }
 
-    // Add recent findings if we have room
-    // Increased from 10 to 20 for better context coverage
-    if (findings.length < 20) {
-      const topicFindings = await findingsStore.getFindingsForDigest(topicId, 20 - findings.length);
-      findings.push(...topicFindings.filter(f => !findings.find(existing => existing.id === f.id)));
+    // 3. Add recent high-priority findings if we have room
+    // Sort by date (most recent first) and priority
+    const sortedFindings = [...allTopicFindings]
+      .filter(f => !addedIds.has(f.id))
+      .sort((a, b) => {
+        // First sort by priority
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const aPriority = priorityOrder[a.priority || 'medium'];
+        const bPriority = priorityOrder[b.priority || 'medium'];
+        if (aPriority !== bPriority) return aPriority - bPriority;
+
+        // Then by date (most recent first)
+        const aDate = new Date(a.createdAt || 0).getTime();
+        const bDate = new Date(b.createdAt || 0).getTime();
+        return bDate - aDate;
+      });
+
+    // Add up to 20 findings total for context
+    const remaining = Math.min(20 - findings.length, sortedFindings.length);
+    for (let i = 0; i < remaining; i++) {
+      addUnique(sortedFindings[i]);
     }
 
+    console.log(`Loaded ${findings.length} findings for chat context from topic ${topicId}`);
     return findings;
   }
 
@@ -362,11 +408,10 @@ class ChatService {
     rawCitations: any[]
   ): Promise<SourceCitation[]> {
     const citations: SourceCitation[] = [];
-    const findingsStore = useFindingsStore.getState();
 
     for (const raw of rawCitations) {
-      // Validate the finding exists
-      const finding = await findingsStore.loadFindingById(raw.findingId);
+      // Validate the finding exists using the service layer
+      const finding = await findingsService.getFinding(raw.findingId);
       if (!finding) continue;
 
       // Find the citation in the content

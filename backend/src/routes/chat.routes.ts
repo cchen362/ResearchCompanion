@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { aiService } from '../services/ai.service.js';
 import { Anthropic } from '@anthropic-ai/sdk';
+import { FindingModel } from '../models/finding.model.js';
 
 const router = Router();
 
@@ -15,7 +16,10 @@ const ChatRequestSchema = z.object({
       id: z.string(),
       title: z.string().optional(),
       content: z.string(),
-      source: z.string()
+      source: z.string(),
+      type: z.string().optional(),
+      createdAt: z.string().optional(),
+      priority: z.string().optional()
     })).optional(),
     previousMessages: z.array(z.object({
       role: z.string(),
@@ -50,9 +54,16 @@ const SuggestionsRequestSchema = z.object({
 router.post('/complete', async (req: Request, res: Response) => {
   try {
     const validated = ChatRequestSchema.parse(req.body);
+    const userId = (req as any).user?.id;
 
-    // Build the system prompt with context
-    const systemPrompt = buildSystemPrompt(validated.context);
+    // Enrich findings from database if user is authenticated
+    let enrichedContext = validated.context;
+    if (userId && validated.context.findings && validated.context.findings.length > 0) {
+      enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
+    }
+
+    // Build the system prompt with enriched context
+    const systemPrompt = buildSystemPrompt(enrichedContext);
 
     // Build the messages array
     const messages: Anthropic.Messages.MessageParam[] = [
@@ -85,7 +96,7 @@ router.post('/complete', async (req: Request, res: Response) => {
       : '';
 
     // Process citations from the response
-    const citations = extractCitations(content, validated.context.findings || []);
+    const citations = extractCitations(content, enrichedContext.findings || []);
 
     // Generate suggested questions
     const suggestedQuestions = await generateSuggestedQuestions(
@@ -97,7 +108,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     // Find related findings
     const relatedFindings = findRelatedFindings(
       content,
-      validated.context.findings || []
+      enrichedContext.findings || []
     );
 
     res.json({
@@ -124,6 +135,7 @@ router.post('/complete', async (req: Request, res: Response) => {
 router.post('/stream', async (req: Request, res: Response) => {
   try {
     const validated = ChatRequestSchema.parse(req.body);
+    const userId = (req as any).user?.id;
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -131,8 +143,14 @@ router.post('/stream', async (req: Request, res: Response) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Build the system prompt with context
-    const systemPrompt = buildSystemPrompt(validated.context);
+    // Enrich findings from database if user is authenticated
+    let enrichedContext = validated.context;
+    if (userId && validated.context.findings && validated.context.findings.length > 0) {
+      enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
+    }
+
+    // Build the system prompt with enriched context
+    const systemPrompt = buildSystemPrompt(enrichedContext);
 
     // Build the messages array
     const messages: Anthropic.Messages.MessageParam[] = [
@@ -424,6 +442,106 @@ function findRelatedFindings(
   }
 
   return related;
+}
+
+/**
+ * Enrich findings context by fetching full details from database
+ */
+async function enrichFindingsContext(
+  userId: string,
+  context: any,
+  topicId: string
+): Promise<any> {
+  try {
+    // Get the finding IDs from the context
+    const findingIds = context.findings?.map((f: any) => f.id) || [];
+
+    if (findingIds.length === 0) {
+      // If no findings provided, try to fetch recent findings for the topic
+      const topicFindings = await FindingModel.getFiltered(userId, {
+        topic_id: topicId,
+        limit: 20
+      });
+
+      if (topicFindings.length > 0) {
+        return {
+          ...context,
+          findings: topicFindings.map(f => ({
+            id: f.id,
+            title: f.title,
+            content: f.content || f.summary || '',
+            source: f.source?.displayName || f.source?.name || 'Unknown Source',
+            type: f.category || 'research',
+            createdAt: f.created_at,
+            priority: f.relevance_score ? (f.relevance_score > 0.7 ? 'high' : f.relevance_score > 0.4 ? 'medium' : 'low') : 'medium'
+          }))
+        };
+      }
+      return context;
+    }
+
+    // Fetch full details for each finding from database
+    const enrichedFindings = [];
+    for (const findingId of findingIds) {
+      const dbFinding = await FindingModel.getById(findingId, userId);
+
+      if (dbFinding) {
+        // Use database data to enrich the finding
+        enrichedFindings.push({
+          id: dbFinding.id,
+          title: dbFinding.title,
+          content: dbFinding.content || dbFinding.summary || '',
+          source: dbFinding.source?.displayName || dbFinding.source?.name || 'Unknown Source',
+          type: dbFinding.category || 'research',
+          createdAt: dbFinding.created_at,
+          priority: dbFinding.relevance_score ? (dbFinding.relevance_score > 0.7 ? 'high' : dbFinding.relevance_score > 0.4 ? 'medium' : 'low') : 'medium',
+          // Include additional fields for richer context
+          summary: dbFinding.summary,
+          tags: dbFinding.tags,
+          sourceUrl: dbFinding.source?.url,
+          journal: dbFinding.source?.journal,
+          publishDate: dbFinding.source?.publishDate
+        });
+      } else {
+        // Keep the original finding if not found in DB (shouldn't happen but be safe)
+        const originalFinding = context.findings.find((f: any) => f.id === findingId);
+        if (originalFinding) {
+          enrichedFindings.push(originalFinding);
+        }
+      }
+    }
+
+    // If we have fewer than expected, add more topic findings
+    if (enrichedFindings.length < 10 && topicId) {
+      const additionalFindings = await FindingModel.getFiltered(userId, {
+        topic_id: topicId,
+        limit: 10 - enrichedFindings.length
+      });
+
+      for (const finding of additionalFindings) {
+        if (!enrichedFindings.find((f: any) => f.id === finding.id)) {
+          enrichedFindings.push({
+            id: finding.id,
+            title: finding.title,
+            content: finding.content || finding.summary || '',
+            source: finding.source?.displayName || finding.source?.name || 'Unknown Source',
+            type: finding.category || 'research',
+            createdAt: finding.created_at,
+            priority: finding.relevance_score ? (finding.relevance_score > 0.7 ? 'high' : finding.relevance_score > 0.4 ? 'medium' : 'low') : 'medium'
+          });
+        }
+      }
+    }
+
+    return {
+      ...context,
+      findings: enrichedFindings
+    };
+  } catch (error) {
+    console.error('Error enriching findings context:', error);
+    // Return original context on error
+    return context;
+  }
 }
 
 export default router;

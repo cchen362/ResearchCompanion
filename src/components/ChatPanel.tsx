@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores/chatStore';
 import { useFindingsStore } from '../stores/findingsStore';
 import { useUIStore } from '../stores/uiStore';
 import { chatService } from '../services/chat.service';
+import { findingsService } from '../services/findings.service';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
@@ -30,6 +32,8 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatPanelProps) {
+  const navigate = useNavigate();
+
   const {
     activeChat,
     activeChatId,
@@ -57,6 +61,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isMaximized, setIsMaximized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [topicFindings, setTopicFindings] = useState<Finding[]>([]);
+  const [loadingFindings, setLoadingFindings] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -65,6 +71,37 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   useEffect(() => {
     loadChats(topicId);
   }, [topicId, loadChats]);
+
+  // Load all topic findings for context
+  useEffect(() => {
+    const loadTopicFindings = async () => {
+      setLoadingFindings(true);
+      try {
+        const findings = await findingsService.getFindings(topicId);
+        setTopicFindings(findings);
+        console.log(`Loaded ${findings.length} findings for chat context in topic ${topicId}`);
+
+        // Auto-update context with all topic findings
+        if (findings.length > 0) {
+          updateContext({
+            currentFindings: findings.slice(0, 20).map(f => f.id) // Limit to 20 most recent
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load topic findings for chat:', error);
+        showToast({
+          type: 'warning',
+          message: 'Could not load all research findings. Chat may have limited context.'
+        });
+      } finally {
+        setLoadingFindings(false);
+      }
+    };
+
+    if (topicId) {
+      loadTopicFindings();
+    }
+  }, [topicId, updateContext, showToast]);
 
   // Smart auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -106,13 +143,27 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     setIsLoading(true);
 
     try {
-      // Update context with selected findings
+      // Combine selected findings with topic findings for full context
       const selectedFindingsList = getSelectedFindings();
-      if (selectedFindingsList.length > 0) {
-        updateContext({
-          currentFindings: selectedFindingsList.map(f => f.id)
-        });
+      const allFindingIds = new Set<string>();
+
+      // Add selected findings first (higher priority)
+      selectedFindingsList.forEach(f => allFindingIds.add(f.id));
+
+      // Add topic findings (up to 20 total)
+      let addedCount = allFindingIds.size;
+      for (const finding of topicFindings) {
+        if (addedCount >= 20) break;
+        if (!allFindingIds.has(finding.id)) {
+          allFindingIds.add(finding.id);
+          addedCount++;
+        }
       }
+
+      // Update context with all findings
+      updateContext({
+        currentFindings: Array.from(allFindingIds)
+      });
 
       // Send message with streaming
       await chatService.sendMessage(
@@ -120,8 +171,11 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           message,
           chatId: activeChatId,
           topicId,
-          context,
-          citations: selectedFindingsList.map(f => f.id),
+          context: {
+            ...context,
+            currentFindings: Array.from(allFindingIds)
+          },
+          citations: selectedFindingsList.map(f => f.id), // Citations are only for explicitly selected
           stream: true
         },
         {
@@ -149,13 +203,30 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, topicId, context, getSelectedFindings, updateContext, showToast]);
+  }, [activeChatId, topicId, context, topicFindings, getSelectedFindings, updateContext, showToast]);
 
   // Handle suggested question click
   const handleSuggestedQuestion = (question: string) => {
     handleSendMessage(question);
     setSuggestedQuestions([]);
   };
+
+  // Handle citation click - navigate to finding detail
+  const handleCitationClick = useCallback((findingId: string) => {
+    // Close the chat panel if it's open
+    if (onClose) {
+      onClose();
+    }
+
+    // Navigate to the findings tab with the specific finding selected
+    navigate(`/topics/${topicId}?tab=findings&finding=${findingId}`);
+
+    // Show a toast notification
+    showToast({
+      type: 'info',
+      message: 'Navigated to finding details'
+    });
+  }, [topicId, navigate, onClose, showToast]);
 
   // Clear chat messages
   const handleClearChat = useCallback(() => {
@@ -399,10 +470,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                         <div key={message.id} className={index > 0 ? 'mt-4' : ''}>
                           <ChatMessage
                             message={message}
-                            onCitationClick={(findingId) => {
-                              // Handle citation click - could open finding detail
-                              console.log('Citation clicked:', findingId);
-                            }}
+                            onCitationClick={handleCitationClick}
                           />
 
                           {/* Inline suggested questions after last assistant message */}
@@ -633,10 +701,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                         <div key={message.id} className={index > 0 ? 'mt-4' : ''}>
                           <ChatMessage
                             message={message}
-                            onCitationClick={(findingId) => {
-                              // Handle citation click - could open finding detail
-                              console.log('Citation clicked:', findingId);
-                            }}
+                            onCitationClick={handleCitationClick}
                           />
 
                           {/* Inline suggested questions after last assistant message */}
