@@ -138,7 +138,26 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
   // Send message
   const handleSendMessage = useCallback(async (message: string) => {
-    if (!activeChatId || !message.trim()) return;
+    if (!message.trim()) return;
+
+    // Create chat if it doesn't exist yet
+    let chatId = activeChatId;
+    if (!chatId) {
+      setIsLoading(true);
+      try {
+        const newChat = await createChat(topicId, `Chat about ${topicName}`);
+        chatId = newChat.id;
+        console.log('Created new chat:', chatId);
+      } catch (error) {
+        console.error('Failed to create chat:', error);
+        showToast({
+          type: 'error',
+          message: 'Failed to create chat. Please try again.'
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
 
     setIsLoading(true);
 
@@ -169,7 +188,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       await chatService.sendMessage(
         {
           message,
-          chatId: activeChatId,
+          chatId: chatId, // Use the chatId variable which may be newly created
           topicId,
           context: {
             ...context,
@@ -203,7 +222,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, topicId, context, topicFindings, getSelectedFindings, updateContext, showToast]);
+  }, [activeChatId, topicId, topicName, context, topicFindings, getSelectedFindings, createChat, updateContext, showToast]);
 
   // Handle suggested question click
   const handleSuggestedQuestion = (question: string) => {
