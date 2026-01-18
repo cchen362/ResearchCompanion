@@ -108,12 +108,6 @@ class ChatService {
     try {
       const response = await api.post('/chat/complete', payload);
       const data = response.data;
-      console.log('🔍 [CHAT SERVICE] API response received:', {
-        hasCitations: !!data.citations,
-        citationsLength: data.citations?.length || 0,
-        citations: data.citations,
-        contentHasBrackets: /\[\d+\]/.test(data.content)
-      });
 
       // Add AI message to store
       const aiMessage = await chatStore.addMessage(chatId, {
@@ -126,12 +120,6 @@ class ChatService {
           processingTime: data.processingTime
         }
       });
-      console.log('🔍 [CHAT SERVICE] Message added to store:', {
-        messageId: aiMessage.id,
-        hasCitations: !!aiMessage.citations,
-        citationsLength: aiMessage.citations?.length || 0,
-        citations: aiMessage.citations
-      });
 
       // Process citations - NO! Don't override backend citations
       // The backend already sends properly formatted citations
@@ -139,11 +127,6 @@ class ChatService {
       //   data.content,
       //   data.citations || []
       // );
-
-      console.log('🔍 [CHAT SERVICE] Returning response with citations:', {
-        backendCitations: data.citations,
-        messageHasCitations: !!aiMessage.citations
-      });
 
       return {
         message: aiMessage,

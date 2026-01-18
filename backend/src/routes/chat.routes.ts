@@ -96,12 +96,18 @@ router.post('/complete', async (req: Request, res: Response) => {
       : '';
 
     // Process citations from the response
-    const citations = extractCitations(content, enrichedContext.findings || []);
+    const findingsForCitations = enrichedContext.findings || [];
+    console.log('🔍 [BACKEND] Before extractCitations:', {
+      findingsCount: findingsForCitations.length,
+      findingIds: findingsForCitations.map((f: any) => f.id).slice(0, 5),
+      contentHasBrackets: /\[\d+\]/.test(content),
+      contentSample: content.substring(0, 200)
+    });
+
+    const citations = extractCitations(content, findingsForCitations);
     console.log('🔍 [BACKEND] Citations extracted:', {
       count: citations.length,
-      citations: citations,
-      findingsCount: enrichedContext.findings?.length || 0,
-      contentHasBrackets: /\[\d+\]/.test(content)
+      citations: citations
     });
 
     // Generate suggested questions
