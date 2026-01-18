@@ -809,6 +809,47 @@ const findingsStore = useFindingsStore.getState(); // ❌ Never imported, never 
 - Deployed via Docker on production server (100.94.82.35)
 - Citations now working correctly in production
 
+### Issue 24: Chat Citations Not Persisting - JSON Parse Issue (FIXED - January 18, 2026)
+**Problem:** Citations appeared as plain text after page reload, even though they worked initially.
+
+**Root Cause:** PostgreSQL was returning citations as JSON strings, not parsed objects:
+- Citations column is JSONB in PostgreSQL
+- When saved: `JSON.stringify(citations)` converts to string
+- When retrieved: PostgreSQL returns the string, not the parsed object
+- ChatMessage component needs parsed objects to render buttons
+
+**Investigation:**
+- Rendering logic in ChatMessage.tsx was perfect
+- Database had citations column and was saving correctly
+- Issue was in the retrieval pipeline - JSON not being parsed
+
+**Fix Applied:**
+1. **Modified `ChatModel.getMessages()`**:
+   - Added JSON parsing for citations and metadata fields
+   - Returns parsed objects instead of strings
+
+2. **Modified `ChatModel.addMessage()`**:
+   - Parse citations when returning newly created messages
+   - Ensures consistency between create and retrieve
+
+3. **Fixed message order**:
+   - Changed from DESC to ASC for proper chronological display
+
+**Files Modified:**
+- `backend/src/models/chat.model.ts`:
+  - Lines 140-145: Parse JSON fields in getMessages
+  - Lines 183-188: Parse JSON fields in addMessage
+  - Line 135: Changed order to ASC
+
+**Testing Results:**
+- Citations persist across page reloads
+- Citations remain clickable buttons after refresh
+- Message order displays correctly (oldest to newest)
+
+**Deployment:** Successfully deployed to production at 19:05 UTC
+- Citations now persist and remain clickable
+- Complete fix for citation rendering issue
+
 ---
 
 ## Next Steps
