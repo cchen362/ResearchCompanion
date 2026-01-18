@@ -590,6 +590,65 @@ docker-compose up -d
 
 ---
 
+### Issue 18: Chat Tables Missing in PostgreSQL (FIXED - January 18, 2026)
+**Problem:** After implementing server-side chat storage, got 500 errors when creating chats. Error: "relation 'chats' does not exist".
+
+**Root Cause:** The chat feature implementation created all the backend models and routes, but the PostgreSQL database tables (`chats` and `chat_messages`) were never created during migration.
+
+**Investigation:**
+- Chat service was properly using the API
+- Backend routes and models were correctly implemented
+- Database was missing the actual tables
+
+**Fix:** Created and executed PostgreSQL migration to add chat tables.
+
+**SQL Migration Executed:**
+```sql
+-- Created chats table with proper constraints
+CREATE TABLE IF NOT EXISTS chats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    topic_id UUID NOT NULL,
+    title VARCHAR(200) NOT NULL DEFAULT 'New Chat',
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    context JSONB DEFAULT '{}',
+    message_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_message_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Created chat_messages table
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    citations JSONB,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Added indexes for performance
+CREATE INDEX idx_chats_user_id ON chats(user_id);
+CREATE INDEX idx_chats_topic_id ON chats(topic_id);
+CREATE INDEX idx_chat_messages_chat_id ON chat_messages(chat_id);
+```
+
+**Files Created/Modified:**
+- `backend/src/db/migrations/004_create_chats.sql` - Migration file (created)
+- `backend/src/db/init.sql` - Added chat tables to initialization script (modified on server)
+- Database executed migration directly via Docker: `docker exec medcompanion-postgres psql`
+
+**Deployment:** Migration executed on production server (100.94.82.35) at 16:17 UTC
+- Tables created successfully
+- Indexes added for performance
+- Triggers configured for timestamp updates
+- Chat feature now fully operational
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)

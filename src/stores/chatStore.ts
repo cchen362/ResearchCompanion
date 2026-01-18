@@ -193,18 +193,26 @@ export const useChatStore = create<ChatStore>()(
 
         updateChat: async (chatId: string, updates: Partial<FindingsChat>) => {
           try {
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readwrite');
-            const store = tx.objectStore('chats');
+            let updatedChat: FindingsChat;
 
-            const existingChat = await store.get(chatId);
-            if (!existingChat) {
-              throw new Error(`Chat ${chatId} not found`);
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              updatedChat = await chatAPIService.updateChat(chatId, updates);
+            } else {
+              // Fall back to IndexedDB for local storage
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readwrite');
+              const store = tx.objectStore('chats');
+
+              const existingChat = await store.get(chatId);
+              if (!existingChat) {
+                throw new Error(`Chat ${chatId} not found`);
+              }
+
+              updatedChat = { ...existingChat, ...updates };
+              await store.put(updatedChat);
+              await tx.done;
             }
-
-            const updatedChat = { ...existingChat, ...updates };
-            await store.put(updatedChat);
-            await tx.done;
 
             const { chats, activeChat } = get();
             const updatedChats = chats.map(c =>
@@ -223,10 +231,16 @@ export const useChatStore = create<ChatStore>()(
 
         deleteChat: async (chatId: string) => {
           try {
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readwrite');
-            await tx.objectStore('chats').delete(chatId);
-            await tx.done;
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              await chatAPIService.deleteChat(chatId);
+            } else {
+              // Fall back to IndexedDB for local storage
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readwrite');
+              await tx.objectStore('chats').delete(chatId);
+              await tx.done;
+            }
 
             const { chats, activeChat, messages } = get();
             const updatedChats = chats.filter(c => c.id !== chatId);
@@ -344,18 +358,26 @@ export const useChatStore = create<ChatStore>()(
             }
 
             // Add to local state
-            const { messages } = get();
+            const { messages, chats, activeChat } = get();
             const chatMessages = messages.get(chatId) || [];
             const updatedMessages = [...chatMessages, newMessage];
 
             const messagesMap = new Map(messages);
             messagesMap.set(chatId, updatedMessages);
-            set({ messages: messagesMap });
 
-            // Update chat in local state
-            await get().updateChat(chatId, {
-              lastMessageAt: newMessage.timestamp,
-              messageCount: updatedMessages.length
+            // Update chat in local state without hitting the database again
+            const updatedChats = chats.map(c =>
+              c.id === chatId
+                ? { ...c, lastMessageAt: newMessage.timestamp, messageCount: updatedMessages.length }
+                : c
+            );
+
+            set({
+              messages: messagesMap,
+              chats: updatedChats,
+              activeChat: activeChat?.id === chatId
+                ? { ...activeChat, lastMessageAt: newMessage.timestamp, messageCount: updatedMessages.length }
+                : activeChat
             });
 
             return newMessage;
@@ -378,17 +400,20 @@ export const useChatStore = create<ChatStore>()(
             messagesMap.set(chatId, updatedMessages);
             set({ messages: messagesMap });
 
-            // Update in database
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readwrite');
-            const store = tx.objectStore('chats');
+            // Only update in database if using local storage
+            if (!storageConfig.useServerStorage) {
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readwrite');
+              const store = tx.objectStore('chats');
 
-            const chat = await store.get(chatId);
-            if (chat) {
-              (chat as any).messages = updatedMessages;
-              await store.put(chat);
+              const chat = await store.get(chatId);
+              if (chat) {
+                (chat as any).messages = updatedMessages;
+                await store.put(chat);
+              }
+              await tx.done;
             }
-            await tx.done;
+            // For server storage, we would need to implement an API endpoint to update messages
           } catch (error) {
             console.error('Failed to update message:', error);
             throw error;
@@ -397,32 +422,44 @@ export const useChatStore = create<ChatStore>()(
 
         deleteMessage: async (chatId: string, messageId: string) => {
           try {
-            const { messages } = get();
+            const { messages, chats, activeChat } = get();
             const chatMessages = messages.get(chatId) || [];
 
             const updatedMessages = chatMessages.filter(msg => msg.id !== messageId);
 
             const messagesMap = new Map(messages);
             messagesMap.set(chatId, updatedMessages);
-            set({ messages: messagesMap });
 
-            // Update in database
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readwrite');
-            const store = tx.objectStore('chats');
+            // Update chat message count in local state
+            const updatedChats = chats.map(c =>
+              c.id === chatId
+                ? { ...c, messageCount: updatedMessages.length }
+                : c
+            );
 
-            const chat = await store.get(chatId);
-            if (chat) {
-              (chat as any).messages = updatedMessages;
-              chat.messageCount = updatedMessages.length;
-              await store.put(chat);
-            }
-            await tx.done;
-
-            // Update chat message count
-            await get().updateChat(chatId, {
-              messageCount: updatedMessages.length
+            set({
+              messages: messagesMap,
+              chats: updatedChats,
+              activeChat: activeChat?.id === chatId
+                ? { ...activeChat, messageCount: updatedMessages.length }
+                : activeChat
             });
+
+            // Only update in database if using local storage
+            if (!storageConfig.useServerStorage) {
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readwrite');
+              const store = tx.objectStore('chats');
+
+              const chat = await store.get(chatId);
+              if (chat) {
+                (chat as any).messages = updatedMessages;
+                chat.messageCount = updatedMessages.length;
+                await store.put(chat);
+              }
+              await tx.done;
+            }
+            // For server storage, we would need to implement an API endpoint to delete messages
           } catch (error) {
             console.error('Failed to delete message:', error);
             throw error;
