@@ -314,11 +314,159 @@ The following issues were discovered and fixed during production deployment to `
 
 ---
 
+## Critical Issues Fixed (January 18, 2026)
+
+### Issue 14: Finding Creation 404 Error (FIXED)
+**Problem:** Agents failed with 404 errors when trying to save findings - `PUT /api/findings/{uuid}` returned 404.
+
+**Root Cause:** `agentRunner.ts` was generating finding IDs locally using `generateId()`. When `saveFinding()` was called with an ID, it assumed the finding already existed and tried to UPDATE (PUT) instead of CREATE (POST).
+
+**Fix:** Modified `agentRunner.ts` to set `id: ''` (empty string) for new findings, letting the server assign UUIDs.
+
+**Files Modified:**
+- `src/services/agentRunner.ts` - Set `id: ''` for new findings instead of using `generateId()`
+
+### Issue 15: Digest-Findings Race Condition (FIXED)
+**Problem:** Digest showed "10 Total Findings" and "10 Unique Sources" but header showed "20 findings / 20 in period". The digest was only capturing findings from the first agent that completed.
+
+**Root Cause:** `AgentMonitor` was running agents sequentially, with each agent triggering its own digest generation:
+1. Agent 1 runs → creates 10 findings → generates digest
+2. Agent 2 runs → creates 10 more findings → generates another digest
+3. Result: Incomplete digest with only partial findings
+
+**Fix:** Modified `AgentMonitor` to use `runAllResearchAgents` which:
+- Runs all agents in parallel
+- Skips individual digest generation per agent
+- Generates ONE comprehensive digest after ALL agents complete
+
+**Files Modified:**
+- `src/components/agents/AgentMonitor.tsx` - Changed `handleRunAllPending` to use `runAllResearchAgents` instead of sequential `runAgentWithAPI` calls
+
+### Issue 16: Unnecessary API Calls on Page Load (FIXED)
+**Problem:** Loading the findings page triggered multiple unnecessary PUT requests to update findings, causing performance issues and console spam.
+
+**Root Cause:** Two places were making unnecessary API calls:
+1. `digestQueue.service.ts` - After generating digest, it marked all findings as viewed
+2. `FindingsViewerEnhanced.tsx` - When clicking a finding, it updated engagement metrics
+
+**Fix:** Removed automatic updates to avoid unnecessary API calls. Engagement tracking can be done in batch or through a dedicated analytics service if needed.
+
+**Files Modified:**
+- `src/services/digestQueue.service.ts` - Removed automatic marking of findings as read after digest generation
+- `src/components/FindingsViewerEnhanced.tsx` - Removed engagement tracking on finding clicks
+
+### Issue 17: Topic Model Delete Method Always Returning False (FIXED)
+**Problem:** Topic deletion failed because the backend delete method always returned false.
+
+**Root Cause:** DELETE SQL queries don't return rows, but the code was checking for returned rows to determine success.
+
+**Fix:** Modified delete method to check existence first, then delete.
+
+**Files Modified:**
+- `backend/src/models/topic.model.ts` - Fixed delete method to properly check existence before deletion
+
+---
+
+## Deployment Summary (January 18, 2026)
+
+All fixes have been successfully deployed to production server at `100.94.82.35`:
+
+```bash
+# Deployment steps used:
+git add -A && git commit -m "Fix critical agent coordination and unnecessary API calls"
+git push origin fix/digest-findings-race-condition
+ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && git pull origin fix/digest-findings-race-condition"
+ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && docker-compose build medical-companion && docker-compose up -d"
+```
+
+---
+
+## Known Remaining Issues
+
+### Priority 1 - Critical Functionality
+1. **Voice Recording**: May have persistence issues (investigate service worker DB version mismatch)
+2. **Data Export**: Verify export functionality works with PostgreSQL data
+3. **Notification System**: Test push notifications with server deployment
+
+### Priority 2 - Performance & UX
+1. **Error Handling**: Add proper error boundaries and user-friendly error messages
+2. **Retry Logic**: Implement exponential backoff for failed API requests
+3. **Loading States**: Improve loading indicators throughout the app
+4. **Batch Operations**: Implement batch updates for engagement metrics
+
+### Priority 3 - Features & Enhancements
+1. **Search Functionality**: Add search across findings and digests
+2. **Filtering**: Implement advanced filtering options
+3. **Bulk Actions**: Add bulk delete/archive for findings
+4. **Data Migration**: Tool to migrate existing IndexedDB data to PostgreSQL
+
+---
+
+## Lessons Learned
+
+### Critical Debugging Insights
+
+1. **"Works in Incognito but Not Regular Browser"** = Cache/Version Issues
+   - Service worker cache problems
+   - IndexedDB version mismatches
+   - Browser cache conflicts
+   - Solution: Clear everything and check version consistency
+
+2. **Trace Complete Data Flow**
+   - Backend sends → Frontend receives → Transforms → Stores → Displays
+   - Add debug logging at EACH point
+   - Compare working vs broken features
+
+3. **Don't Destroy Backend Data Structures**
+   - Use spread operator to preserve all fields: `{ ...backendData, localField: value }`
+   - Never reconstruct objects from scratch when updating
+
+4. **Sequential vs Parallel Execution Matters**
+   - Agents running sequentially can cause race conditions
+   - Digest generation timing is critical
+   - Use coordination functions for multi-step operations
+
+5. **Check Build Artifacts**
+   - TypeScript compilation can be stale
+   - Docker builds might use cached layers
+   - Always verify deployment with hash checks
+
+---
+
+## Best Practices Going Forward
+
+### Development Workflow
+1. **Test Locally First** with both frontend and backend running
+2. **Clear All Caches** before testing changes
+3. **Use Debug Logging** liberally during development
+4. **Verify API Responses** match frontend expectations
+5. **Document All Fixes** in this file immediately
+
+### Deployment Checklist
+- [ ] Test locally with PostgreSQL
+- [ ] Commit with descriptive message
+- [ ] Push to GitHub
+- [ ] Pull on server
+- [ ] Build with `--no-cache` if needed
+- [ ] Force recreate containers
+- [ ] Clear browser cache
+- [ ] Verify functionality
+- [ ] Update this documentation
+
+### Code Review Points
+- [ ] Using unified services (not direct IndexedDB)
+- [ ] Proper error handling
+- [ ] No unnecessary API calls
+- [ ] Preserving backend data structures
+- [ ] Consistent ID handling (server-assigned UUIDs)
+
+---
+
 ## Next Steps
 
-1. ~~Debug why topics are still not working correctly~~ ✅ RESOLVED
-2. ~~Check all API services have proper `transformApiXxx()` functions~~ ✅ RESOLVED
-3. ~~Ensure `agentRunner.ts` uses unified services~~ Verify if needed
-4. Add error handling for API failures
-5. Consider adding retry logic for network issues
-6. Review any other components that might still use direct IndexedDB access
+1. Investigate and fix voice recording persistence
+2. Add comprehensive error handling
+3. Implement retry logic for network failures
+4. Add batch operations for performance
+5. Create data migration tools
+6. Review any remaining IndexedDB direct usage

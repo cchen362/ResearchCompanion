@@ -989,10 +989,62 @@ feat(chat): add streaming response support
 Closes #123
 ```
 
+## Documentation Requirements
+
+### CRITICAL: Always Update server_storage_fixes.md
+
+**Every agent working on this project MUST update the `server_storage_fixes.md` file when:**
+- Fixing any bug or issue
+- Deploying changes to production
+- Discovering new problems
+- Learning debugging insights
+- Changing architecture or implementation
+
+**The `server_storage_fixes.md` file is the PRIMARY LOG for:**
+- All issues encountered and their fixes
+- Debugging steps and solutions
+- Deployment procedures
+- Lessons learned
+- Known remaining issues
+
+### Documentation Best Practices
+
+1. **Immediate Documentation**: Document fixes AS YOU MAKE THEM, not after
+2. **Include Root Causes**: Always explain WHY something broke, not just the fix
+3. **Show File Changes**: List exact files modified with brief descriptions
+4. **Provide Code Examples**: Include before/after code snippets for clarity
+5. **Track Deployment**: Document exact deployment commands and timestamps
+6. **Update Issue Status**: Mark issues as FIXED, PARTIAL, or PENDING
+7. **Add Lessons Learned**: Document insights for future debugging
+
+### Documentation Template for New Issues
+
+```markdown
+### Issue [Number]: [Brief Description] ([STATUS])
+**Problem:** [What was broken/not working]
+**Root Cause:** [Why it was broken]
+**Fix:** [How it was fixed]
+**Files Modified:**
+- `path/to/file.ts` - [What was changed]
+**Deployment:** [Date and deployment steps if applicable]
+**Lessons:** [Any insights gained]
+```
+
+### Required Documentation Sections
+
+When completing work, ensure these sections are current:
+1. **Issues & Fixes**: Detailed problem/solution pairs
+2. **Known Remaining Issues**: Prioritized list of unfixed problems
+3. **Deployment Summary**: Recent deployment history
+4. **Lessons Learned**: Debugging insights and patterns
+5. **Best Practices**: Development and deployment guidelines
+6. **Next Steps**: Prioritized action items
+
 ## Resources
 
 ### Internal Documentation
 - [README.md](./README.md) - Project overview and setup
+- [server_storage_fixes.md](./server_storage_fixes.md) - **PRIMARY ISSUE TRACKING & FIX LOG**
 - [PHASE_ALIGNMENT_STRATEGY.md](./PHASE_ALIGNMENT_STRATEGY.md) - Product vision
 - [src/types/index.ts](./src/types/index.ts) - Type definitions
 
@@ -1034,10 +1086,18 @@ Closes #123
     - JWT-based authentication
   - **Migration Support**: Automatic migration from IndexedDB to PostgreSQL
   - **Deployment**: Docker containerization with PostgreSQL 15
+- **v2.0.1** - Fixed Critical Agent & API Issues (January 18, 2026)
+  - **Fixed**: Agent finding creation 404 errors (wrong ID generation)
+  - **Fixed**: Digest-findings race condition (incomplete digests showing 10/20 findings)
+  - **Fixed**: Unnecessary API calls flooding console on page load
+  - **Fixed**: Topic deletion always returning false
+  - **Solution**: Coordinated agent execution with `runAllResearchAgents`
+  - **Deployment**: Successfully deployed to production at 100.94.82.35
+  - **Documentation**: Established `server_storage_fixes.md` as primary issue log
 - **v3.0.0** (Planned) - Conversational interface
 - **v4.0.0** (Planned) - Advanced Research Analytics
 
 ---
 
-*Last Updated: January 16, 2026*
+*Last Updated: January 18, 2026*
 *Maintained by: Development Team*
