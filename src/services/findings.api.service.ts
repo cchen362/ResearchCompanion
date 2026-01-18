@@ -136,9 +136,16 @@ class FindingsAPIService {
     try {
       const backendData = this.transformToBackend(finding);
 
-      // Always create new - POST to let server assign UUID
-      // For updates, use updateFinding() method
-      const response = await api.post<FindingResponse>(this.baseUrl, backendData);
+      // If finding has an ID, it's an update, not a create
+      let response;
+      if (finding.id && finding.id !== '') {
+        // Update existing finding
+        response = await api.put<FindingResponse>(`${this.baseUrl}/${finding.id}`, backendData);
+      } else {
+        // Create new finding - let server assign UUID
+        response = await api.post<FindingResponse>(this.baseUrl, backendData);
+      }
+
       if (response.data.success) {
         return this.transformToFrontend(response.data.finding);
       }
