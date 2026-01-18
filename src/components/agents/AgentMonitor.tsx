@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { agentsService } from '@/services/agents.service';
 import { topicsService } from '@/services/topics.service';
-import { runAgentWithAPI } from '@/services/agentRunner';
+import { runAgentWithAPI, runAllResearchAgents } from '@/services/agentRunner';
 import AgentConfigModal from './AgentConfigModal';
 import { useUIStore } from '@/stores/uiStore';
 import type { Agent } from '@/types';
@@ -94,6 +94,18 @@ export default function AgentMonitor() {
       });
     }
 
+    // Get the topic ID (all agents should have the same topic)
+    const topicIds = [...new Set(pendingAgents.map(a => a.topicId))];
+
+    if (topicIds.length === 0) {
+      showToast({
+        type: 'error',
+        message: 'No valid topics found for agents.',
+        duration: 5000
+      });
+      return;
+    }
+
     setIsRunningAll(true);
     setRunningAllProgress({ current: 0, total: pendingAgents.length });
 
@@ -103,47 +115,53 @@ export default function AgentMonitor() {
       duration: 3000
     });
 
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      // Run all agents for each topic using the coordinated approach
+      // This ensures digest is generated AFTER all agents complete
+      let totalFindings = 0;
 
-    for (let i = 0; i < pendingAgents.length; i++) {
-      const agent = pendingAgents[i];
-      setRunningAllProgress({ current: i + 1, total: pendingAgents.length });
+      for (const topicId of topicIds) {
+        const topicAgents = pendingAgents.filter(a => a.topicId === topicId);
 
-      const topic = await topicsService.getTopic(agent.topicId);
-      if (topic) {
-        try {
-          showToast({
-            type: 'info',
-            message: `Running ${agent.name} (${i + 1}/${pendingAgents.length})...`,
-            duration: 2000
-          });
-          await runAgentWithAPI(agent, topic);
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to run agent ${agent.id}:`, error);
-          failCount++;
-        }
+        showToast({
+          type: 'info',
+          message: `Running ${topicAgents.length} agents for topic...`,
+          duration: 2000
+        });
+
+        // Use the coordinated function that runs all agents and generates digest once
+        const findings = await runAllResearchAgents(topicId);
+        totalFindings += findings.length;
+
+        // Update progress based on agents completed
+        const completedCount = pendingAgents.filter(a =>
+          a.topicId === topicId || topicIds.indexOf(a.topicId) < topicIds.indexOf(topicId)
+        ).length;
+        setRunningAllProgress({ current: completedCount, total: pendingAgents.length });
       }
-    }
 
-    await loadAgents();
-    setIsRunningAll(false);
-    setRunningAllProgress({ current: 0, total: 0 });
+      await loadAgents();
+      setIsRunningAll(false);
+      setRunningAllProgress({ current: 0, total: 0 });
 
-    // Show final result
-    if (failCount === 0) {
       showToast({
         type: 'success',
-        message: `Successfully ran all ${successCount} agent${successCount > 1 ? 's' : ''}!`,
+        message: `Successfully completed! Found ${totalFindings} new findings.`,
         duration: 5000
       });
-    } else {
+
+    } catch (error) {
+      console.error('Error running agents:', error);
+      setIsRunningAll(false);
+      setRunningAllProgress({ current: 0, total: 0 });
+
       showToast({
-        type: 'warning',
-        message: `Completed: ${successCount} succeeded, ${failCount} failed.`,
+        type: 'error',
+        message: 'Failed to run agents. Check console for details.',
         duration: 5000
       });
+
+      await loadAgents();
     }
   };
 

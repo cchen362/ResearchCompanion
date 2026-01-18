@@ -263,18 +263,9 @@ export class DigestQueueService {
       // Save the digest using service (respects storage config)
       await digestService.saveDigest(digest);
 
-      // Mark all findings in this digest as read (not new)
-      for (const findingId of digest.allFindingIds) {
-        const finding = await findingsService.getFinding(findingId);
-        if (finding && finding.isNew) {
-          finding.isNew = false;
-          finding.userEngagement = {
-            ...finding.userEngagement,
-            viewed: true
-          };
-          await findingsService.saveFinding(finding);
-        }
-      }
+      // Skip marking findings as read here to avoid unnecessary API calls
+      // Findings will be marked as read when user actually views them
+      console.log(`Generated digest with ${digest.allFindingIds.length} findings`);
 
       // Update queue item as completed
       item.status = 'completed';

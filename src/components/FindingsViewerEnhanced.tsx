@@ -382,20 +382,9 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
       setSelectedFinding(finding);
       setShowFindingDetail(true);
 
-      // Mark finding as viewed
-      try {
-        const dbFinding = await findingsService.getFinding(findingId);
-        if (dbFinding) {
-          dbFinding.userEngagement = {
-            ...dbFinding.userEngagement,
-            viewed: true,
-            clicked: true
-          };
-          await findingsService.saveFinding(dbFinding);
-        }
-      } catch (error) {
-        console.error('Error updating finding engagement:', error);
-      }
+      // Skip individual engagement updates to avoid unnecessary API calls
+      // Engagement tracking can be done in batch or analytics service
+      console.log('Finding expanded:', findingId);
     }
   };
 
