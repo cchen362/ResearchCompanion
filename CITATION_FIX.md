@@ -1,4 +1,4 @@
-# Chat Citation Fix - Complete Solution
+# Chat Citation Fix - Complete Solution (RESOLVED January 18, 2026)
 
 ## Problem Identified
 Citations in chat messages were appearing as plain text [1][4] instead of clickable blue buttons, despite the frontend code being correctly implemented.
@@ -94,5 +94,37 @@ citations.push({
 4. Citations should appear as blue clickable buttons
 5. Clicking a citation should navigate to the corresponding finding
 
-## Key Lesson
-Always verify the data contract between backend and frontend. Field name mismatches are a common cause of features not working despite correct implementation on both sides.
+## FINAL FIX (January 18, 2026 at 18:00 UTC)
+
+### The Real Issue
+After fixing field name mismatches, citations were still showing as plain text because the backend was returning an **empty citations array**. The root cause: Backend only loaded findings if the frontend sent them, but needed to always load topic findings from the database.
+
+### The Solution
+Updated `backend/src/routes/chat.routes.ts` to always load findings when a userId and topicId are present:
+
+```typescript
+// BEFORE (broken)
+if (userId && validated.context.findings && validated.context.findings.length > 0) {
+  enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
+}
+
+// AFTER (fixed)
+if (userId && validated.topicId) {
+  // Always try to enrich context with topic findings when we have a user and topic
+  enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
+}
+```
+
+Also updated `enrichFindingsContext` to always fetch findings from database if less than 5 are provided.
+
+### Deployment
+- **Container ID**: e7538d0e483a
+- **Deployment Time**: January 18, 2026 at 18:00 UTC
+- **Status**: ✅ FULLY RESOLVED - Citations now render as clickable blue buttons
+
+## Key Lessons
+1. Always verify the data contract between backend and frontend
+2. Don't assume frontend will always provide complete context - backend should be resilient
+3. When debugging "empty array" issues, check the conditions that populate the array
+4. Field name mismatches are a common cause of features not working
+5. Always trace the complete data flow when features don't work as expected
