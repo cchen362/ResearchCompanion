@@ -127,7 +127,8 @@ export async function runAgentWithAPI(
         }
 
         const finding: ResearchFinding = {
-          id: generateId(),
+          // Don't set ID for new findings - let server assign it
+          id: '', // Server will assign UUID
           agentId: agent.id,
           agentType: agent.type, // Add agent type for readable display names
           topicId: topic.id,
