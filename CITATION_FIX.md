@@ -1,5 +1,10 @@
 # Chat Citation Fix - Complete Solution (RESOLVED January 18, 2026)
 
+## UPDATE: ADDITIONAL FIX NEEDED (January 18, 2026, 18:32 UTC)
+**Important:** The initial fix only addressed the non-streaming endpoint. The streaming endpoint (`/api/chat/stream`) had a different bug that required a second fix. See Issue 22 in SERVER_STORAGE_FIXES.md for details.
+
+**Second Root Cause:** Streaming endpoint was using `validated.context.findings` instead of `enrichedContext.findings` for citation extraction, resulting in empty citations array.
+
 ## Problem Identified
 Citations in chat messages were appearing as plain text [1][4] instead of clickable blue buttons, despite the frontend code being correctly implemented.
 
