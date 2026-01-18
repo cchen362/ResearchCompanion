@@ -84,7 +84,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         // Auto-update context with all topic findings
         if (findings.length > 0) {
           updateContext({
-            currentFindings: findings.slice(0, 20).map(f => f.id) // Limit to 20 most recent
+            currentFindings: findings.map(f => f.id) // Include ALL findings for complete context
           });
         }
       } catch (error) {
@@ -169,13 +169,10 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Add selected findings first (higher priority)
       selectedFindingsList.forEach(f => allFindingIds.add(f.id));
 
-      // Add topic findings (up to 20 total)
-      let addedCount = allFindingIds.size;
+      // Add all topic findings for complete context
       for (const finding of topicFindings) {
-        if (addedCount >= 20) break;
         if (!allFindingIds.has(finding.id)) {
           allFindingIds.add(finding.id);
-          addedCount++;
         }
       }
 

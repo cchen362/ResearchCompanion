@@ -372,10 +372,9 @@ class ChatService {
         return bDate - aDate;
       });
 
-    // Add up to 20 findings total for context
-    const remaining = Math.min(20 - findings.length, sortedFindings.length);
-    for (let i = 0; i < remaining; i++) {
-      addUnique(sortedFindings[i]);
+    // Add all remaining findings for complete context
+    for (const finding of sortedFindings) {
+      addUnique(finding);
     }
 
     console.log(`Loaded ${findings.length} findings for chat context from topic ${topicId}`);
