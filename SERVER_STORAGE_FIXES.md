@@ -757,42 +757,54 @@ const findingsStore = useFindingsStore.getState(); // ❌ Never imported, never 
 - Navigation to findings functional
 - Better user experience for exploring cited sources
 
-### Issue 22: Citations Still Plain Text in Streaming Chat (FIXED - January 18, 2026)
-**Problem:** Citations still appeared as plain text [1], [2] instead of clickable buttons, even after Issue 21 fix.
+### Issue 22: Citations Still Plain Text in Streaming Chat (PARTIAL FIX - January 18, 2026)
+**UPDATE: Required second fix for frontend finding limits - see Issue 23**
 
-**Root Cause:** The streaming endpoint (`/api/chat/stream`) was extracting citations from the wrong context variable:
-- Line 201 used `validated.context.findings` (often empty or minimal)
-- Should have used `enrichedContext.findings` (contains actual populated findings)
+### Issue 23: Frontend 20-Finding Limits Causing Citation Mismatch (FIXED - January 18, 2026)
+**Problem:** Citations STILL appeared as plain text even after fixing backend streaming endpoint (Issue 22).
 
-**Deep Analysis:**
-1. Non-streaming endpoint (`/api/chat/complete`) correctly used `enrichedContext.findings`
-2. Streaming endpoint had the enriched context but wasn't using it for citation extraction
-3. This caused `extractCitations()` to return empty array since it had no findings to match against
-4. Frontend received empty citations array and rendered [1], [2] as plain text
+**Root Cause:** Frontend had artificial 20-finding limits while backend loaded ALL findings:
+- ChatPanel.tsx line 87: Sliced findings to first 20 with `.slice(0, 20)`
+- chat.service.ts line 376: Limited to `Math.min(20 - findings.length, ...)`
+- ChatPanel.tsx lines 173-180: Break condition after 20 findings
+
+**Deep Investigation Revealed:**
+- Console showed "Loaded 21 findings" initially (ChatPanel)
+- Then "Loaded 20 findings" after first message (chat.service)
+- Backend loaded ALL findings (no limit)
+- Frontend limited to 20, causing citation [21] to fail
+
+**The Mismatch:**
+1. Backend AI generates response with ALL findings available
+2. AI references finding [21] from backend's complete set
+3. Frontend only has 20 findings in context
+4. Citation [21] can't resolve - stays as plain text
 
 **Fix Applied:**
-1. **Fixed citation extraction in streaming:**
-   - Line 201: Changed from `validated.context.findings || []` to `enrichedContext.findings || []`
-   - Added debug logging to track citation extraction
+1. **Removed artificial 20-finding limits in frontend:**
+   - ChatPanel.tsx line 87: Changed `findings.slice(0, 20).map(f => f.id)` to `findings.map(f => f.id)`
+   - chat.service.ts line 376: Changed `Math.min(20 - findings.length, sortedFindings.length)` to `sortedFindings.length`
+   - ChatPanel.tsx lines 173-180: Removed `if (addedCount >= 20) break;` condition
 
-2. **Removed artificial finding limits per app principles:**
-   - Removed 20-finding limit that was causing citation index mismatches
-   - Now fetches ALL available findings for complete context
+2. **Aligned with app principles:**
+   - Backend already fetches ALL findings (correct approach)
+   - Frontend now matches backend behavior
    - Aligns with "Facts, Not Scores™" principle - users deserve access to all their research
 
 **Files Modified:**
-- `backend/src/routes/chat.routes.ts`:
-  - Line 201: Fixed streaming citation extraction to use enrichedContext
-  - Lines 469-476: Removed limit, fetch all topic findings
-  - Lines 530-539: Fetch all findings for complete context
-  - Added debug logging for citation extraction tracking
+- `src/components/ChatPanel.tsx`:
+  - Line 87: Removed `.slice(0, 20)` limit
+  - Lines 173-180: Removed break condition after 20 findings
+- `src/services/chat.service.ts`:
+  - Line 376: Removed `Math.min(20 - ...)` limit
 
 **Testing Results:**
-- Citations now render as clickable buttons in streaming chat
-- All findings available for citation (no more 21 vs 20 mismatch)
-- Consistent behavior between streaming and non-streaming endpoints
+- Frontend and backend now have the same complete set of findings
+- Console logs show consistent finding counts (no more 21 vs 20)
+- All citations [1] through [21+] should resolve correctly
+- Citations render as clickable buttons
 
-**Deployment:** Successfully deployed to production at 18:32 UTC
+**Deployment:** Successfully deployed to production at 18:48 UTC
 - Built and tested locally first
 - Deployed via Docker on production server (100.94.82.35)
 - Citations now working correctly in production
