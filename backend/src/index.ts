@@ -17,6 +17,7 @@ import findingsRoutes from './routes/findings.routes.js';
 import agentsRoutes from './routes/agents.routes.js';
 import digestsCrudRoutes from './routes/digests.crud.routes.js';
 import conversationsRoutes from './routes/conversations.routes.js';
+import chatsRoutes from './routes/chats.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
@@ -107,6 +108,7 @@ app.use('/api', authenticate, findingsRoutes);
 app.use('/api', authenticate, agentsRoutes);
 app.use('/api', authenticate, digestsCrudRoutes);
 app.use('/api', authenticate, conversationsRoutes);
+app.use('/api', authenticate, chatsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { FindingsChat, ChatMessage, ChatContext, SourceCitation } from '../types';
 import { getDB } from '../utils/db/database';
+import { chatAPIService } from '../services/chat.api.service';
+import { storageConfig } from '../config/storage.config';
 
 interface ChatStore {
   // State
@@ -68,22 +70,29 @@ export const useChatStore = create<ChatStore>()(
         // Chat Management
         loadChats: async (topicId?: string) => {
           try {
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readonly');
-            const store = tx.objectStore('chats');
-
             let chats: FindingsChat[];
-            if (topicId) {
-              const index = store.index('by-topic');
-              chats = await index.getAll(topicId);
-            } else {
-              chats = await store.getAll();
-            }
 
-            // Sort by last message timestamp
-            chats.sort((a, b) =>
-              new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-            );
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              chats = await chatAPIService.getChats(topicId);
+            } else {
+              // Fall back to IndexedDB for local storage
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readonly');
+              const store = tx.objectStore('chats');
+
+              if (topicId) {
+                const index = store.index('by-topic');
+                chats = await index.getAll(topicId);
+              } else {
+                chats = await store.getAll();
+              }
+
+              // Sort by last message timestamp
+              chats.sort((a, b) =>
+                new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+              );
+            }
 
             set({ chats });
           } catch (error) {
@@ -94,39 +103,58 @@ export const useChatStore = create<ChatStore>()(
 
         createChat: async (topicId: string, initialMessage?: string) => {
           try {
-            const db = await getDB();
-            const chatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            let newChat: FindingsChat;
 
-            const newChat: FindingsChat = {
-              id: chatId,
-              topicId,
-              title: initialMessage?.substring(0, 100) || 'New Conversation',
-              status: 'active',
-              createdAt: new Date().toISOString(),
-              lastMessageAt: new Date().toISOString(),
-              messageCount: 0,
-              context: {
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              const context = {
                 currentFindings: [],
                 expandedTopics: [],
                 recentInteractions: [],
                 userPreferences: {}
-              }
-            };
+              };
 
-            const tx = db.transaction('chats', 'readwrite');
-            await tx.objectStore('chats').add(newChat);
-            await tx.done;
+              newChat = await chatAPIService.createChat(
+                topicId,
+                initialMessage?.substring(0, 100) || 'New Conversation',
+                context
+              );
+            } else {
+              // Fall back to IndexedDB for local storage
+              const db = await getDB();
+              const chatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+              newChat = {
+                id: chatId,
+                topicId,
+                title: initialMessage?.substring(0, 100) || 'New Conversation',
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                lastMessageAt: new Date().toISOString(),
+                messageCount: 0,
+                context: {
+                  currentFindings: [],
+                  expandedTopics: [],
+                  recentInteractions: [],
+                  userPreferences: {}
+                }
+              };
+
+              const tx = db.transaction('chats', 'readwrite');
+              await tx.objectStore('chats').add(newChat);
+              await tx.done;
+            }
 
             const { chats } = get();
             set({
               chats: [newChat, ...chats],
               activeChat: newChat,
-              activeChatId: chatId
+              activeChatId: newChat.id
             });
 
             // Initialize empty message array for this chat
             const messagesMap = get().messages;
-            messagesMap.set(chatId, []);
+            messagesMap.set(newChat.id, []);
             set({ messages: new Map(messagesMap) });
 
             return newChat;
@@ -242,16 +270,24 @@ export const useChatStore = create<ChatStore>()(
         // Message Management
         loadMessages: async (chatId: string) => {
           try {
-            const db = await getDB();
-            const chat = await db.get('chats', chatId);
+            let messages: ChatMessage[];
 
-            if (!chat) {
-              throw new Error(`Chat ${chatId} not found`);
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              messages = await chatAPIService.getMessages(chatId);
+            } else {
+              // Fall back to IndexedDB for local storage
+              const db = await getDB();
+              const chat = await db.get('chats', chatId);
+
+              if (!chat) {
+                throw new Error(`Chat ${chatId} not found`);
+              }
+
+              // For now, messages are stored in the chat object
+              // In a real implementation, you might have a separate messages store
+              messages = (chat as any).messages || [];
             }
-
-            // For now, messages are stored in the chat object
-            // In a real implementation, you might have a separate messages store
-            const messages: ChatMessage[] = (chat as any).messages || [];
 
             const messagesMap = get().messages;
             messagesMap.set(chatId, messages);
@@ -267,14 +303,45 @@ export const useChatStore = create<ChatStore>()(
 
         addMessage: async (chatId: string, messageData: Omit<ChatMessage, 'id' | 'timestamp'>) => {
           try {
-            const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const timestamp = new Date().toISOString();
+            let newMessage: ChatMessage;
 
-            const newMessage: ChatMessage = {
-              ...messageData,
-              id: messageId,
-              timestamp
-            };
+            if (storageConfig.useServerStorage) {
+              // Use API when server storage is enabled
+              newMessage = await chatAPIService.addMessage(
+                chatId,
+                messageData.role,
+                messageData.content,
+                messageData.citations,
+                messageData.metadata
+              );
+            } else {
+              // Fall back to IndexedDB for local storage
+              const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              const timestamp = new Date().toISOString();
+
+              newMessage = {
+                ...messageData,
+                id: messageId,
+                timestamp
+              };
+
+              // Update chat in database
+              const db = await getDB();
+              const tx = db.transaction('chats', 'readwrite');
+              const store = tx.objectStore('chats');
+
+              const chat = await store.get(chatId);
+              if (chat) {
+                const chatMessages = (chat as any).messages || [];
+                const updatedMessages = [...chatMessages, newMessage];
+
+                chat.lastMessageAt = timestamp;
+                chat.messageCount = updatedMessages.length;
+                (chat as any).messages = updatedMessages;
+                await store.put(chat);
+              }
+              await tx.done;
+            }
 
             // Add to local state
             const { messages } = get();
@@ -285,23 +352,9 @@ export const useChatStore = create<ChatStore>()(
             messagesMap.set(chatId, updatedMessages);
             set({ messages: messagesMap });
 
-            // Update chat in database
-            const db = await getDB();
-            const tx = db.transaction('chats', 'readwrite');
-            const store = tx.objectStore('chats');
-
-            const chat = await store.get(chatId);
-            if (chat) {
-              chat.lastMessageAt = timestamp;
-              chat.messageCount = updatedMessages.length;
-              (chat as any).messages = updatedMessages;
-              await store.put(chat);
-            }
-            await tx.done;
-
             // Update chat in local state
             await get().updateChat(chatId, {
-              lastMessageAt: timestamp,
+              lastMessageAt: newMessage.timestamp,
               messageCount: updatedMessages.length
             });
 

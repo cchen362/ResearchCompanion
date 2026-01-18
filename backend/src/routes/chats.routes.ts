@@ -1,0 +1,200 @@
+import express from 'express';
+import { ChatModel } from '../models/chat.model.js';
+import { z } from 'zod';
+
+const router = express.Router();
+
+// Validation schemas
+const CreateChatSchema = z.object({
+  topic_id: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  context: z.record(z.string(), z.any()).optional()
+});
+
+const UpdateChatSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  status: z.enum(['active', 'archived']).optional(),
+  context: z.record(z.string(), z.any()).optional()
+});
+
+const AddMessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1),
+  citations: z.array(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional()
+});
+
+// GET /api/chats - Get all chats for the user
+router.get('/chats', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const topicId = req.query.topic_id as string | undefined;
+
+    const chats = await ChatModel.getAll(userId, topicId);
+
+    res.json({
+      success: true,
+      chats
+    });
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch chats'
+    });
+  }
+});
+
+// GET /api/chats/:id - Get a specific chat
+router.get('/chats/:id', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+
+    const chat = await ChatModel.getById(chatId, userId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      chat
+    });
+  } catch (error) {
+    console.error('Error fetching chat:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch chat'
+    });
+  }
+});
+
+// POST /api/chats - Create a new chat
+router.post('/chats', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const data = CreateChatSchema.parse(req.body);
+
+    const chat = await ChatModel.create(userId, data);
+
+    res.json({
+      success: true,
+      chat
+    });
+  } catch (error) {
+    console.error('Error creating chat:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create chat'
+    });
+  }
+});
+
+// PUT /api/chats/:id - Update a chat
+router.put('/chats/:id', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+    const data = UpdateChatSchema.parse(req.body);
+
+    const chat = await ChatModel.update(chatId, userId, data);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      chat
+    });
+  } catch (error) {
+    console.error('Error updating chat:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update chat'
+    });
+  }
+});
+
+// DELETE /api/chats/:id - Delete a chat
+router.delete('/chats/:id', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+
+    await ChatModel.delete(chatId, userId);
+
+    res.json({
+      success: true,
+      message: 'Chat deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete chat'
+    });
+  }
+});
+
+// GET /api/chats/:id/messages - Get messages for a chat
+router.get('/chats/:id/messages', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+    const limit = parseInt(req.query.limit as string) || 100;
+
+    const messages = await ChatModel.getMessages(chatId, userId, limit);
+
+    res.json({
+      success: true,
+      messages
+    });
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch messages'
+    });
+  }
+});
+
+// POST /api/chats/:id/messages - Add a message to a chat
+router.post('/chats/:id/messages', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+    const data = AddMessageSchema.parse(req.body);
+
+    // Verify chat exists and belongs to user
+    const chat = await ChatModel.getById(chatId, userId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    const message = await ChatModel.addMessage(chatId, userId, data);
+
+    res.json({
+      success: true,
+      message
+    });
+  } catch (error) {
+    console.error('Error adding message:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add message'
+    });
+  }
+});
+
+export default router;
