@@ -58,7 +58,8 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     // Enrich findings from database if user is authenticated
     let enrichedContext = validated.context;
-    if (userId && validated.context.findings && validated.context.findings.length > 0) {
+    if (userId && validated.topicId) {
+      // Always try to enrich context with topic findings when we have a user and topic
       enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
     }
 
@@ -97,18 +98,7 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     // Process citations from the response
     const findingsForCitations = enrichedContext.findings || [];
-    console.log('🔍 [BACKEND] Before extractCitations:', {
-      findingsCount: findingsForCitations.length,
-      findingIds: findingsForCitations.map((f: any) => f.id).slice(0, 5),
-      contentHasBrackets: /\[\d+\]/.test(content),
-      contentSample: content.substring(0, 200)
-    });
-
     const citations = extractCitations(content, findingsForCitations);
-    console.log('🔍 [BACKEND] Citations extracted:', {
-      count: citations.length,
-      citations: citations
-    });
 
     // Generate suggested questions
     const suggestedQuestions = await generateSuggestedQuestions(
@@ -157,7 +147,8 @@ router.post('/stream', async (req: Request, res: Response) => {
 
     // Enrich findings from database if user is authenticated
     let enrichedContext = validated.context;
-    if (userId && validated.context.findings && validated.context.findings.length > 0) {
+    if (userId && validated.topicId) {
+      // Always try to enrich context with topic findings when we have a user and topic
       enrichedContext = await enrichFindingsContext(userId, validated.context, validated.topicId);
     }
 
@@ -469,16 +460,19 @@ async function enrichFindingsContext(
 ): Promise<any> {
   try {
     // Get the finding IDs from the context
-    const findingIds = context.findings?.map((f: any) => f.id) || [];
+    const contextFindings = context.findings || [];
+    const findingIds = contextFindings.map((f: any) => f.id).filter(Boolean);
 
-    if (findingIds.length === 0) {
-      // If no findings provided, try to fetch recent findings for the topic
+    // Always try to fetch findings for the topic if we don't have enough
+    if (findingIds.length < 5 || contextFindings.length === 0) {
+      // Fetch recent findings for the topic to ensure we have context
       const topicFindings = await FindingModel.getFiltered(userId, {
         topic_id: topicId,
         limit: 20
       });
 
       if (topicFindings.length > 0) {
+        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} topic findings for citations`);
         return {
           ...context,
           findings: topicFindings.map(f => ({
@@ -492,6 +486,9 @@ async function enrichFindingsContext(
           }))
         };
       }
+
+      // If no findings in DB either, use whatever context was provided
+      console.log(`⚠️ [BACKEND] No findings found for topic ${topicId}`);
       return context;
     }
 
