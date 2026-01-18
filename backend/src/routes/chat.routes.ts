@@ -198,7 +198,10 @@ router.post('/stream', async (req: Request, res: Response) => {
 
         // Check for citations periodically
         if (!citationsSent && fullContent.includes('[')) {
-          const citations = extractCitations(fullContent, validated.context.findings || []);
+          const citations = extractCitations(fullContent, enrichedContext.findings || []);
+          if (citations.length > 0) {
+            console.log(`📝 [STREAMING] Extracted ${citations.length} citations from ${enrichedContext.findings?.length || 0} findings`);
+          }
           for (const citation of citations) {
             res.write(`data: ${JSON.stringify({
               type: 'citation',
@@ -463,16 +466,17 @@ async function enrichFindingsContext(
     const contextFindings = context.findings || [];
     const findingIds = contextFindings.map((f: any) => f.id).filter(Boolean);
 
-    // Always try to fetch findings for the topic if we don't have enough
+    // Always try to fetch ALL findings for the topic to provide complete context
     if (findingIds.length < 5 || contextFindings.length === 0) {
-      // Fetch recent findings for the topic to ensure we have context
+      // Fetch ALL findings for the topic to ensure we have complete context
+      // No artificial limits - users deserve access to all their research
       const topicFindings = await FindingModel.getFiltered(userId, {
-        topic_id: topicId,
-        limit: 20
+        topic_id: topicId
+        // No limit - fetch all available findings
       });
 
       if (topicFindings.length > 0) {
-        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} topic findings for citations`);
+        console.log(`📚 [BACKEND] Loaded ALL ${topicFindings.length} topic findings for complete context`);
         return {
           ...context,
           findings: topicFindings.map(f => ({
@@ -523,14 +527,15 @@ async function enrichFindingsContext(
       }
     }
 
-    // If we have fewer than expected, add more topic findings
-    if (enrichedFindings.length < 10 && topicId) {
-      const additionalFindings = await FindingModel.getFiltered(userId, {
-        topic_id: topicId,
-        limit: 10 - enrichedFindings.length
+    // If we still don't have all topic findings, fetch any missing ones
+    // This ensures we have complete context for the user's questions
+    if (topicId) {
+      const allTopicFindings = await FindingModel.getFiltered(userId, {
+        topic_id: topicId
+        // No limit - get all findings for complete context
       });
 
-      for (const finding of additionalFindings) {
+      for (const finding of allTopicFindings) {
         if (!enrichedFindings.find((f: any) => f.id === finding.id)) {
           enrichedFindings.push({
             id: finding.id,
