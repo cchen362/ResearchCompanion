@@ -108,6 +108,12 @@ class ChatService {
     try {
       const response = await api.post('/chat/complete', payload);
       const data = response.data;
+      console.log('🔍 [CHAT SERVICE] API response received:', {
+        hasCitations: !!data.citations,
+        citationsLength: data.citations?.length || 0,
+        citations: data.citations,
+        contentHasBrackets: /\[\d+\]/.test(data.content)
+      });
 
       // Add AI message to store
       const aiMessage = await chatStore.addMessage(chatId, {
@@ -120,16 +126,28 @@ class ChatService {
           processingTime: data.processingTime
         }
       });
+      console.log('🔍 [CHAT SERVICE] Message added to store:', {
+        messageId: aiMessage.id,
+        hasCitations: !!aiMessage.citations,
+        citationsLength: aiMessage.citations?.length || 0,
+        citations: aiMessage.citations
+      });
 
-      // Process citations
-      const citations = await this.processCitations(
-        data.content,
-        data.citations || []
-      );
+      // Process citations - NO! Don't override backend citations
+      // The backend already sends properly formatted citations
+      // const citations = await this.processCitations(
+      //   data.content,
+      //   data.citations || []
+      // );
+
+      console.log('🔍 [CHAT SERVICE] Returning response with citations:', {
+        backendCitations: data.citations,
+        messageHasCitations: !!aiMessage.citations
+      });
 
       return {
         message: aiMessage,
-        citations,
+        citations: data.citations || [], // Use backend citations directly!
         suggestedQuestions: data.suggestedQuestions,
         relatedFindings: data.relatedFindings
       };
@@ -413,8 +431,8 @@ class ChatService {
       const finding = await findingsService.getFinding(raw.findingId);
       if (!finding) continue;
 
-      // Find the citation in the content
-      const citationPattern = new RegExp(`\\[${raw.index}\\]`, 'g');
+      // Find the citation in the content - use citationNumber from backend
+      const citationPattern = new RegExp(`\\[${raw.citationNumber}\\]`, 'g');
       const matches = Array.from(content.matchAll(citationPattern));
 
       for (const match of matches) {
@@ -423,7 +441,7 @@ class ChatService {
           highlightStart: match.index || 0,
           highlightEnd: (match.index || 0) + match[0].length,
           citationText: finding.title || (finding.content || finding.details || finding.summary || '').substring(0, 100),
-          citationNumber: raw.index
+          citationNumber: raw.citationNumber
         });
       }
     }

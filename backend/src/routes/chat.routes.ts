@@ -97,6 +97,12 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     // Process citations from the response
     const citations = extractCitations(content, enrichedContext.findings || []);
+    console.log('🔍 [BACKEND] Citations extracted:', {
+      count: citations.length,
+      citations: citations,
+      findingsCount: enrichedContext.findings?.length || 0,
+      contentHasBrackets: /\[\d+\]/.test(content)
+    });
 
     // Generate suggested questions
     const suggestedQuestions = await generateSuggestedQuestions(

@@ -30,12 +30,28 @@ export function ChatMessage({
   onCitationClick,
   className = ''
 }: ChatMessageProps) {
+  console.log('🔍 [CHATMESSAGE] Component received:', {
+    messageId: message.id,
+    role: message.role,
+    hasCitations: !!message.citations,
+    citationsLength: message.citations?.length || 0,
+    citations: message.citations,
+    contentPreview: message.content.substring(0, 100)
+  });
+
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
   // Parse message content - clean display with proper HTML formatting
   const formattedContent = useMemo(() => {
+    console.log('🔍 [CHATMESSAGE useMemo] Processing content:', {
+      hasCitations: !!message.citations,
+      citationsLength: message.citations?.length || 0,
+      citations: message.citations,
+      contentHasBrackets: /\[\d+\]/.test(message.content)
+    });
+
     if (!message.content) return '';
 
     let content = message.content;
