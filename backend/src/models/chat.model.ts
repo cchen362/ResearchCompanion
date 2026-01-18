@@ -128,14 +128,21 @@ export class ChatModel {
 
   // Get messages for a chat
   static async getMessages(chatId: string, userId: string, limit = 100): Promise<ChatMessage[]> {
-    return query<ChatMessage>(
+    const messages = await query<ChatMessage>(
       `SELECT cm.* FROM chat_messages cm
        JOIN chats c ON cm.chat_id = c.id
        WHERE cm.chat_id = $1 AND c.user_id = $2
-       ORDER BY cm.created_at DESC
+       ORDER BY cm.created_at ASC
        LIMIT $3`,
       [chatId, userId, limit]
     );
+
+    // Parse JSON fields that PostgreSQL returns as strings
+    return messages.map(msg => ({
+      ...msg,
+      citations: typeof msg.citations === 'string' ? JSON.parse(msg.citations) : msg.citations,
+      metadata: typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata
+    }));
   }
 
   // Add a message to a chat
@@ -173,6 +180,11 @@ export class ChatModel {
       [chatId]
     );
 
-    return message;
+    // Parse JSON fields that PostgreSQL returns as strings
+    return {
+      ...message,
+      citations: typeof message.citations === 'string' ? JSON.parse(message.citations) : message.citations,
+      metadata: typeof message.metadata === 'string' ? JSON.parse(message.metadata) : message.metadata
+    };
   }
 }
