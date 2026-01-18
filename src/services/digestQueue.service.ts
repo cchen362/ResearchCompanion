@@ -321,8 +321,8 @@ export class DigestQueueService {
 
     const db = await getDB();
 
-    // Get the topic
-    const topic = await db.get('topics', topicId);
+    // Get the topic from the backend service
+    const topic = await topicsService.getTopic(topicId);
     if (!topic) {
       throw new Error(`Topic ${topicId} not found`);
     }

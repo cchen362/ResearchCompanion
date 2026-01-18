@@ -23,21 +23,36 @@ class AgentsAPIService {
    * Transform backend agent to frontend Agent interface
    */
   private transformToFrontend(apiAgent: any): Agent {
+    // Convert numeric searchDepth to string enum
+    const convertSearchDepth = (depth: number | string): 'quick' | 'standard' | 'deep' => {
+      if (typeof depth === 'string') return depth as 'quick' | 'standard' | 'deep';
+      if (depth <= 5) return 'quick';
+      if (depth >= 20) return 'deep';
+      return 'standard'; // Default for 10 or any other value
+    };
+
+    // Build config with proper types
+    const config = apiAgent.config || {};
+    const transformedConfig = {
+      searchDepth: convertSearchDepth(config.searchDepth || 10),
+      updateFrequency: config.updateFrequency || apiAgent.schedule || 'daily',
+      priority: config.priority || 'medium', // Default to medium if not set
+      sources: config.sources || [],
+      keywords: config.keywords || []
+    };
+
     return {
       id: apiAgent.id,
       topicId: apiAgent.topic_id || '',
       name: apiAgent.name,
       type: apiAgent.type as Agent['type'],
+      description: apiAgent.description || '',
       status: apiAgent.enabled ? 'idle' : 'disabled',
-      config: apiAgent.config || {
-        searchDepth: 10,
-        updateFrequency: apiAgent.schedule || 'daily',
-        sources: [],
-        keywords: []
-      },
-      lastRun: apiAgent.last_run ? new Date(apiAgent.last_run).getTime() : null,
+      config: transformedConfig,
+      lastRun: apiAgent.last_run ? new Date(apiAgent.last_run).getTime() : undefined,
       nextScheduledRun: apiAgent.next_run ? new Date(apiAgent.next_run).getTime() : undefined,
       createdAt: new Date(apiAgent.created_at).getTime(),
+      updatedAt: apiAgent.updated_at ? new Date(apiAgent.updated_at).getTime() : new Date(apiAgent.created_at).getTime(),
       metrics: {
         totalRuns: 0,
         successfulRuns: 0,
@@ -55,12 +70,29 @@ class AgentsAPIService {
    * Transform frontend Agent to backend format
    */
   private transformToBackend(agent: Partial<Agent>): any {
+    // Convert string searchDepth back to numeric for backend
+    const convertSearchDepthToNumeric = (depth?: string): number => {
+      switch (depth) {
+        case 'quick': return 5;
+        case 'deep': return 20;
+        case 'standard':
+        default: return 10;
+      }
+    };
+
+    // Build backend config
+    const config = agent.config ? {
+      ...agent.config,
+      searchDepth: convertSearchDepthToNumeric(agent.config.searchDepth)
+    } : {};
+
     return {
       topic_id: agent.topicId || null,
       name: agent.name,
       type: agent.type,
+      description: agent.description,
       enabled: agent.status !== 'disabled',
-      config: agent.config || {},
+      config: config,
       schedule: agent.config?.updateFrequency || 'daily'
     };
   }

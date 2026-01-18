@@ -8,6 +8,7 @@ import type { Agent } from '@/types';
 
 export default function AgentMonitor() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [topics, setTopics] = useState<Map<string, string>>(new Map()); // topicId -> topic name
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [configuringAgent, setConfiguringAgent] = useState<Agent | null>(null);
@@ -26,6 +27,23 @@ export default function AgentMonitor() {
     try {
       const allAgents = await agentsService.getAgents();
       setAgents(allAgents);
+
+      // Load topic names for each unique topicId
+      const uniqueTopicIds = [...new Set(allAgents.map(a => a.topicId).filter(Boolean))];
+      const topicMap = new Map<string, string>();
+
+      for (const topicId of uniqueTopicIds) {
+        try {
+          const topic = await topicsService.getTopic(topicId);
+          if (topic) {
+            topicMap.set(topicId, topic.name);
+          }
+        } catch (error) {
+          console.error(`Error loading topic ${topicId}:`, error);
+        }
+      }
+
+      setTopics(topicMap);
     } catch (error) {
       console.error('Error loading agents:', error);
     } finally {
@@ -241,13 +259,18 @@ export default function AgentMonitor() {
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center mb-4">
                 <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
                   <p className="text-xs text-gray-500">
                     {agent.type.split('_').map(word =>
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
                   </p>
+                  {topics.get(agent.topicId) && (
+                    <p className="text-xs text-indigo-600 mt-1">
+                      Monitoring: {topics.get(agent.topicId)}
+                    </p>
+                  )}
                 </div>
               </div>
 

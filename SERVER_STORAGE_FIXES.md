@@ -381,6 +381,73 @@ ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && docker-compose build medical
 
 ---
 
+### Issue 7: Digest Refresh "Topic Not Found" Error (FIXED - January 18, 2026)
+**Problem:** The "Update" button in Findings page threw error: "Topic 409618e7-239c-40dd-bc20-c8c5ff097235 not found"
+
+**Root Cause:** `digestQueue.service.ts` line 325 was directly accessing IndexedDB instead of using topicsService API
+
+**Fix:**
+```typescript
+// OLD - Direct IndexedDB access
+const topic = await db.get('topics', topicId);
+
+// NEW - Use unified service
+const topic = await topicsService.getTopic(topicId);
+```
+
+**Files Modified:**
+- `src/services/digestQueue.service.ts` - Line 325: Changed to use topicsService
+
+---
+
+### Issue 8: Agent Configuration Type Mismatch (FIXED - January 18, 2026)
+**Problem:** Agent config showed numeric searchDepth (10) instead of text ('standard'), priority field was empty
+
+**Root Cause:** Backend stores numeric searchDepth but frontend expects string enum. No conversion in API transformation layer.
+
+**Fix:** Added conversion logic in API service transformation:
+```typescript
+// Convert numeric to string enum
+const convertSearchDepth = (depth: number | string): 'quick' | 'standard' | 'deep' => {
+  if (typeof depth === 'string') return depth;
+  if (depth <= 5) return 'quick';
+  if (depth >= 20) return 'deep';
+  return 'standard';
+};
+
+// Add default priority
+priority: config.priority || 'medium'
+```
+
+**Files Modified:**
+- `src/services/agents.api.service.ts` - Lines 25-98: Added searchDepth conversion and priority default
+
+---
+
+### Issue 9: Missing Disease/Topic Subtitle in Agent Cards (FIXED - January 18, 2026)
+**Problem:** Agent cards didn't show which disease/topic they were monitoring
+
+**Root Cause:** Feature was never implemented - no topic name fetching or display logic
+
+**Fix:** Added topic name loading and display:
+1. Added state for topic names Map
+2. Fetch topic names in loadAgents()
+3. Display subtitle "Monitoring: [disease name]" in agent cards
+
+**Files Modified:**
+- `src/components/agents/AgentMonitor.tsx` - Lines 11, 31-46, 269-273: Added topic name loading and display
+
+**Deployment:** January 18, 2026
+```bash
+# Deployment steps (to be executed):
+git add -A && git commit -m "Fix digest refresh, agent config display, and add topic subtitles"
+git push origin fix/digest-findings-race-condition
+ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && git pull origin fix/digest-findings-race-condition"
+ssh chee@100.94.82.35 "cd /home/chee/medical-pwa && docker-compose build medical-companion && docker-compose up -d"
+```
+
+---
+
 ## Known Remaining Issues
 
 ### Priority 1 - Critical Functionality
