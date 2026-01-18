@@ -726,6 +726,39 @@ const findingsStore = useFindingsStore.getState(); // ❌ Never imported, never 
 
 ---
 
+### Issue 21: Citations Not Clickable in Chat Messages (FIXED - January 18, 2026)
+**Problem:** Citation numbers in chat messages (like [1, 6, 7, 10, 11]) were displayed as plain text, not clickable links.
+
+**Root Cause:** Citations were only clickable in the dropdown panel, not in the actual message content where they appear inline.
+
+**Fix:** Implemented inline clickable citations in chat messages.
+
+**Implementation Details:**
+1. Parse citation patterns `[1]`, `[2, 3]`, `[1, 6, 7, 10, 11]` in message content
+2. Replace with styled button elements that have click handlers
+3. Add event delegation to handle clicks on dynamically generated citation buttons
+4. Style citations as blue pills with hover effects for better visibility
+
+**Files Modified:**
+- `src/components/ChatMessage.tsx`:
+  - Added citation parsing in `formattedContent` function
+  - Converted citation numbers to clickable buttons with `data-citation-id` attributes
+  - Added onClick handler to message content div to handle citation clicks
+  - Styled citations with blue color scheme and hover effects
+
+**Result:**
+- Citations in messages are now clickable blue buttons
+- Clicking a citation navigates to the finding detail view
+- Clear visual indication that citations are interactive
+- Tooltip shows "Click to view finding" on hover
+
+**Deployment:** Successfully deployed to production at 17:05 UTC
+- Clickable citations working in all chat messages
+- Navigation to findings functional
+- Better user experience for exploring cited sources
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)

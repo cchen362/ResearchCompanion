@@ -352,7 +352,8 @@ function extractCitations(
   findings: any[]
 ): Array<{
   findingId: string;
-  index: number;
+  citationNumber: number;
+  citationText: string;
   highlightStart: number;
   highlightEnd: number;
 }> {
@@ -363,9 +364,11 @@ function extractCitations(
   while ((match = citationPattern.exec(content)) !== null) {
     const index = parseInt(match[1]) - 1;
     if (index >= 0 && index < findings.length) {
+      const finding = findings[index];
       citations.push({
-        findingId: findings[index].id,
-        index: index + 1,
+        findingId: finding.id,
+        citationNumber: index + 1,
+        citationText: finding.title || finding.content?.substring(0, 100) || 'Research Finding',
         highlightStart: match.index,
         highlightEnd: match.index + match[0].length
       });
