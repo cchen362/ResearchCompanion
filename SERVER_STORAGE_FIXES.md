@@ -649,6 +649,48 @@ CREATE INDEX idx_chat_messages_chat_id ON chat_messages(chat_id);
 
 ---
 
+### Issue 19: Chat Store Using IndexedDB Instead of API (FIXED - January 18, 2026)
+**Problem:** After creating chat tables, messages weren't appearing. Error: "Chat not found" when trying to update chat after creation.
+
+**Root Cause:** The chatStore functions (`updateChat`, `deleteChat`, `addMessage`) were still trying to use IndexedDB directly even when server storage was enabled, causing conflicts between API-created chats and local IndexedDB operations.
+
+**Investigation:**
+- Chat was created successfully via API
+- `addMessage` tried to call `updateChat` which looked for chat in IndexedDB
+- Chat didn't exist in IndexedDB (only in PostgreSQL)
+- Operations failed with "Chat not found"
+
+**Fix:** Updated all chatStore functions to use API when server storage is enabled:
+
+**Files Modified:**
+- `src/stores/chatStore.ts`:
+  - `updateChat()` - Added API path using `chatAPIService.updateChat()`
+  - `deleteChat()` - Added API path using `chatAPIService.deleteChat()`
+  - `addMessage()` - Removed call to `updateChat`, directly update local state
+  - `updateMessage()` - Added check for server storage mode
+  - `deleteMessage()` - Added check for server storage mode, update local state directly
+
+**Key Changes:**
+```typescript
+// Before: Always used IndexedDB
+const db = await getDB();
+await tx.objectStore('chats').update(chat);
+
+// After: Check storage mode first
+if (storageConfig.useServerStorage) {
+  updatedChat = await chatAPIService.updateChat(chatId, updates);
+} else {
+  // IndexedDB fallback
+}
+```
+
+**Deployment:** Successfully deployed to production at 16:22 UTC
+- All chat operations now properly use PostgreSQL when server storage is enabled
+- Messages persist correctly
+- Multi-device sync working
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)

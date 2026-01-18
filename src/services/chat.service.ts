@@ -45,7 +45,6 @@ class ChatService {
     callbacks?: StreamCallbacks
   ): Promise<ChatResponse> {
     const chatStore = useChatStore.getState();
-    const findingsStore = useFindingsStore.getState();
 
     try {
       // Add user message to store immediately
