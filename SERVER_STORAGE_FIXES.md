@@ -691,6 +691,41 @@ if (storageConfig.useServerStorage) {
 
 ---
 
+### Issue 20: Chat Messages Not Being Sent - Dead Code Bug (FIXED - January 18, 2026)
+**Problem:** Chat messages weren't being sent at all. User could create chat but pressing Enter did nothing. No messages appeared.
+
+**Root Cause:** Dead code in `chat.service.ts` was trying to use `useFindingsStore` which was never imported, causing a ReferenceError that prevented messages from being sent to the backend.
+
+**Investigation:**
+- Console showed chat creation (POST /chats) but no message sending (no POST /chat/stream)
+- Multiple PUT requests to update chat context were working
+- Error was silently caught in try/catch block in ChatPanel.tsx
+- Actual error: `ReferenceError: useFindingsStore is not defined`
+
+**The Bug:**
+```typescript
+// src/services/chat.service.ts - Line 48
+const findingsStore = useFindingsStore.getState(); // ❌ Never imported, never used!
+```
+
+**Fix:** Removed the dead code entirely (line 48).
+
+**Files Modified:**
+- `src/services/chat.service.ts` - Removed unused `findingsStore` variable declaration
+
+**Why This Happened:**
+- TypeScript didn't catch it during build (stale build or not type-checked)
+- Runtime-only error that only manifested when code executed
+- Dead code that was never actually used (service uses `findingsService` instead)
+
+**Deployment:** Successfully deployed to production at 16:30 UTC
+- Chat messages now send successfully
+- AI responses appear properly
+- Full findings context available
+- No more "Failed to send message" errors
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)

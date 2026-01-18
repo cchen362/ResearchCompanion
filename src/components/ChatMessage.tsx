@@ -43,6 +43,22 @@ export function ChatMessage({
     // Remove emojis
     content = content.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
 
+    // Process citations first - make them clickable
+    // Match patterns like [1], [2, 3], [1, 6, 7, 10, 11], etc.
+    content = content.replace(/\[([0-9,\s]+)\]/g, (match, citationNumbers) => {
+      const numbers = citationNumbers.split(',').map((n: string) => n.trim());
+      const citationLinks = numbers.map((num: string) => {
+        // Find the corresponding citation
+        const citationIndex = parseInt(num) - 1;
+        const citation = message.citations?.[citationIndex];
+        if (citation) {
+          return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded transition-all cursor-pointer hover:shadow-sm" title="Click to view finding">[${num}]</button>`;
+        }
+        return `<span class="text-muted-foreground">[${num}]</span>`;
+      }).join('');
+      return citationLinks;
+    });
+
     // Process in order to maintain structure
 
     // 1. Convert headings to styled divs (removes ## but keeps structure)
@@ -226,6 +242,15 @@ export function ChatMessage({
               <div
                 className={`message-content ${!expanded && isLongMessage ? 'line-clamp-6' : ''}`}
                 dangerouslySetInnerHTML={{ __html: formattedContent }}
+                onClick={(e) => {
+                  // Handle clicks on citation buttons
+                  const target = e.target as HTMLElement;
+                  if (target.tagName === 'BUTTON' && target.dataset.citationId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onCitationClick?.(target.dataset.citationId);
+                  }
+                }}
               />
 
               {/* Show more/less button for long messages */}
