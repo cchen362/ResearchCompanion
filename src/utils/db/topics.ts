@@ -1,4 +1,6 @@
 import { getDB } from './database';
+import { storageConfig } from '@/config/storage.config';
+import { topicsAPIService } from '@/services/topics.api.service';
 import type { Topic, DiseaseProfile, PatientContext } from '@/types';
 
 // Generate a unique UUID (compatible with PostgreSQL UUID type)
@@ -39,12 +41,18 @@ export async function createTopic(
 
 // Get a topic by ID
 export async function getTopic(id: string): Promise<Topic | undefined> {
+  if (storageConfig.useServerStorage) {
+    return await topicsAPIService.getTopic(id);
+  }
   const db = await getDB();
   return db.get('topics', id);
 }
 
 // Get all topics
 export async function getAllTopics(): Promise<Topic[]> {
+  if (storageConfig.useServerStorage) {
+    return await topicsAPIService.getTopics();
+  }
   const db = await getDB();
   return db.getAllFromIndex('topics', 'by-date');
 }

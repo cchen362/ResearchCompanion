@@ -1,4 +1,6 @@
 import { getDB } from './database';
+import { storageConfig } from '@/config/storage.config';
+import { agentsAPIService } from '@/services/agents.api.service';
 import type { Agent, AgentConfig, AgentType, AgentRun, ResearchFinding } from '@/types';
 import { generateId } from './topics';
 
@@ -33,12 +35,24 @@ export async function createAgent(
 
 // Get all agents for a topic
 export async function getAgentsByTopic(topicId: string): Promise<Agent[]> {
+  if (storageConfig.useServerStorage) {
+    return await agentsAPIService.getAgents(topicId);
+  }
   const db = await getDB();
   return db.getAllFromIndex('agents', 'by-topic', topicId);
 }
 
 // Get agents that need to run
 export async function getAgentsToRun(): Promise<Agent[]> {
+  if (storageConfig.useServerStorage) {
+    // For server storage, get all agents and filter
+    const allAgents = await agentsAPIService.getAgents();
+    const now = Date.now();
+    return allAgents.filter(agent =>
+      agent.status !== 'running' &&
+      (!agent.nextScheduledRun || agent.nextScheduledRun <= now)
+    );
+  }
   const db = await getDB();
   const now = Date.now();
   const allAgents = await db.getAll('agents');

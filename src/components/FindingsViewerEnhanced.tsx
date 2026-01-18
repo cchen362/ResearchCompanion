@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getDB } from '@/utils/db/database';
-import { getTopic } from '@/utils/db/topics';
 import { digestQueueService } from '@/services/digestQueue.service';
+import { topicsService } from '@/services/topics.service';
+import { findingsService } from '@/services/findings.service';
+import { digestService } from '@/services/digest.service';
 import type { ResearchFinding, Topic, SmartDigest, DigestTimeframe, ExplanationMode } from '@/types';
 import { DigestCard } from './DigestCard';
 import { ThemeAccordion } from './ThemeAccordion';
@@ -62,8 +63,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
 
   const loadTopics = async () => {
     try {
-      const db = await getDB();
-      const allTopics = await db.getAll('topics');
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
       if (!selectedTopicId && allTopics.length > 0) {
         setSelectedTopicId(allTopics[0].id);
@@ -76,15 +76,14 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
   const loadTopicData = async (topicId: string) => {
     try {
       setLoading(true);
-      const db = await getDB();
 
       // Load topic
-      const topic = await getTopic(topicId);
+      const topic = await topicsService.getTopic(topicId);
       if (topic) {
         setCurrentTopic(topic);
 
         // Load findings
-        const topicFindings = await db.getAllFromIndex('findings', 'by-topic', topicId);
+        const topicFindings = await findingsService.getFindings(topicId);
         topicFindings.sort((a, b) => b.timestamp - a.timestamp);
         setFindings(topicFindings);
 
@@ -109,10 +108,8 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     }
 
     try {
-      const db = await getDB();
-
       // Try to load existing digest
-      const digests = await db.getAllFromIndex('digests', 'by-topic', topicId);
+      const digests = await digestService.getDigests(topicId);
       const recentDigest = digests
         .filter(d => d.timeframe === digestTimeframe)
         .sort((a, b) => b.generatedAt - a.generatedAt)[0];
@@ -363,8 +360,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
 
   const saveDigestEngagement = async (digest: SmartDigest) => {
     try {
-      const db = await getDB();
-      await db.put('digests', digest);
+      await digestService.saveDigest(digest);
     } catch (error) {
       console.error('Error saving digest engagement:', error);
     }
@@ -388,15 +384,14 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
 
       // Mark finding as viewed
       try {
-        const db = await getDB();
-        const dbFinding = await db.get('findings', findingId);
+        const dbFinding = await findingsService.getFinding(findingId);
         if (dbFinding) {
           dbFinding.userEngagement = {
             ...dbFinding.userEngagement,
             viewed: true,
             clicked: true
           };
-          await db.put('findings', dbFinding);
+          await findingsService.saveFinding(dbFinding);
         }
       } catch (error) {
         console.error('Error updating finding engagement:', error);

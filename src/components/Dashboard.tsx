@@ -49,9 +49,10 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       setPendingAgents(agentsToRun);
 
       // Load recent findings
-      const db = await getDB();
-      const findings = await db.getAllFromIndex('findings', 'by-date');
-      const recent = findings.slice(-5).reverse(); // Last 5, most recent first
+      const findings = await findingsService.getFindings();
+      // Sort by date and get most recent
+      findings.sort((a, b) => b.timestamp - a.timestamp);
+      const recent = findings.slice(0, 5); // First 5, already sorted by most recent
       setRecentFindings(recent);
 
       // Load monthly cost

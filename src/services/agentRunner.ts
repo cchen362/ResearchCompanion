@@ -5,6 +5,8 @@ import { getDB } from '@/utils/db/database';
 import { updateAgentAfterRun, setAgentStatus, isWithinBudget } from '@/utils/db/agents';
 import { digestQueueService } from './digestQueue.service';
 import { findingsService } from './findings.service';
+import { topicsService } from './topics.service';
+import { agentsService } from './agents.service';
 
 /**
  * Run a comprehensive agent search with real API integration
@@ -431,16 +433,14 @@ async function createNotification(
 export async function runAllResearchAgents(topicId: string): Promise<ResearchFinding[]> {
   console.log(`Running all research agents for topic ${topicId}`);
 
-  const db = await getDB();
-
   // Get the topic
-  const topic = await db.get('topics', topicId);
+  const topic = await topicsService.getTopic(topicId);
   if (!topic) {
     throw new Error(`Topic ${topicId} not found`);
   }
 
   // Get all active agents for this topic
-  const allAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+  const allAgents = await agentsService.getAgents(topicId);
   const activeAgents = allAgents.filter(a => a.status !== 'disabled');
 
   if (activeAgents.length === 0) {
@@ -504,16 +504,14 @@ export async function runResearchAgents(
 ): Promise<ResearchFinding[]> {
   console.log(`Running specific research agents for topic ${topicId}:`, agentTypes);
 
-  const db = await getDB();
-
   // Get the topic
-  const topic = await db.get('topics', topicId);
+  const topic = await topicsService.getTopic(topicId);
   if (!topic) {
     throw new Error(`Topic ${topicId} not found`);
   }
 
   // Get requested agents
-  const allAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+  const allAgents = await agentsService.getAgents(topicId);
   const requestedAgents = allAgents.filter(
     a => agentTypes.includes(a.type as AgentType) && a.status !== 'disabled'
   );
@@ -556,57 +554,20 @@ export async function runResearchAgents(
  * Get or create default agents for a topic
  */
 export async function ensureDefaultAgents(topicId: string): Promise<Agent[]> {
-  const db = await getDB();
-  const existingAgents = await db.getAllFromIndex('agents', 'by-topic', topicId);
+  const existingAgents = await agentsService.getAgents(topicId);
 
   if (existingAgents.length > 0) {
     return existingAgents;
   }
 
   // Create default agents if none exist
-  const topic = await db.get('topics', topicId);
+  const topic = await topicsService.getTopic(topicId);
   if (!topic) {
     throw new Error(`Topic ${topicId} not found`);
   }
 
-  const defaultAgentTypes: AgentType[] = [
-    'treatment_breakthrough',
-    'clinical_trial',
-    'medical_literature'
-  ];
-
-  const newAgents: Agent[] = [];
-
-  for (const type of defaultAgentTypes) {
-    const agent: Agent = {
-      id: generateId(),
-      topicId,
-      name: `${type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Agent`,
-      type,
-      status: 'idle',
-      config: {
-        searchDepth: 10,
-        updateFrequency: 'daily',
-        sources: [],
-        keywords: []
-      },
-      lastRun: null,
-      createdAt: Date.now(),
-      metrics: {
-        totalRuns: 0,
-        successfulRuns: 0,
-        failedRuns: 0,
-        findingsGenerated: 0,
-        lastSuccessAt: null,
-        lastErrorAt: null,
-        lastError: null,
-        apiCostTotal: 0
-      }
-    };
-
-    await db.add('agents', agent);
-    newAgents.push(agent);
-  }
+  // Use the service to create default agents
+  const newAgents = await agentsService.createDefaultAgents(topicId);
 
   console.log(`Created ${newAgents.length} default agents for topic ${topicId}`);
   return newAgents;
