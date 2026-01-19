@@ -3,6 +3,7 @@ import { Loader2, MessageSquare, X, Download, Trash2, Maximize2 } from 'lucide-r
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
+import { FindingDetailModal } from './FindingDetailModal';
 
 interface ChatPanelProps {
   topicId: string;
@@ -18,6 +19,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [isLoading, setIsLoading] = useState(false);
   const [stores, setStores] = useState<any>(null);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const [selectedFinding, setSelectedFinding] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Dynamically load ALL stores and services after component mounts
   useEffect(() => {
@@ -100,29 +103,19 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       if (finding) {
         console.log('Found finding to display:', finding);
 
-        // Open a modal or drawer to show the finding detail
-        // For now, we'll show it in an alert as a temporary solution
-        const findingInfo = `
-Title: ${finding.title || 'Untitled'}
+        // Open the modal with the finding details
+        setSelectedFinding(finding);
+        setIsModalOpen(true);
 
-Content:
-${finding.content || finding.summary || 'No content available'}
-
-Source: ${finding.source?.displayName || finding.source?.name || 'Unknown'}
-Date: ${finding.createdAt ? new Date(finding.createdAt).toLocaleDateString() : 'Unknown'}
-        `;
-
-        alert(findingInfo);
-
-        // TODO: Implement proper finding detail modal/drawer
-        // Set the selected finding in UI store if available
+        // Also set in UI store if available
         const uiStore = stores.useUIStore.getState();
         if (uiStore.setSelectedFinding) {
           uiStore.setSelectedFinding(finding);
         }
       } else {
         console.log('Finding not found in store even after loading. Finding ID:', findingId);
-        alert('Finding details not available. The finding may have been deleted or is not accessible.');
+        // Could show a toast notification here instead of alert
+        console.warn('Finding details not available. The finding may have been deleted or is not accessible.');
       }
     }
   };
@@ -400,6 +393,16 @@ Date: ${finding.createdAt ? new Date(finding.createdAt).toLocaleDateString() : '
           className="border-0"
         />
       </div>
+
+      {/* Finding Detail Modal */}
+      <FindingDetailModal
+        finding={selectedFinding}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedFinding(null);
+        }}
+      />
     </div>
   );
 }

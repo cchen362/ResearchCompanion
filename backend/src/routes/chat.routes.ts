@@ -365,22 +365,39 @@ function extractCitations(
 }> {
   const citations: Array<any> = [];
   const citationPattern = /\[(\d+)\]/g;
+  const seenCitations = new Set<number>();
   let match;
 
   while ((match = citationPattern.exec(content)) !== null) {
-    const index = parseInt(match[1]) - 1;
-    if (index >= 0 && index < findings.length) {
-      const finding = findings[index];
+    const citationNum = parseInt(match[1]);
+
+    // Skip if we've already processed this citation number
+    if (seenCitations.has(citationNum)) continue;
+    seenCitations.add(citationNum);
+
+    // The citation number directly corresponds to the 1-based index in the findings array
+    const arrayIndex = citationNum - 1;
+
+    // Check if this citation number corresponds to a valid finding
+    if (arrayIndex >= 0 && arrayIndex < findings.length) {
+      const finding = findings[arrayIndex];
+
       citations.push({
         findingId: finding.id,
-        citationNumber: index + 1,
+        citationNumber: citationNum, // Use the actual citation number from the text
         citationText: finding.title || finding.content?.substring(0, 100) || 'Research Finding',
         highlightStart: match.index,
         highlightEnd: match.index + match[0].length
       });
+
+      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id}`);
+    } else {
+      // Log when a citation number doesn't have a corresponding finding
+      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] has no corresponding finding (arrayIndex=${arrayIndex}, findings.length=${findings.length})`);
     }
   }
 
+  console.log(`📚 [extractCitations] Extracted ${citations.length} valid citations from content with ${findings.length} available findings`);
   return citations;
 }
 
