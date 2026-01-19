@@ -45,7 +45,10 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     createChat,
     setActiveChat,
     addMessage,
-    updateContext
+    updateContext,
+    startStreaming,
+    updateStreamingMessage,
+    endStreaming
   } = useChatStore();
 
   const {
@@ -220,6 +223,12 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
               message: `Failed to send message: ${error.message}`
             });
           }
+        },
+        {
+          addMessage,
+          startStreaming,
+          updateStreamingMessage,
+          endStreaming
         }
       );
     } catch (error) {
@@ -230,7 +239,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatId, topicId, topicName, context, topicFindings, getSelectedFindings, createChat, updateContext, showToast]);
+  }, [activeChatId, topicId, topicName, context, topicFindings, getSelectedFindings, createChat, updateContext, showToast, addMessage, startStreaming, updateStreamingMessage, endStreaming]);
 
   // Handle suggested question click
   const handleSuggestedQuestion = (question: string) => {

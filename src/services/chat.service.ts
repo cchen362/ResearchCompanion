@@ -9,15 +9,6 @@ import type {
   ResearchFinding
 } from '../types';
 
-// Lazy import to avoid circular dependency
-let getChatStore: () => any;
-if (typeof window !== 'undefined') {
-  getChatStore = () => {
-    const { useChatStore } = require('../stores/chatStore');
-    return useChatStore.getState();
-  };
-}
-
 interface ChatRequest {
   message: string;
   chatId: string;
@@ -41,6 +32,15 @@ interface StreamCallbacks {
   onCitation?: (citation: SourceCitation) => void;
 }
 
+interface ChatStoreOperations {
+  addMessage: (chatId: string, message: any) => Promise<ChatMessage>;
+  startStreaming?: (partialMessage: any) => void;
+  updateStreamingMessage?: (content: string) => void;
+  endStreaming?: (message: ChatMessage) => void;
+  getMessages?: (chatId: string) => ChatMessage[];
+  getChats?: () => FindingsChat[];
+}
+
 class ChatService {
   private eventSource: EventSource | null = null;
   private abortController: AbortController | null = null;
@@ -50,23 +50,21 @@ class ChatService {
    */
   async sendMessage(
     request: ChatRequest,
-    callbacks?: StreamCallbacks
+    callbacks?: StreamCallbacks,
+    storeOps?: ChatStoreOperations
   ): Promise<ChatResponse> {
-    const chatStore = getChatStore?.();
-    if (!chatStore) {
-      throw new Error('Chat store not available');
-    }
-
     try {
-      // Add user message to store immediately
-      const userMessage = await chatStore.addMessage(request.chatId, {
-        role: 'user',
-        content: request.message,
-        metadata: {
-          topicId: request.topicId,
-          timestamp: new Date().toISOString()
-        }
-      });
+      // Add user message to store immediately if store operations provided
+      if (storeOps?.addMessage) {
+        await storeOps.addMessage(request.chatId, {
+          role: 'user',
+          content: request.message,
+          metadata: {
+            topicId: request.topicId,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
 
       // Get relevant findings for context
       const contextFindings = await this.getContextFindings(
@@ -97,9 +95,9 @@ class ChatService {
       };
 
       if (request.stream && callbacks) {
-        return await this.streamResponse(request.chatId, payload, callbacks);
+        return await this.streamResponse(request.chatId, payload, callbacks, storeOps);
       } else {
-        return await this.getResponse(request.chatId, payload);
+        return await this.getResponse(request.chatId, payload, storeOps);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -112,28 +110,27 @@ class ChatService {
    */
   private async getResponse(
     chatId: string,
-    payload: any
+    payload: any,
+    storeOps?: ChatStoreOperations
   ): Promise<ChatResponse> {
-    const chatStore = getChatStore?.();
-    if (!chatStore) {
-      throw new Error('Chat store not available');
-    }
-
     try {
       const response = await api.post('/chat/complete', payload);
       const data = response.data;
 
-      // Add AI message to store
-      const aiMessage = await chatStore.addMessage(chatId, {
-        role: 'assistant',
-        content: data.content,
-        citations: data.citations,
-        metadata: {
-          model: data.model || 'claude-sonnet-4-5-20250929',
-          tokens: data.tokens,
-          processingTime: data.processingTime
-        }
-      });
+      // Add AI message to store if store operations provided
+      let aiMessage: ChatMessage | undefined;
+      if (storeOps?.addMessage) {
+        aiMessage = await storeOps.addMessage(chatId, {
+          role: 'assistant',
+          content: data.content,
+          citations: data.citations,
+          metadata: {
+            model: data.model || 'claude-sonnet-4-5-20250929',
+            tokens: data.tokens,
+            processingTime: data.processingTime
+          }
+        });
+      }
 
       // Process citations - NO! Don't override backend citations
       // The backend already sends properly formatted citations
@@ -142,20 +139,35 @@ class ChatService {
       //   data.citations || []
       // );
 
+      // Create default message if we don't have one from store
+      const responseMessage = aiMessage || {
+        id: '',
+        role: 'assistant' as const,
+        content: data.content,
+        citations: data.citations,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          model: data.model || 'claude-sonnet-4-5-20250929',
+          tokens: data.tokens,
+          processingTime: data.processingTime
+        }
+      };
+
       return {
-        message: aiMessage,
+        message: responseMessage,
         citations: data.citations || [], // Use backend citations directly!
         suggestedQuestions: data.suggestedQuestions,
         relatedFindings: data.relatedFindings
       };
     } catch (error) {
-      // Add error message to chat
-      await chatStore.addMessage(chatId, {
-        role: 'system',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
-        metadata: {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date().toISOString()
+      // Add error message to chat if store operations provided
+      if (storeOps?.addMessage) {
+        await storeOps.addMessage(chatId, {
+          role: 'system',
+          content: 'Sorry, I encountered an error processing your request. Please try again.',
+          metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
         }
       });
       throw error;
@@ -168,26 +180,24 @@ class ChatService {
   private async streamResponse(
     chatId: string,
     payload: any,
-    callbacks: StreamCallbacks
+    callbacks: StreamCallbacks,
+    storeOps?: ChatStoreOperations
   ): Promise<ChatResponse> {
-    const chatStore = getChatStore?.();
-    if (!chatStore) {
-      throw new Error('Chat store not available');
-    }
-
     return new Promise((resolve, reject) => {
       // Create abort controller for cancellation
       this.abortController = new AbortController();
 
-      // Start streaming indicator
-      chatStore.startStreaming({
-        role: 'assistant',
-        content: '',
-        metadata: {
-          model: 'claude-sonnet-4-5-20250929',
-          timestamp: new Date().toISOString()
-        }
-      });
+      // Start streaming indicator if store operations provided
+      if (storeOps?.startStreaming) {
+        storeOps.startStreaming({
+          role: 'assistant',
+          content: '',
+          metadata: {
+            model: 'claude-sonnet-4-5-20250929',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
 
       // Create event source for SSE
       const url = `${import.meta.env.VITE_API_URL || '/api'}/chat/stream`;
@@ -228,17 +238,34 @@ class ChatService {
 
               if (done) {
                 // Stream complete - save final message
-                const finalMessage = await chatStore.addMessage(chatId, {
-                  role: 'assistant',
-                  content: accumulatedContent,
-                  citations,
-                  metadata: {
-                    model: 'claude-sonnet-4-5-20250929',
-                    timestamp: new Date().toISOString()
-                  }
-                });
+                let finalMessage: ChatMessage;
+                if (storeOps?.addMessage) {
+                  finalMessage = await storeOps.addMessage(chatId, {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    citations,
+                    metadata: {
+                      model: 'claude-sonnet-4-5-20250929',
+                      timestamp: new Date().toISOString()
+                    }
+                  });
+                } else {
+                  finalMessage = {
+                    id: '',
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    citations,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                      model: 'claude-sonnet-4-5-20250929',
+                      timestamp: new Date().toISOString()
+                    }
+                  };
+                }
 
-                chatStore.endStreaming(finalMessage);
+                if (storeOps?.endStreaming) {
+                  storeOps.endStreaming(finalMessage);
+                }
                 callbacks.onComplete?.(finalMessage);
 
                 resolve({
@@ -266,7 +293,9 @@ class ChatService {
 
                     if (parsed.type === 'token') {
                       accumulatedContent += parsed.content;
-                      chatStore.updateStreamingMessage(accumulatedContent);
+                      if (storeOps?.updateStreamingMessage) {
+                        storeOps.updateStreamingMessage(accumulatedContent);
+                      }
                       callbacks.onToken?.(parsed.content);
                     } else if (parsed.type === 'citation') {
                       const citation: SourceCitation = parsed.citation;
@@ -287,7 +316,9 @@ class ChatService {
               }
             }
           } catch (error) {
-            chatStore.endStreaming({} as ChatMessage);
+            if (storeOps?.endStreaming) {
+              storeOps.endStreaming({} as ChatMessage);
+            }
             callbacks.onError?.(error as Error);
             reject(error);
           }
@@ -295,7 +326,9 @@ class ChatService {
 
         processStream();
       }).catch(error => {
-        chatStore.endStreaming({} as ChatMessage);
+        if (storeOps?.endStreaming) {
+          storeOps.endStreaming({} as ChatMessage);
+        }
         callbacks.onError?.(error);
         reject(error);
       });
@@ -315,8 +348,8 @@ class ChatService {
       this.eventSource = null;
     }
 
-    const chatStore = useChatStore.getState();
-    chatStore.endStreaming({} as ChatMessage);
+    // Note: This would need storeOps passed in if we need to end streaming
+    // For now, this is just cleaning up the connection
   }
 
   /**
@@ -405,6 +438,8 @@ class ChatService {
     chatId: string,
     limit: number = 5
   ): Promise<Array<{ role: string; content: string }>> {
+    // Import store lazily to avoid circular dependency
+    const { useChatStore } = await import('../stores/chatStore');
     const chatStore = useChatStore.getState();
     const messages = chatStore.messages.get(chatId) || [];
 
@@ -503,6 +538,8 @@ class ChatService {
     chatId: string,
     format: 'txt' | 'json' | 'pdf' = 'txt'
   ): Promise<Blob> {
+    // Import store lazily to avoid circular dependency
+    const { useChatStore } = await import('../stores/chatStore');
     const chatStore = useChatStore.getState();
     const chat = chatStore.chats.find(c => c.id === chatId);
     const messages = chatStore.messages.get(chatId) || [];
@@ -541,6 +578,8 @@ class ChatService {
     chat: FindingsChat;
     matches: Array<{ message: ChatMessage; highlight: string }>;
   }>> {
+    // Import store lazily to avoid circular dependency
+    const { useChatStore } = await import('../stores/chatStore');
     const chatStore = useChatStore.getState();
     const results: Array<{
       chat: FindingsChat;
