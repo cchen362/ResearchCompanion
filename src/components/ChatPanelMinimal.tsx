@@ -48,10 +48,21 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           await chatStore.createChat(topicId);
         }
 
+        // Load messages for the active chat
+        if (chatStore.activeChatId) {
+          await chatStore.loadMessages(chatStore.activeChatId);
+        }
+
+        // Load findings for the topic so citations can be resolved
+        const findingsStore = findingsStoreModule.useFindingsStore.getState();
+        await findingsStore.loadFindings({ topicId });
+        console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsStore.findings.length);
+
         // Subscribe to messages
         const chatState = chatStoreModule.useChatStore.getState();
         const activeMessages = chatState.messages.get(chatState.activeChatId || '') || [];
         setMessages(activeMessages);
+        console.log('[ChatPanelMinimal] Initial messages loaded:', activeMessages.length);
 
         const unsubscribe = chatStoreModule.useChatStore.subscribe(
           (state) => state.messages,
@@ -74,31 +85,44 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const handleCitationClick = async (findingId: string) => {
     console.log('Citation clicked - Finding ID:', findingId);
 
-    // Since this is a SPA without routing, we need to:
-    // 1. Close the chat panel
-    // 2. Open the findings view with the selected finding
-
-    if (onClose) {
-      onClose(); // Close the chat panel
-    }
-
     // Try to get the finding from the findings store
     if (stores) {
       const findingsStore = stores.useFindingsStore.getState();
+
+      // First, try to load findings if not already loaded
+      if (findingsStore.findings.length === 0) {
+        console.log('Loading findings for topic...');
+        await findingsStore.loadFindings({ topicId });
+      }
+
       const finding = findingsStore.findings.find((f: any) => f.id === findingId);
 
       if (finding) {
+        console.log('Found finding to display:', finding);
+
+        // Open a modal or drawer to show the finding detail
+        // For now, we'll show it in an alert as a temporary solution
+        const findingInfo = `
+Title: ${finding.title || 'Untitled'}
+
+Content:
+${finding.content || finding.summary || 'No content available'}
+
+Source: ${finding.source?.displayName || finding.source?.name || 'Unknown'}
+Date: ${finding.createdAt ? new Date(finding.createdAt).toLocaleDateString() : 'Unknown'}
+        `;
+
+        alert(findingInfo);
+
+        // TODO: Implement proper finding detail modal/drawer
         // Set the selected finding in UI store if available
         const uiStore = stores.useUIStore.getState();
         if (uiStore.setSelectedFinding) {
           uiStore.setSelectedFinding(finding);
         }
-
-        // TODO: Need to trigger findings view to open
-        // This would require passing a callback from parent or using a global state
-        console.log('Found finding to display:', finding);
       } else {
-        console.log('Finding not found in local store:', findingId);
+        console.log('Finding not found in store even after loading. Finding ID:', findingId);
+        alert('Finding details not available. The finding may have been deleted or is not accessible.');
       }
     }
   };
