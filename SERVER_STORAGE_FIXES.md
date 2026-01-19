@@ -980,12 +980,62 @@ ChatPanel is now in a separate chunk, loaded on demand.
 
 ---
 
+### Issue 26: Chat 414 URI Too Large Error (FIXED - January 19, 2026)
+**Problem:** After fixing circular dependencies, chat messages wouldn't get responses with "414 Request-URI Too Large" error
+
+**Root Cause Analysis:**
+1. ChatPanelMinimal was sending minimal context to avoid large URLs
+2. BUT chat.service.ts was calling `getContextFindings()` which loaded ALL topic findings
+3. The `handleStreamingResponse()` method used EventSource (GET request) with URL query parameters
+4. This put the entire enriched context (with 20+ findings) into the URL via `JSON.stringify(request.context)`
+5. Backend expected POST for `/api/chat/stream` but frontend was using GET via EventSource
+
+**The Fix:**
+Changed ChatPanelMinimal to use POST endpoint instead of streaming:
+```typescript
+// Before: Using EventSource (GET) with context in URL
+const eventSource = new EventSource(`/api/chat/stream?${new URLSearchParams({
+  context: JSON.stringify(request.context) // This made URL too long!
+})}`);
+
+// After: Using fetch with POST
+const response = await fetch('/api/chat/complete', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    message: userMessage.content,
+    context: minimalContext,
+    stream: false
+  })
+});
+```
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx`: Changed to use POST /api/chat/complete endpoint
+
+**Key Discovery:**
+- EventSource API only supports GET requests
+- Backend has both GET and POST endpoints for streaming
+- Frontend was incorrectly using GET with EventSource
+- Solution: Use non-streaming POST endpoint (sacrifices real-time streaming for functionality)
+
+**Deployment:** Successfully deployed to production at 100.94.82.35:6767 (January 19, 2026)
+
+**Lessons Learned:**
+1. **414 errors mean URL is too long** - Check for GET requests with large payloads
+2. **EventSource only supports GET** - Cannot use for endpoints that need POST with body
+3. **Always check backend route definitions** - Frontend was using wrong HTTP method
+4. **Enrichment happens in multiple places** - Check both frontend AND backend for context additions
+
+---
+
 ## Next Steps
 
-1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)
-2. Add chat history persistence to PostgreSQL (for multi-device sync)
-3. Complete Phase 2 to 100% (message feedback, chat sidebar UI)
-4. Implement retry logic for network failures
-5. Add batch operations for performance
-6. Create data migration tools
-7. Review any remaining IndexedDB direct usage
+1. ✅ Deploy chat fixes to production (COMPLETED Jan 19, 2026)
+2. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
+3. Add chat history persistence to PostgreSQL (for multi-device sync)
+4. Complete Phase 2 to 100% (message feedback, chat sidebar UI)
+5. Implement retry logic for network failures
+6. Add batch operations for performance
+7. Create data migration tools
+8. Review any remaining IndexedDB direct usage
