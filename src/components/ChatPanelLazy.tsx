@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// TEMPORARY: Use debug version to trace initialization issues
+// Use minimal version to avoid ALL circular dependencies
 const ChatPanelImpl = lazy(() =>
-  import('./ChatPanelDebug').then(module => ({
+  import('./ChatPanelMinimal').then(module => ({
     default: module.ChatPanel
   }))
 );
