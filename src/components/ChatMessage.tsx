@@ -66,6 +66,11 @@ export function ChatMessage({
         });
 
         if (citation) {
+          // Check if this is a placeholder citation (reference not available)
+          if (citation.isPlaceholder || !citation.findingId) {
+            return `<button data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded cursor-not-allowed opacity-75" title="Reference not available - citation exceeds available findings" disabled>[${num}]</button>`;
+          }
+          // Regular citation with valid finding
           return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded transition-all cursor-pointer hover:shadow-sm" title="Click to view finding">[${num}]</button>`;
         }
         return `<span class="text-muted-foreground">[${num}]</span>`;

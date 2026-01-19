@@ -223,8 +223,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       let topicFindings: any[] = [];
       try {
         const allFindings = await findingsService.getFindings(topicId);
-        // Get up to 20 findings for context (backend expects these for citations)
-        topicFindings = allFindings.slice(0, 20); // Limit to 20 to match backend's citation range
+        // Get up to 50 findings for context to support more citations
+        topicFindings = allFindings.slice(0, 50); // Increased from 20 to 50 to support more citations
         console.log('[ChatPanel] Loaded findings from API:', {
           totalCount: allFindings.length,
           usingCount: topicFindings.length
@@ -245,7 +245,12 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         id: f.id,
         title: f.title || '',
         content: f.details || f.summary || '',
-        source: f.source?.displayName || f.source?.name || 'Unknown Source',
+        // Preserve the full source object structure instead of converting to string
+        source: f.source || {
+          name: 'Unknown Source',
+          type: 'unknown',
+          displayName: 'Unknown Source'
+        },
         type: f.type || 'research',
         createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
         priority: f.priority || 'medium'

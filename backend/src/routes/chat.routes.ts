@@ -327,6 +327,8 @@ When you have limited information from the findings:
 - Suggest specific questions the user could explore or search terms to use
 
 When referencing research findings, use citations in the format [1], [2], etc. and briefly mention the source type.
+CRITICAL: You have exactly ${context.findings?.length || 0} findings available. Only use citation numbers from [1] to [${context.findings?.length || 0}].
+Never reference citations beyond [${context.findings?.length || 0}] as they do not exist in the current context.
 
 Important: You are NOT providing medical advice. Encourage users to consult with healthcare professionals for medical decisions. However, you CAN help interpret research findings and explain medical concepts.`;
 
@@ -397,18 +399,38 @@ function extractCitations(
     if (arrayIndex >= 0 && arrayIndex < findings.length) {
       const finding = findings[arrayIndex];
 
+      // Ensure source is an object, not a string
+      const sourceObj = typeof finding.source === 'string'
+        ? { name: finding.source, type: 'unknown', displayName: finding.source }
+        : (finding.source || { name: 'Unknown Source', type: 'unknown', displayName: 'Unknown Source' });
+
       citations.push({
         findingId: finding.id,
         citationNumber: citationNum, // Use the actual citation number from the text
         citationText: finding.title || finding.content?.substring(0, 100) || 'Research Finding',
+        source: sourceObj, // Include the full source object
         highlightStart: match.index,
         highlightEnd: match.index + match[0].length
       });
 
-      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id} (${finding.title?.substring(0, 30)}...)`);
+      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id} (${finding.title?.substring(0, 30)}...) with source: ${sourceObj.displayName || sourceObj.name}`);
     } else {
-      // Log when a citation number doesn't have a corresponding finding
-      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] has no corresponding finding (arrayIndex=${arrayIndex}, findings.length=${findings.length})`);
+      // Still create a citation entry but mark it as unavailable
+      // This allows the frontend to show it as a citation (not plain text) but handle it gracefully
+      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] exceeds available findings (requested index ${arrayIndex}, but only ${findings.length} findings available)`);
+
+      // Create a placeholder citation that frontend can recognize as invalid
+      citations.push({
+        findingId: null, // Signal that finding is not available
+        citationNumber: citationNum,
+        citationText: `Citation ${citationNum} (reference not available)`,
+        source: { name: 'Reference Not Available', type: 'unavailable', displayName: 'Reference Not Available' },
+        highlightStart: match.index,
+        highlightEnd: match.index + match[0].length,
+        isPlaceholder: true // Flag for frontend
+      });
+
+      console.log(`📝 [extractCitations] Created placeholder for citation [${citationNum}] that exceeds available findings`);
     }
   }
 
