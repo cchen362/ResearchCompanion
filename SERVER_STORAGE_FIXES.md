@@ -1569,13 +1569,40 @@ docker-compose up --build -d
 3. **Always have API fallbacks** - Don't rely solely on local cache for critical data
 4. **PostgreSQL JSONB needs parsing** - Fields may come as strings and need JSON.parse()
 
+**Deployment Completed (January 19, 2026 at 15:57 UTC)**
+Successfully deployed to Debian server (100.94.82.35):
+
+**Deployment Commands Executed:**
+```bash
+ssh chee@100.94.82.35
+cd /home/chee/medical-pwa
+git pull origin fix/digest-findings-race-condition  # Updated a1ffaf9..af3b4d0
+docker-compose down
+docker-compose up --build -d
+```
+
+**Deployment Results:**
+- ✅ Code updated to commit af3b4d0
+- ✅ Docker containers rebuilt successfully
+- ✅ Frontend running on port 6767 (HTTP 200)
+- ✅ Backend running on port 3001 (API responding)
+- ✅ Database connected successfully
+- ✅ No errors in application logs
+
+**Fixes Now Live in Production:**
+- All citations render as clickable blue buttons (not just some)
+- Chat messages persist and display after refresh
+- Citation clicks fetch from API if not in local cache
+- JSON fields from PostgreSQL properly parsed
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
 2. ✅ Fix citation rendering and message display issues (COMPLETED Jan 19, 2026)
-3. Deploy latest fixes to production (PENDING)
-4. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
-5. Add maximize/fullscreen mode for chat
-6. Implement message search functionality
-7. Add retry logic for network failures
-8. Review any remaining IndexedDB direct usage
+3. ✅ Deploy latest fixes to production (COMPLETED Jan 19, 2026 at 15:57 UTC)
+4. Test all chat features in production environment
+5. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
+6. Add maximize/fullscreen mode for chat
+7. Implement message search functionality
+8. Add retry logic for network failures
+9. Review any remaining IndexedDB direct usage
