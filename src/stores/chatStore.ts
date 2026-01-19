@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { FindingsChat, ChatMessage, ChatContext, SourceCitation } from '../types';
 import { getDB } from '../utils/db/database';
-import { chatAPIService } from '../services/chat.api.service';
+// Removed chatAPIService import to avoid circular dependency
 import { storageConfig } from '../config/storage.config';
 
 interface ChatStore {
@@ -74,6 +74,7 @@ export const useChatStore = create<ChatStore>()(
 
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
+              const { chatAPIService } = await import('../services/chat.api.service');
               chats = await chatAPIService.getChats(topicId);
             } else {
               // Fall back to IndexedDB for local storage
@@ -114,6 +115,7 @@ export const useChatStore = create<ChatStore>()(
                 userPreferences: {}
               };
 
+              const { chatAPIService } = await import('../services/chat.api.service');
               newChat = await chatAPIService.createChat(
                 topicId,
                 initialMessage?.substring(0, 100) || 'New Conversation',
@@ -197,6 +199,7 @@ export const useChatStore = create<ChatStore>()(
 
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
+              const { chatAPIService } = await import('../services/chat.api.service');
               updatedChat = await chatAPIService.updateChat(chatId, updates);
             } else {
               // Fall back to IndexedDB for local storage
@@ -233,6 +236,7 @@ export const useChatStore = create<ChatStore>()(
           try {
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
+              const { chatAPIService } = await import('../services/chat.api.service');
               await chatAPIService.deleteChat(chatId);
             } else {
               // Fall back to IndexedDB for local storage
@@ -290,6 +294,7 @@ export const useChatStore = create<ChatStore>()(
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
               console.log('📡 [chatStore] Fetching messages from API...');
+              const { chatAPIService } = await import('../services/chat.api.service');
               messages = await chatAPIService.getMessages(chatId);
               console.log('✅ [chatStore] Loaded messages from API:', {
                 count: messages.length,
@@ -328,6 +333,7 @@ export const useChatStore = create<ChatStore>()(
 
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
+              const { chatAPIService } = await import('../services/chat.api.service');
               newMessage = await chatAPIService.addMessage(
                 chatId,
                 messageData.role,

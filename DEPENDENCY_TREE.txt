@@ -1,0 +1,90 @@
+================================================================================
+COMPLETE CIRCULAR DEPENDENCY TREE - VISUAL REPRESENTATION
+================================================================================
+
+INITIALIZATION ORDER (Top-Level Imports):
+================================================================================
+
+1. chatStore.ts (STORE)
+   CRITICAL IMPORT:
+   Line 5: import { chatAPIService } from '../services/chat.api.service';
+   Status: BROKEN - Synchronous top-level import
+
+2. chat.api.service.ts (SERVICE)
+   Line 1: import { api } from './api'
+
+3. chat.service.ts (SERVICE)
+   Line 359: const { findingsService } = await import('./findings.service')
+   Status: CORRECT - Lazy import in async function
+
+4. findings.service.ts (SERVICE)
+   Line 2: import { findingsAPIService } from './findings.api.service'
+
+5. findingsStore.ts (STORE)
+   Status: CLEAN - No service imports
+
+6. uiStore.ts (STORE)
+   Status: CLEAN - No external imports
+
+================================================================================
+THE CIRCULAR DEPENDENCY PROBLEM
+================================================================================
+
+During Production Build Initialization:
+
+Step 1: Load chatStore.ts
+        ├─ Execute line 5 import
+        └─ Try to load chat.api.service.ts
+
+Step 2: Load chat.api.service.ts
+        ├─ Creates chatAPIService singleton at module level
+        └─ If any initialization code references chatStore
+           THEN circular dependency error occurs
+
+Step 3: Production minifies variable names
+        chatAPIService becomes 'K'
+        Error: "Cannot access 'K' before initialization"
+
+================================================================================
+CRITICAL FILES AND LINES
+================================================================================
+
+BROKEN (Needs Fix):
+  Location: src/stores/chatStore.ts
+  Line: 5
+  Code: import { chatAPIService } from '../services/chat.api.service';
+  Why: Top-level synchronous import in store
+
+CORRECT (Don't Change):
+  Location: src/services/chat.service.ts
+  Line: 359, 450, 476
+  Code: const { findingsService } = await import('...')
+  Why: Lazy import inside async functions
+
+CLEAN (No Issues):
+  Location: src/stores/findingsStore.ts
+  Status: No service imports
+
+  Location: src/stores/uiStore.ts
+  Status: No external imports
+
+================================================================================
+SOLUTION: Convert to Lazy Loading
+================================================================================
+
+REMOVE:
+  Line 5 from chatStore.ts:
+  import { chatAPIService } from '../services/chat.api.service';
+
+ADD to each method using chatAPIService:
+  In loadChats() method
+  In createChat() method
+  In updateChat() method
+  In deleteChat() method
+
+  Add this line before each use:
+  const { chatAPIService } = await import('../services/chat.api.service');
+
+This converts synchronous import to lazy loading, breaking the cycle.
+
+================================================================================
