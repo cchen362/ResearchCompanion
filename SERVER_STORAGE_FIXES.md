@@ -1680,6 +1680,34 @@ docker-compose up --build -d
 - ✅ Database connected successfully
 - ✅ No errors in application logs
 
+### Issue 24: Citations Not Loading & Clear Chat Error (January 20, 2026) [FIXED & DEPLOYED]
+
+**Problem:**
+- Citations array returning empty (0 citations) even when content references findings
+- Clear chat failing with 404 error due to doubled `/api/api/` URL
+
+**Root Causes:**
+1. **FindingsStore using IndexedDB instead of API** - ChatPanel was loading from local IndexedDB instead of server
+2. **Doubled API prefix** - chat.service.ts had `/api/` prefix but API service already prepends it
+
+**Fix (Commit 127d622):**
+1. **Load findings directly from API:**
+   ```typescript
+   // Import findingsService instead of using findingsStore
+   const { findingsService } = await import('../services/findings.service');
+   const allFindings = await findingsService.getFindings(topicId);
+   ```
+
+2. **Remove doubled /api/ prefix:**
+   ```typescript
+   // Before: await api.delete(`/api/topics/${topicId}/chats/${chatId}/messages`);
+   // After:  await api.delete(`/topics/${topicId}/chats/${chatId}/messages`);
+   ```
+
+**Deployment (January 20, 2026 at 16:45 UTC):**
+- Updated to commit 127d622
+- All services running successfully
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -1687,7 +1715,8 @@ docker-compose up --build -d
 3. ✅ Deploy latest fixes to production (COMPLETED Jan 19, 2026 at 15:57 UTC)
 4. ✅ Fix citation click errors and missing citations (COMPLETED Jan 20, 2026)
 5. ✅ Deploy citation fixes to production (COMPLETED Jan 20, 2026 at 16:30 UTC)
-6. Test all chat features in production environment
+6. ✅ Fix citations not loading & clear chat error (COMPLETED Jan 20, 2026 at 16:45 UTC)
+7. Test all chat features in production environment
 7. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
 8. Add maximize/fullscreen mode for chat
 9. Implement message search functionality
