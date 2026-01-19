@@ -76,21 +76,62 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       const { chatService } = await import('../services/chat.service');
       const chatStore = stores.useChatStore.getState();
 
-      // Send message
+      // Create a minimal context to avoid URI too large error
+      const minimalContext = {
+        currentFindings: [], // Don't send all findings in URL
+        expandedTopics: [],
+        recentInteractions: [],
+        userPreferences: {},
+        // Don't include the full findings array in context
+      };
+
+      // First add the user message to the local state
+      const userMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: inputValue,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue('');
+
+      // Send message with minimal context
       await chatService.sendMessage({
-        message: inputValue,
+        message: userMessage.content,
         chatId: chatStore.activeChatId!,
         topicId,
-        context: chatStore.context,
+        context: minimalContext, // Use minimal context
         stream: true
       }, {
-        onComplete: () => {
+        onToken: (token) => {
+          // Handle streaming tokens if needed
+          console.log('Token received:', token);
+        },
+        onComplete: (response) => {
           setIsLoading(false);
-          setInputValue('');
+          // The response should be automatically added via the store subscription
+          // But we can also manually add it if needed
+          if (response && response.content) {
+            const aiMessage = {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: response.content,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, aiMessage]);
+          }
         },
         onError: (error) => {
           console.error('Failed to send message:', error);
           setIsLoading(false);
+          // Show error message
+          const errorMessage = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: 'Sorry, I encountered an error. Please try again.',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, errorMessage]);
         }
       });
     } catch (error) {
