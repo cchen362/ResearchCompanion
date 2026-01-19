@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores/chatStore';
 import { useFindingsStore } from '../stores/findingsStore';
 import { useUIStore } from '../stores/uiStore';
-import { chatService } from '../services/chat.service';
+// Removed direct imports of services to avoid circular dependency
+// import { chatService } from '../services/chat.service';
 import { findingsService } from '../services/findings.service';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -195,7 +196,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         currentFindings: Array.from(allFindingIds)
       });
 
-      // Send message with streaming
+      // Send message with streaming (dynamic import to avoid circular dependency)
+      const { chatService } = await import('../services/chat.service');
       await chatService.sendMessage(
         {
           message,
@@ -213,7 +215,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             // Token streaming handled by store
           },
           onComplete: async (message) => {
-            // Get suggested questions
+            // Get suggested questions (dynamic import to avoid circular dependency)
+            const { chatService } = await import('../services/chat.service');
             const suggestions = await chatService.getSuggestedQuestions(topicId, context);
             setSuggestedQuestions(suggestions);
           },
@@ -285,6 +288,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     if (!activeChatId) return;
 
     try {
+      // Dynamic import to avoid circular dependency
+      const { chatService } = await import('../services/chat.service');
       const blob = await chatService.exportChat(activeChatId, 'txt');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
