@@ -953,19 +953,30 @@ dist/assets/ChatPanel-BycU2QF0.js  45.62 kB │ gzip: 12.76 kB
 ```
 ChatPanel is now in a separate chunk, loaded on demand.
 
-**Deployment:** Successfully deployed to production at 100.94.82.35:6767 on January 19, 2026
+**First Deployment:** Successfully deployed to production at 100.94.82.35:6767 on January 19, 2026
+
+**Update - Issue Persisted:** Chat still crashed with "Cannot access 'm' before initialization" in ChatPanel chunk
+
+**Additional Fix (commit 23c3218):** Removed static chatService import from ChatPanel itself
+- ChatPanel was importing both chatService and chatStore statically
+- Even in the lazy-loaded chunk, this created circular dependencies
+- Converted all 3 chatService usages to dynamic imports:
+  - sendMessage() for sending chat messages
+  - getSuggestedQuestions() for AI suggestions
+  - exportChat() for exporting chat history
+- This fully breaks the circular dependency chain
+
+**Final Deployment:** Successfully deployed at 3:40 UTC (January 19, 2026)
+- chat.service now in its own chunk (chat.service-*.js)
+- ChatPanel chunk loads without initialization errors
+- No circular dependency warnings in build
 
 **Lessons Learned:**
-1. **Lazy load components that create circular dependencies** - Breaks the chain at build time
-2. **"Cannot access before initialization"** in production = Circular dependency issue
-3. **Minified variable names (K, se, etc.)** make debugging harder - check source maps
-4. **Multiple fix attempts** indicate incomplete understanding - need thorough investigation
-5. **ChatPanel should be lazy-loaded** since it's not always visible and has heavy dependencies
-
-**Deployment:** Successfully deployed to production at 9:21 UTC (January 19, 2026)
-- Built and tested locally first
-- Deployed via Docker on production server (100.94.82.35)
-- Chat page now loads without errors
+1. **Lazy loading the wrapper isn't enough** - Must also fix imports WITHIN the lazy-loaded component
+2. **"Cannot access before initialization"** can persist even after lazy loading if internal imports are circular
+3. **Minified variable names (K, m, se, etc.)** change between builds - focus on the pattern not the variable
+4. **Dynamic imports must be used consistently** - Any static import can recreate the circular chain
+5. **ChatPanel needs ALL service imports to be dynamic** to fully break circular dependencies
 
 ---
 
