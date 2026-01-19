@@ -69,8 +69,19 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
   // Load chats on mount
   useEffect(() => {
+    console.log('🔄 [ChatPanel] Loading chats for topic:', topicId);
     loadChats(topicId);
   }, [topicId, loadChats]);
+
+  // Auto-load messages if we have an active chat but no messages (e.g., after refresh)
+  useEffect(() => {
+    if (activeChatId && chatMessages.length === 0) {
+      console.log('📨 [ChatPanel] Active chat found but no messages, loading...');
+      loadMessages(activeChatId).catch(error => {
+        console.error('Failed to load messages for active chat:', error);
+      });
+    }
+  }, [activeChatId, chatMessages.length, loadMessages]);
 
   // Load all topic findings for context
   useEffect(() => {

@@ -38,6 +38,13 @@ export function ChatMessage({
   const formattedContent = useMemo(() => {
     if (!message.content) return '';
 
+    // Debug logging to trace citation issue
+    console.log('📝 [ChatMessage] Rendering message with citations:', {
+      citationsArray: message.citations,
+      citationCount: message.citations?.length || 0,
+      firstCitation: message.citations?.[0]
+    });
+
     let content = message.content;
 
     // Remove emojis
@@ -48,9 +55,16 @@ export function ChatMessage({
     content = content.replace(/\[([0-9,\s]+)\]/g, (match, citationNumbers) => {
       const numbers = citationNumbers.split(',').map((n: string) => n.trim());
       const citationLinks = numbers.map((num: string) => {
-        // Find the corresponding citation
-        const citationIndex = parseInt(num) - 1;
-        const citation = message.citations?.[citationIndex];
+        // CRITICAL FIX: Find citation by citationNumber property, NOT array index
+        const citationNum = parseInt(num);
+        const citation = message.citations?.find(c => c.citationNumber === citationNum);
+
+        console.log(`🔍 [ChatMessage] Looking for citation [${num}]:`, {
+          searchingFor: citationNum,
+          found: !!citation,
+          citationObject: citation
+        });
+
         if (citation) {
           return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded transition-all cursor-pointer hover:shadow-sm" title="Click to view finding">[${num}]</button>`;
         }

@@ -283,12 +283,19 @@ export const useChatStore = create<ChatStore>()(
 
         // Message Management
         loadMessages: async (chatId: string) => {
+          console.log('📨 [chatStore] Loading messages for chat:', chatId);
           try {
             let messages: ChatMessage[];
 
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
+              console.log('📡 [chatStore] Fetching messages from API...');
               messages = await chatAPIService.getMessages(chatId);
+              console.log('✅ [chatStore] Loaded messages from API:', {
+                count: messages.length,
+                hasMessages: messages.length > 0,
+                firstMessageCitations: messages[0]?.citations?.length || 0
+              });
             } else {
               // Fall back to IndexedDB for local storage
               const db = await getDB();
@@ -307,7 +314,7 @@ export const useChatStore = create<ChatStore>()(
             messagesMap.set(chatId, messages);
             set({ messages: new Map(messagesMap) });
           } catch (error) {
-            console.error('Failed to load messages:', error);
+            console.error('❌ [chatStore] Failed to load messages:', error);
             // Initialize with empty array on error
             const messagesMap = get().messages;
             messagesMap.set(chatId, []);
@@ -584,7 +591,24 @@ export const useChatStore = create<ChatStore>()(
         partialize: (state) => ({
           activeChatId: state.activeChatId,
           context: state.context
-        })
+        }),
+        onRehydrateStorage: () => (state) => {
+          console.log('🔄 [chatStore] Rehydrated from localStorage:', {
+            activeChatId: state?.activeChatId,
+            hasContext: !!state?.context
+          });
+
+          // Auto-load messages and chat details if we have an active chat
+          if (state?.activeChatId && storageConfig.useServerStorage) {
+            console.log('📨 [chatStore] Auto-loading messages for chat:', state.activeChatId);
+            // Load messages asynchronously after rehydration
+            setTimeout(() => {
+              state.loadMessages(state.activeChatId).catch((error: any) => {
+                console.error('Failed to auto-load messages:', error);
+              });
+            }, 100);
+          }
+        }
       }
     )
   )
