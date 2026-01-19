@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, MessageSquare, X } from 'lucide-react';
+import { Loader2, MessageSquare, X, Download, Trash2, Maximize2 } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { Button } from './ui/button';
 
 interface ChatPanelProps {
   topicId: string;
@@ -16,6 +17,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [stores, setStores] = useState<any>(null);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
 
   // Dynamically load ALL stores and services after component mounts
   useEffect(() => {
@@ -76,6 +78,68 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     // For now, just log to verify clicking works
   };
 
+  const handleExport = async () => {
+    try {
+      if (!stores) return;
+
+      // Dynamically import chat service for export
+      const { chatService } = await import('../services/chat.service');
+      const chatStore = stores.useChatStore.getState();
+
+      if (!chatStore.activeChatId) {
+        console.error('No active chat to export');
+        return;
+      }
+
+      // Get chat export as markdown
+      const markdown = await chatService.exportChat(
+        topicId,
+        chatStore.activeChatId,
+        'markdown'
+      );
+
+      // Create blob and download
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-${topicName}-${new Date().toISOString().split('T')[0]}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export chat. Please try again.');
+    }
+  };
+
+  const handleClear = async () => {
+    if (!confirm('Clear this chat? This cannot be undone.')) return;
+
+    try {
+      if (!stores) return;
+
+      // Dynamically import chat service for clearing
+      const { chatService } = await import('../services/chat.service');
+      const chatStore = stores.useChatStore.getState();
+
+      if (!chatStore.activeChatId) {
+        console.error('No active chat to clear');
+        return;
+      }
+
+      // Clear messages
+      await chatService.clearMessages(topicId, chatStore.activeChatId);
+      setMessages([]);
+      setSuggestedQuestions([]);
+
+      // Reload chat to reset state
+      await chatStore.loadChats(topicId);
+    } catch (error) {
+      console.error('Clear failed:', error);
+      alert('Failed to clear chat. Please try again.');
+    }
+  };
+
   const handleSendMessage = async (messageText?: string) => {
     const message = messageText || inputValue;
     if (!message.trim() || !stores) return;
@@ -129,6 +193,11 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       };
       setMessages(prev => [...prev, aiMessage]);
 
+      // Set suggested questions if available
+      if (response.data.suggestedQuestions && response.data.suggestedQuestions.length > 0) {
+        setSuggestedQuestions(response.data.suggestedQuestions);
+      }
+
       // Save to store if needed
       if (stores) {
         const chatStore = stores.useChatStore.getState();
@@ -171,14 +240,36 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           <MessageSquare className="w-5 h-5" />
           <h2 className="font-semibold">{topicName}</h2>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleExport}
+            title="Export chat"
+            disabled={messages.length === 0}
           >
-            <X className="w-5 h-5" />
-          </button>
-        )}
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleClear}
+            title="Clear chat"
+            disabled={messages.length === 0}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          {onClose && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onClose}
+              title="Close chat"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
@@ -201,6 +292,27 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           </div>
         )}
       </div>
+
+      {/* Suggested Questions */}
+      {suggestedQuestions.length > 0 && (
+        <div className="p-4 border-t bg-gray-50">
+          <p className="text-sm text-gray-600 mb-2">Suggested questions:</p>
+          <div className="flex flex-wrap gap-2">
+            {suggestedQuestions.map((question, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  handleSendMessage(question);
+                  setSuggestedQuestions([]);
+                }}
+                className="text-sm px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-full hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t">
