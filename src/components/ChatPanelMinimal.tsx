@@ -95,48 +95,63 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       setMessages(prev => [...prev, userMessage]);
       setInputValue('');
 
-      // Send message with minimal context
-      await chatService.sendMessage({
-        message: userMessage.content,
-        chatId: chatStore.activeChatId!,
-        topicId,
-        context: minimalContext, // Use minimal context
-        stream: true
-      }, {
-        onToken: (token) => {
-          // Handle streaming tokens if needed
-          console.log('Token received:', token);
+      // Use non-streaming API for now to avoid URI too large issue
+      // The streaming endpoint uses GET which puts context in URL
+      const response = await fetch('/api/chat/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Include auth token if available
+          ...(localStorage.getItem('token') ? {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          } : {})
         },
-        onComplete: (response) => {
-          setIsLoading(false);
-          // The response should be automatically added via the store subscription
-          // But we can also manually add it if needed
-          if (response && response.content) {
-            const aiMessage = {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: response.content,
-              timestamp: new Date()
-            };
-            setMessages(prev => [...prev, aiMessage]);
-          }
-        },
-        onError: (error) => {
-          console.error('Failed to send message:', error);
-          setIsLoading(false);
-          // Show error message
-          const errorMessage = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: 'Sorry, I encountered an error. Please try again.',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, errorMessage]);
-        }
+        body: JSON.stringify({
+          message: userMessage.content,
+          chatId: chatStore.activeChatId!,
+          topicId,
+          context: minimalContext, // Use minimal context
+          stream: false // Use non-streaming endpoint
+        })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setIsLoading(false);
+
+      // Add AI response to messages
+      const aiMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: data.content,
+        citations: data.citations,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Save to store if needed
+      if (stores) {
+        const chatStore = stores.useChatStore.getState();
+        if (chatStore.addMessage) {
+          await chatStore.addMessage(chatStore.activeChatId!, userMessage);
+          await chatStore.addMessage(chatStore.activeChatId!, aiMessage);
+        }
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsLoading(false);
+
+      // Show error message to user
+      const errorMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     }
   };
 
