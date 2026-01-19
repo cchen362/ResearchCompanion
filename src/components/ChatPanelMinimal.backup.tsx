@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, MessageSquare, X } from 'lucide-react';
-import { ChatMessage } from './ChatMessage';
 
 interface ChatPanelProps {
   topicId: string;
@@ -67,13 +66,6 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
     loadDependencies();
   }, [topicId]);
-
-  const handleCitationClick = (findingId: string) => {
-    console.log('Citation clicked - Finding ID:', findingId);
-    // TODO: Implement navigation to finding detail
-    // Could use: navigate(`/findings/${findingId}`) from react-router
-    // For now, just log to verify clicking works
-  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || !stores) return;
@@ -189,12 +181,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         ) : (
           <div className="space-y-4">
             {messages.map((msg, idx) => (
-              <ChatMessage
-                key={msg.id || idx}
-                message={msg}
-                onCitationClick={handleCitationClick}
-                isStreaming={false}
-              />
+              <div
+                key={idx}
+                className={`p-3 rounded-lg ${
+                  msg.role === 'user'
+                    ? 'bg-blue-50 ml-auto max-w-[80%]'
+                    : 'bg-gray-50 mr-auto max-w-[80%]'
+                }`}
+              >
+                <p className="text-sm">{msg.content}</p>
+              </div>
             ))}
           </div>
         )}
