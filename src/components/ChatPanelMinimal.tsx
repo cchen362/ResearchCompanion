@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageSquare, X, Download, Trash2, Maximize2 } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -14,7 +13,6 @@ interface ChatPanelProps {
 
 // Minimal chat panel with NO store imports to break all circular dependencies
 export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatPanelProps) {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -73,10 +71,36 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     loadDependencies();
   }, [topicId]);
 
-  const handleCitationClick = (findingId: string) => {
+  const handleCitationClick = async (findingId: string) => {
     console.log('Citation clicked - Finding ID:', findingId);
-    // Navigate to the finding detail view
-    navigate(`/topics/${topicId}/findings/${findingId}`);
+
+    // Since this is a SPA without routing, we need to:
+    // 1. Close the chat panel
+    // 2. Open the findings view with the selected finding
+
+    if (onClose) {
+      onClose(); // Close the chat panel
+    }
+
+    // Try to get the finding from the findings store
+    if (stores) {
+      const findingsStore = stores.useFindingsStore.getState();
+      const finding = findingsStore.findings.find((f: any) => f.id === findingId);
+
+      if (finding) {
+        // Set the selected finding in UI store if available
+        const uiStore = stores.useUIStore.getState();
+        if (uiStore.setSelectedFinding) {
+          uiStore.setSelectedFinding(finding);
+        }
+
+        // TODO: Need to trigger findings view to open
+        // This would require passing a callback from parent or using a global state
+        console.log('Found finding to display:', finding);
+      } else {
+        console.log('Finding not found in local store:', findingId);
+      }
+    }
   };
 
   const handleExport = async () => {
@@ -198,6 +222,22 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         totalCitations: response.data.citations?.length || 0,
         citations: response.data.citations,
         contentPreview: response.data.content.substring(0, 200)
+      });
+
+      // Extract all citation numbers mentioned in the content
+      const mentionedCitations = new Set<number>();
+      const citationPattern = /\[(\d+)\]/g;
+      let match;
+      while ((match = citationPattern.exec(response.data.content)) !== null) {
+        mentionedCitations.add(parseInt(match[1]));
+      }
+
+      console.log('🔍 [ChatPanel] Citation Analysis:', {
+        mentionedInText: Array.from(mentionedCitations).sort((a, b) => a - b),
+        providedInArray: response.data.citations?.map((c: any) => c.citationNumber).sort((a: any, b: any) => a - b) || [],
+        missing: Array.from(mentionedCitations).filter(num =>
+          !response.data.citations?.some((c: any) => c.citationNumber === num)
+        )
       });
 
       setMessages(prev => [...prev, aiMessage]);
