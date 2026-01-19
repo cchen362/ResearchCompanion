@@ -1021,11 +1021,18 @@ const response = await fetch('/api/chat/complete', {
 
 **Deployment:** Successfully deployed to production at 100.94.82.35:6767 (January 19, 2026)
 
+**Additional Issue - 401 Unauthorized (FIXED):**
+- After initial fix, chat messages returned 401 Unauthorized error
+- ChatPanelMinimal was using raw fetch() without proper auth headers
+- Fix: Import and use `api.post()` from '../services/api' which includes auth interceptors
+- The API service automatically adds JWT tokens from localStorage to all requests
+
 **Lessons Learned:**
 1. **414 errors mean URL is too long** - Check for GET requests with large payloads
 2. **EventSource only supports GET** - Cannot use for endpoints that need POST with body
 3. **Always check backend route definitions** - Frontend was using wrong HTTP method
 4. **Enrichment happens in multiple places** - Check both frontend AND backend for context additions
+5. **Always use API service for authenticated requests** - Don't use raw fetch(), use api.post/get/put/delete
 
 ---
 
