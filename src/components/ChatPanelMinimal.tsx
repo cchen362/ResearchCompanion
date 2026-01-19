@@ -54,18 +54,21 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         // Load messages for the active chat
         if (chatStore.activeChatId) {
           await chatStore.loadMessages(chatStore.activeChatId);
+
+          // After loading, get the messages from the updated state
+          // Use a small delay to ensure state has been updated
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          const updatedState = chatStoreModule.useChatStore.getState();
+          const loadedMessages = updatedState.messages.get(chatStore.activeChatId) || [];
+          setMessages(loadedMessages);
+          console.log('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
         }
 
         // Load findings for the topic so citations can be resolved
         const findingsStore = findingsStoreModule.useFindingsStore.getState();
         await findingsStore.loadFindings({ topicId });
         console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsStore.findings.length);
-
-        // Subscribe to messages
-        const chatState = chatStoreModule.useChatStore.getState();
-        const activeMessages = chatState.messages.get(chatState.activeChatId || '') || [];
-        setMessages(activeMessages);
-        console.log('[ChatPanelMinimal] Initial messages loaded:', activeMessages.length);
 
         const unsubscribe = chatStoreModule.useChatStore.subscribe(
           (state) => state.messages,
@@ -98,7 +101,28 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         await findingsStore.loadFindings({ topicId });
       }
 
-      const finding = findingsStore.findings.find((f: any) => f.id === findingId);
+      let finding = findingsStore.findings.find((f: any) => f.id === findingId);
+
+      // If not found in local store, try fetching from API
+      if (!finding) {
+        console.log('Finding not in local store, fetching from API...');
+        try {
+          const { findingsAPIService } = await import('../services/findings.api.service');
+          const apiFindings = await findingsAPIService.getFindings({ topicId });
+
+          // Find the specific finding from the API response
+          finding = apiFindings.find((f: any) => f.id === findingId);
+
+          if (finding) {
+            console.log('Found finding from API:', finding);
+
+            // Optionally add to store for future use
+            findingsStore.addFinding(finding);
+          }
+        } catch (error) {
+          console.error('Failed to fetch finding from API:', error);
+        }
+      }
 
       if (finding) {
         console.log('Found finding to display:', finding);
@@ -113,7 +137,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           uiStore.setSelectedFinding(finding);
         }
       } else {
-        console.log('Finding not found in store even after loading. Finding ID:', findingId);
+        console.log('Finding not found in store or API. Finding ID:', findingId);
         // Could show a toast notification here instead of alert
         console.warn('Finding details not available. The finding may have been deleted or is not accessible.');
       }

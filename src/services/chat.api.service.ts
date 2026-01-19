@@ -19,8 +19,14 @@ const transformMessage = (message: any): ChatMessage => ({
   chatId: message.chat_id,
   role: message.role,
   content: message.content,
-  citations: message.citations,
-  metadata: message.metadata,
+  // Parse citations if they come as JSON string from PostgreSQL
+  citations: typeof message.citations === 'string'
+    ? JSON.parse(message.citations)
+    : message.citations,
+  // Also handle metadata if it's JSON string
+  metadata: typeof message.metadata === 'string'
+    ? JSON.parse(message.metadata)
+    : message.metadata,
   timestamp: message.created_at
 });
 

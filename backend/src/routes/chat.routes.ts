@@ -182,7 +182,6 @@ router.post('/stream', async (req: Request, res: Response) => {
     });
 
     let fullContent = '';
-    let citationsSent = false;
 
     // Process stream
     for await (const chunk of stream) {
@@ -196,21 +195,22 @@ router.post('/stream', async (req: Request, res: Response) => {
           content: token
         })}\n\n`);
 
-        // Check for citations periodically
-        if (!citationsSent && fullContent.includes('[')) {
-          const citations = extractCitations(fullContent, enrichedContext.findings || []);
-          if (citations.length > 0) {
-            console.log(`📝 [STREAMING] Extracted ${citations.length} citations from ${enrichedContext.findings?.length || 0} findings`);
-          }
+        // Don't extract citations during streaming - wait until message is complete
+      } else if (chunk.type === 'message_stop') {
+        // Extract ALL citations now that the response is complete
+        const citations = extractCitations(fullContent, enrichedContext.findings || []);
+        if (citations.length > 0) {
+          console.log(`📝 [STREAMING] Extracted ${citations.length} citations from complete response using ${enrichedContext.findings?.length || 0} findings`);
+
+          // Send all citations at once
           for (const citation of citations) {
             res.write(`data: ${JSON.stringify({
               type: 'citation',
               citation
             })}\n\n`);
           }
-          citationsSent = true;
         }
-      } else if (chunk.type === 'message_stop') {
+
         // Generate metadata at the end
         const suggestedQuestions = await generateSuggestedQuestions(
           validated.topicId,
