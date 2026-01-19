@@ -1036,6 +1036,108 @@ const response = await fetch('/api/chat/complete', {
 
 ---
 
+### Issue 27: Chat Feature Complete Fix & Restoration Roadmap (DOCUMENTED - January 19, 2026)
+
+**The Complete Journey to Working Chat:**
+
+#### Part 1: The Circular Dependency Crisis
+**Initial Problem:** Page went completely blank when clicking chat icon with error "Cannot access 'K' before initialization"
+
+**Root Cause:** Complex circular dependency chain:
+```
+App.tsx → ChatPanel → chatStore → chatAPIService → chat.service → chatStore (circular!)
+```
+
+#### Part 2: The Fix Attempts
+1. **Attempt #1 (commits fef8a62, 2b20a91, b864793)**: Dynamic imports in services - PARTIAL FIX
+2. **Attempt #2 (commit 8fd2ef3)**: Removed chatAPIService from chatStore - PARTIAL FIX
+3. **Attempt #3**: Created ChatPanelLazy.tsx with React.lazy() - Still crashed with 'm' error
+4. **Attempt #4**: Removed static imports from ChatPanel itself - Still crashed with 'h' error
+5. **Attempt #5**: Created ChatPanelDebug.tsx - Revealed all imports were failing
+6. **SUCCESS**: Created ChatPanelMinimal.tsx with ZERO static imports
+
+#### Part 3: The Working Solution
+**ChatPanelMinimal.tsx Architecture:**
+```typescript
+// NO static imports of stores or services at top level
+export function ChatPanel({ topicId, topicName }: ChatPanelProps) {
+  useEffect(() => {
+    // Dynamic imports AFTER component mounts
+    const loadDependencies = async () => {
+      const [chatStoreModule, findingsStoreModule] = await Promise.all([
+        import('../stores/chatStore'),
+        import('../stores/findingsStore')
+      ]);
+      // Initialize after loading
+    };
+  }, []);
+
+  const handleSendMessage = async () => {
+    // Dynamic import services when needed
+    const { api } = await import('../services/api');
+    // Use services
+  };
+}
+```
+
+#### Part 4: Additional Issues Fixed
+1. **414 URI Too Large Error**:
+   - Problem: EventSource (GET) putting entire context in URL
+   - Solution: Switch to POST /chat/complete endpoint
+
+2. **401 Unauthorized Error**:
+   - Problem: Raw fetch() didn't include auth headers
+   - Solution: Use api.post() from '../services/api'
+
+#### Part 5: Current Working State (January 19, 2026)
+**What's Working:**
+✅ Chat panel opens without crashing
+✅ Messages send successfully with authentication
+✅ AI responses are received
+✅ Messages persist to chatStore
+✅ Chat creation and management works
+
+**What's NOT Working (Formatting Issues):**
+❌ Raw markdown symbols showing (**, ##)
+❌ Citations appear as plain text [1, 2, 3] instead of clickable buttons
+❌ No ChatMessage component (using plain <p> tags)
+❌ No suggested questions
+❌ Basic HTML input instead of ChatInput component
+❌ No export/clear/maximize functions
+
+#### Part 6: Restoration Roadmap
+
+**Phase 1: Fix Visual Issues (HIGH PRIORITY)**
+1. Import and use ChatMessage component for proper markdown rendering
+2. Add citation click handlers
+3. Fix message container styling and scrolling
+
+**Phase 2: Enhance Input (MEDIUM PRIORITY)**
+4. Import and use ChatInput component
+5. Add suggested questions after AI responses
+6. Add message search functionality
+
+**Phase 3: Advanced Features (LOW PRIORITY)**
+7. Add action buttons (export, clear, maximize)
+8. Implement export/clear functions
+9. Add fullscreen mode
+10. Consider streaming restoration
+
+**Technical Constraints:**
+- MUST keep dynamic imports for stores/services
+- CAN use direct imports for UI components (ChatMessage, ChatInput)
+- Test each change individually to prevent regression
+
+**Key Files:**
+- `src/components/ChatPanelMinimal.tsx` - Current working implementation
+- `src/components/ChatPanelLazy.tsx` - Lazy wrapper
+- `src/components/ChatMessage.tsx` - Has all formatting logic needed
+- `src/components/ChatInput.tsx` - Has rich input features
+
+**See CHAT_RESTORATION_GUIDE.md for detailed implementation steps**
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 19, 2026)

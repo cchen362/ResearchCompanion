@@ -1151,8 +1151,130 @@ When completing work, ensure these sections are current:
     - Circular references resolved at runtime instead of initialization
   - **Deployment**: Successfully deployed to production at 100.94.82.35:6767
   - **Lesson**: Component lazy-loading effectively breaks circular dependencies
+- **v2.0.3** - Complete Chat Fix with Multiple Issues (January 19, 2026)
+  - **Fixed**: Multiple cascading issues preventing chat from working
+  - **Issue 1**: Circular dependency crash (ChatPanel → chatStore → chat.service → chatStore)
+  - **Issue 2**: 414 URI Too Large (EventSource GET putting context in URL)
+  - **Issue 3**: 401 Unauthorized (raw fetch() missing auth headers)
+  - **Solution**: ChatPanelMinimal.tsx with zero static imports + dynamic loading
+  - **Current State**: Chat functional but needs UI restoration (see CHAT_RESTORATION_GUIDE.md)
 - **v3.0.0** (Planned) - Conversational interface
 - **v4.0.0** (Planned) - Advanced Research Analytics
+
+## Chat Implementation Lessons (CRITICAL)
+
+### The Circular Dependency Pattern
+
+**The Problem Pattern to Avoid:**
+```
+Component → Store → Service → Store (CIRCULAR!)
+```
+
+This creates "Cannot access X before initialization" errors in production builds.
+
+**The Solution Pattern:**
+```typescript
+// Component with dynamic imports
+export function Component() {
+  useEffect(() => {
+    // Dynamic import stores AFTER mount
+    const loadStores = async () => {
+      const { useStore } = await import('./store');
+    };
+  }, []);
+}
+```
+
+### Safe vs Unsafe Imports
+
+#### ❌ UNSAFE Imports (Cause Circular Dependencies):
+```typescript
+// At top of component file
+import { useChatStore } from '../stores/chatStore';
+import { chatService } from '../services/chat.service';
+import { api } from '../services/api'; // If api imports stores
+```
+
+#### ✅ SAFE Imports (No Circular Dependencies):
+```typescript
+// UI Components (no store dependencies)
+import { ChatMessage } from './ChatMessage';
+import { Button } from './ui/button';
+import { Icon } from 'lucide-react';
+
+// Dynamic imports in hooks/handlers
+const handleAction = async () => {
+  const { chatService } = await import('../services/chat.service');
+};
+```
+
+### Dynamic Import Best Practices
+
+1. **Load stores in useEffect**:
+```typescript
+useEffect(() => {
+  const loadDependencies = async () => {
+    const [storeModule] = await Promise.all([
+      import('../stores/store')
+    ]);
+    setStore(storeModule.useStore);
+  };
+  loadDependencies();
+}, []);
+```
+
+2. **Import services in event handlers**:
+```typescript
+const handleClick = async () => {
+  const { service } = await import('../services/service');
+  await service.method();
+};
+```
+
+3. **Use React.lazy for heavy components**:
+```typescript
+const HeavyComponent = lazy(() =>
+  import('./HeavyComponent')
+);
+```
+
+### Component vs Service Import Guidelines
+
+| Import Type | When Safe | When Unsafe | Solution |
+|-------------|-----------|------------|----------|
+| UI Component | No store imports | Has store imports | Use dynamic import |
+| Store | In useEffect | At top level | Always dynamic |
+| Service | In handlers | At top level | Always dynamic |
+| Utils/Types | Always | Never | Can be static |
+| Icons/Assets | Always | Never | Can be static |
+
+### Debugging Circular Dependencies
+
+**Warning Signs:**
+- "Cannot access X before initialization" (X is minified variable)
+- Works in dev, breaks in production
+- Page goes completely blank
+- Different variable names in errors (K, m, h, se) between builds
+
+**Debugging Steps:**
+1. Check browser console for initialization errors
+2. Look at Network tab - which chunks are loading?
+3. Add console.log at top of suspected files
+4. Create debug component with verbose logging
+5. Check build output for circular dependency warnings
+
+**The Ultimate Fix:**
+Create a minimal component with ZERO static imports, then gradually add features using dynamic imports.
+
+### Key Lessons Learned
+
+1. **Circular dependencies hide in production**: Dev server may work fine, production build fails
+2. **Minified variables obscure the issue**: 'K', 'm', 'h' are all the same type of error
+3. **React.lazy alone isn't enough**: Must also fix imports WITHIN the lazy-loaded component
+4. **Dynamic imports break the chain**: They load at runtime, not initialization
+5. **UI components are usually safe**: They typically don't import stores directly
+6. **Services and stores are risky**: They often reference each other
+7. **Test in production build**: Always run `npm run build && npm run preview`
 
 ---
 
