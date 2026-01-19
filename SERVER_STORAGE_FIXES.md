@@ -1595,14 +1595,101 @@ docker-compose up --build -d
 - Citation clicks fetch from API if not in local cache
 - JSON fields from PostgreSQL properly parsed
 
+### Issue 23: Chat Citations Not Clickable and Missing (January 20, 2026) [FIXED & DEPLOYED]
+
+**Problem:**
+- Some citations showing as plain text [9], [13]-[20] instead of blue clickable buttons
+- Citation clicks failing with `topic_id=[object Object]` error (500 response)
+- Only citations found in array (1-9) showing as blue, others as plain text
+
+**Root Causes:**
+1. **Topic ID passed as object** - `findingsAPIService.getFindings({ topicId })` instead of `getFindings(topicId)`
+2. **Empty findings context** - Frontend sending empty `currentFindings: []` array
+3. **Wrong field used** - Sending findings in `currentFindings` instead of `findings` field
+4. **Type mismatch** - Backend expects `findings` as objects but `currentFindings` as strings
+
+**Fix (Commit 384b07a):**
+
+1. **Fixed topic ID parameter:**
+   ```typescript
+   // Before: findingsAPIService.getFindings({ topicId })
+   // After:  findingsAPIService.getFindings(topicId)
+
+   // Before: findingsStore.loadFindings({ topicId })
+   // After:  findingsStore.loadFindings(topicId)
+   ```
+
+2. **Load and send actual findings:**
+   ```typescript
+   // Load findings before sending message
+   if (!findingsStore.findings.length || findingsStore.filters?.topicId !== topicId) {
+     await findingsStore.loadFindings(topicId);
+   }
+
+   // Transform to match backend schema
+   const transformedFindings = topicFindings.map(f => ({
+     id: f.id,
+     title: f.title || '',
+     content: f.details || f.summary || '',
+     source: f.source?.displayName || f.source?.name || 'Unknown Source',
+     type: f.type || 'research',
+     createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
+     priority: f.priority || 'medium'
+   }));
+
+   // Send in correct field
+   const contextWithFindings = {
+     findings: transformedFindings, // Correct field!
+     currentFindings: topicFindings.map(f => f.id), // Just IDs for backward compat
+   };
+   ```
+
+3. **Enhanced backend handling:**
+   ```typescript
+   // Check if frontend provided findings
+   if (contextFindings.length > 0) {
+     console.log(`✅ Using ${contextFindings.length} findings from frontend`);
+     return { ...context, findings: contextFindings };
+   }
+   ```
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Fixed API calls and context building
+- `backend/src/routes/chat.routes.ts` - Enhanced citation extraction and logging
+
+**Lessons Learned:**
+1. **Check API signatures** - Ensure parameters match expected types (string vs object)
+2. **Validate schema requirements** - Backend schemas define exact field names and types
+3. **Send complete context** - Don't send empty arrays when backend needs data for citations
+4. **Add comprehensive logging** - Debug logs help identify data flow issues quickly
+
+**Deployment (January 20, 2026 at 16:30 UTC):**
+```bash
+ssh chee@100.94.82.35
+cd /home/chee/medical-pwa
+git pull origin fix/digest-findings-race-condition  # Updated af3b4d0..384b07a
+docker-compose down
+docker-compose up --build -d
+```
+
+**Deployment Verification:**
+- ✅ Code updated to commit 384b07a
+- ✅ Docker containers rebuilt and running
+- ✅ Frontend accessible on port 6767
+- ✅ Backend running on port 3001
+- ✅ Database connected successfully
+- ✅ No errors in application logs
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
 2. ✅ Fix citation rendering and message display issues (COMPLETED Jan 19, 2026)
 3. ✅ Deploy latest fixes to production (COMPLETED Jan 19, 2026 at 15:57 UTC)
-4. Test all chat features in production environment
-5. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
-6. Add maximize/fullscreen mode for chat
-7. Implement message search functionality
-8. Add retry logic for network failures
-9. Review any remaining IndexedDB direct usage
+4. ✅ Fix citation click errors and missing citations (COMPLETED Jan 20, 2026)
+5. ✅ Deploy citation fixes to production (COMPLETED Jan 20, 2026 at 16:30 UTC)
+6. Test all chat features in production environment
+7. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
+8. Add maximize/fullscreen mode for chat
+9. Implement message search functionality
+10. Add retry logic for network failures
+11. Review any remaining IndexedDB direct usage
