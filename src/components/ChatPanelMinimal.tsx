@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, MessageSquare, X } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
 
 interface ChatPanelProps {
   topicId: string;
@@ -75,8 +76,9 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     // For now, just log to verify clicking works
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || !stores) return;
+  const handleSendMessage = async (messageText?: string) => {
+    const message = messageText || inputValue;
+    if (!message.trim() || !stores) return;
 
     setIsLoading(true);
     try {
@@ -97,7 +99,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       const userMessage = {
         id: Date.now().toString(),
         role: 'user',
-        content: inputValue,
+        content: message,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMessage]);
@@ -201,25 +203,17 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       </div>
 
       {/* Input */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Type your message..."
-            className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !inputValue.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-          >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
-          </button>
-        </div>
+      <div className="border-t">
+        <ChatInput
+          onSendMessage={(text) => {
+            handleSendMessage(text);
+          }}
+          disabled={isLoading}
+          placeholder="Type your message..."
+          maxLength={4000}
+          showTypingIndicator={isLoading}
+          className="border-0"
+        />
       </div>
     </div>
   );
