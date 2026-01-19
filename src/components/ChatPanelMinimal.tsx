@@ -215,18 +215,25 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Dynamically import chat service
       const { chatService } = await import('../services/chat.service');
       const chatStore = stores.useChatStore.getState();
-      const findingsStore = stores.useFindingsStore.getState();
 
-      // Load findings for this topic if not already loaded
-      if (!findingsStore.findings.length || findingsStore.filters?.topicId !== topicId) {
-        console.log('[ChatPanel] Loading findings for topic before sending message...');
-        await findingsStore.loadFindings(topicId);
+      // Load findings directly from API to ensure we have server data
+      const { findingsService } = await import('../services/findings.service');
+      console.log('[ChatPanel] Loading findings for topic from API...');
+
+      let topicFindings: any[] = [];
+      try {
+        const allFindings = await findingsService.getFindings(topicId);
+        // Get up to 20 findings for context (backend expects these for citations)
+        topicFindings = allFindings.slice(0, 20); // Limit to 20 to match backend's citation range
+        console.log('[ChatPanel] Loaded findings from API:', {
+          totalCount: allFindings.length,
+          usingCount: topicFindings.length
+        });
+      } catch (error) {
+        console.error('[ChatPanel] Failed to load findings:', error);
+        // Fall back to empty array if loading fails
+        topicFindings = [];
       }
-
-      // Get up to 20 findings for context (backend expects these for citations)
-      const topicFindings = findingsStore.findings
-        .filter((f: any) => f.topicId === topicId)
-        .slice(0, 20); // Limit to 20 to match backend's citation range
 
       console.log('[ChatPanel] Sending findings context:', {
         count: topicFindings.length,

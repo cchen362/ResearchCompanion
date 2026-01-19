@@ -146,7 +146,7 @@ class ChatService {
    */
   async getChats(topicId: string): Promise<FindingsChat[]> {
     try {
-      const response = await api.get(`/api/topics/${topicId}/chats`);
+      const response = await api.get(`/topics/${topicId}/chats`);
       return response.data || [];
     } catch (error) {
       console.error('Failed to get chats:', error);
@@ -159,7 +159,7 @@ class ChatService {
    */
   async getChat(topicId: string, chatId: string): Promise<FindingsChat | null> {
     try {
-      const response = await api.get(`/api/topics/${topicId}/chats/${chatId}`);
+      const response = await api.get(`/topics/${topicId}/chats/${chatId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to get chat:', error);
@@ -172,7 +172,7 @@ class ChatService {
    */
   async createChat(topicId: string, title?: string): Promise<FindingsChat> {
     try {
-      const response = await api.post(`/api/topics/${topicId}/chats`, {
+      const response = await api.post(`/topics/${topicId}/chats`, {
         title: title || 'New Chat',
         context: {
           currentFindings: [],
@@ -195,7 +195,7 @@ class ChatService {
     updates: Partial<FindingsChat>
   ): Promise<FindingsChat> {
     try {
-      const response = await api.put(`/api/topics/${topicId}/chats/${chatId}`, updates);
+      const response = await api.put(`/topics/${topicId}/chats/${chatId}`, updates);
       return response.data;
     } catch (error) {
       console.error('Failed to update chat:', error);
@@ -208,7 +208,7 @@ class ChatService {
    */
   async deleteChat(topicId: string, chatId: string): Promise<void> {
     try {
-      await api.delete(`/api/topics/${topicId}/chats/${chatId}`);
+      await api.delete(`/topics/${topicId}/chats/${chatId}`);
     } catch (error) {
       console.error('Failed to delete chat:', error);
       throw error;
@@ -220,7 +220,7 @@ class ChatService {
    */
   async getMessages(topicId: string, chatId: string): Promise<ChatMessage[]> {
     try {
-      const response = await api.get(`/api/topics/${topicId}/chats/${chatId}/messages`);
+      const response = await api.get(`/topics/${topicId}/chats/${chatId}/messages`);
 
       // Process citations for each message
       const messages = response.data || [];
@@ -247,7 +247,7 @@ class ChatService {
   ): Promise<ChatMessage> {
     try {
       const response = await api.post(
-        `/api/topics/${topicId}/chats/${chatId}/messages`,
+        `/topics/${topicId}/chats/${chatId}/messages`,
         message
       );
       return response.data;
@@ -266,7 +266,7 @@ class ChatService {
     messageId: string
   ): Promise<void> {
     try {
-      await api.delete(`/api/topics/${topicId}/chats/${chatId}/messages/${messageId}`);
+      await api.delete(`/topics/${topicId}/chats/${chatId}/messages/${messageId}`);
     } catch (error) {
       console.error('Failed to delete message:', error);
       throw error;
@@ -278,7 +278,7 @@ class ChatService {
    */
   async clearMessages(topicId: string, chatId: string): Promise<void> {
     try {
-      await api.delete(`/api/topics/${topicId}/chats/${chatId}/messages`);
+      await api.delete(`/topics/${topicId}/chats/${chatId}/messages`);
     } catch (error) {
       console.error('Failed to clear messages:', error);
       throw error;
@@ -290,7 +290,7 @@ class ChatService {
    */
   async searchMessages(topicId: string, query: string): Promise<ChatMessage[]> {
     try {
-      const response = await api.get(`/api/topics/${topicId}/messages/search`, {
+      const response = await api.get(`/topics/${topicId}/messages/search`, {
         params: { q: query }
       });
 
@@ -318,7 +318,7 @@ class ChatService {
     format: 'json' | 'markdown' = 'markdown'
   ): Promise<string> {
     try {
-      const response = await api.get(`/api/topics/${topicId}/chats/${chatId}/export`, {
+      const response = await api.get(`/topics/${topicId}/chats/${chatId}/export`, {
         params: { format }
       });
       return response.data;
@@ -336,7 +336,7 @@ class ChatService {
     context: ChatContext
   ): Promise<string[]> {
     try {
-      const response = await api.post(`/api/topics/${topicId}/suggestions`, {
+      const response = await api.post(`/topics/${topicId}/suggestions`, {
         context
       });
       return response.data || [];
