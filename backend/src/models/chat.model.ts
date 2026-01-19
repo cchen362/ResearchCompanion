@@ -187,4 +187,23 @@ export class ChatModel {
       metadata: typeof message.metadata === 'string' ? JSON.parse(message.metadata) : message.metadata
     };
   }
+
+  // Clear all messages in a chat
+  static async clearMessages(chatId: string, userId: string): Promise<void> {
+    // Delete all messages for this chat
+    await query(
+      `DELETE FROM chat_messages
+       WHERE chat_id = $1 AND user_id = $2`,
+      [chatId, userId]
+    );
+
+    // Reset message count and last message time
+    await query(
+      `UPDATE chats
+       SET message_count = 0,
+           last_message_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND user_id = $2`,
+      [chatId, userId]
+    );
+  }
 }

@@ -197,4 +197,67 @@ router.post('/chats/:id/messages', async (req, res) => {
   }
 });
 
+// DELETE /api/chats/:id/messages - Clear all messages in a chat
+router.delete('/chats/:id/messages', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.id;
+
+    // Verify chat exists and belongs to user
+    const chat = await ChatModel.getById(chatId, userId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    // Clear all messages from the chat
+    await ChatModel.clearMessages(chatId, userId);
+
+    res.json({
+      success: true,
+      message: 'Messages cleared successfully'
+    });
+  } catch (error) {
+    console.error('Error clearing messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear messages'
+    });
+  }
+});
+
+// Alternative route for topic-based URL structure
+// DELETE /api/topics/:topicId/chats/:chatId/messages
+router.delete('/topics/:topicId/chats/:chatId/messages', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const chatId = req.params.chatId;
+
+    // Verify chat exists and belongs to user
+    const chat = await ChatModel.getById(chatId, userId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    // Clear all messages from the chat
+    await ChatModel.clearMessages(chatId, userId);
+
+    res.json({
+      success: true,
+      message: 'Messages cleared successfully'
+    });
+  } catch (error) {
+    console.error('Error clearing messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear messages'
+    });
+  }
+});
+
 export default router;
