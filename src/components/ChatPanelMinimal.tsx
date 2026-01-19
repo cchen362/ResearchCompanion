@@ -95,39 +95,26 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       setMessages(prev => [...prev, userMessage]);
       setInputValue('');
 
+      // Use the API service which handles auth properly
+      const { api } = await import('../services/api');
+
       // Use non-streaming API for now to avoid URI too large issue
-      // The streaming endpoint uses GET which puts context in URL
-      const response = await fetch('/api/chat/complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Include auth token if available
-          ...(localStorage.getItem('token') ? {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          } : {})
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          chatId: chatStore.activeChatId!,
-          topicId,
-          context: minimalContext, // Use minimal context
-          stream: false // Use non-streaming endpoint
-        })
+      const response = await api.post('/chat/complete', {
+        message: userMessage.content,
+        chatId: chatStore.activeChatId!,
+        topicId,
+        context: minimalContext, // Use minimal context
+        stream: false // Use non-streaming endpoint
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
       setIsLoading(false);
 
       // Add AI response to messages
       const aiMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: data.content,
-        citations: data.citations,
+        content: response.data.content,
+        citations: response.data.citations,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
