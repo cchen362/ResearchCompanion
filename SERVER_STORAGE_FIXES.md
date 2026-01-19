@@ -901,6 +901,60 @@ const citation = message.citations?.find(c => c.citationNumber === citationNum);
 
 ---
 
+### Issue 25: Chat Page Crash - Circular Dependency (FIXED - January 19, 2026)
+**Problem:** When clicking the chat icon, the entire page went blank with error: "Cannot access 'se' before initialization"
+
+**Root Cause:** Circular dependency between chat.service.ts and chatStore:
+- chat.service.ts imported useChatStore directly at module level
+- ChatPanel imported both useChatStore and chatService
+- This created a circular dependency chain causing initialization errors
+
+**Investigation:**
+- Error appeared in minified production code (index-CeaxUYz2.js)
+- Variable 'se' was part of minified/bundled code
+- Tracked back to chat.service.ts calling `useChatStore.getState()`
+
+**Fix:** Implemented lazy loading of chatStore in chat.service.ts:
+```typescript
+// Instead of direct import:
+// import { useChatStore } from '../stores/chatStore';
+
+// Use lazy loading with require():
+let getChatStore: () => any;
+if (typeof window !== 'undefined') {
+  getChatStore = () => {
+    const { useChatStore } = require('../stores/chatStore');
+    return useChatStore.getState();
+  };
+}
+
+// Then use getChatStore() in methods instead of direct store access
+```
+
+**Files Modified:**
+- `src/services/chat.service.ts`:
+  - Removed direct import of useChatStore
+  - Added lazy loading with require()
+  - Replaced all `useChatStore.getState()` with `getChatStore()`
+
+**Why This Fixed It:**
+- Breaks the circular dependency at build time
+- Store is only loaded when actually needed at runtime
+- Prevents initialization order conflicts
+
+**Lessons Learned:**
+1. **Services shouldn't directly import stores** - Creates tight coupling and circular dependencies
+2. **"Cannot access before initialization"** = Circular dependency issue
+3. **Use lazy loading** for optional dependencies to break cycles
+4. **Consider dependency injection** instead of direct imports in services
+
+**Deployment:** Successfully deployed to production at 9:21 UTC (January 19, 2026)
+- Built and tested locally first
+- Deployed via Docker on production server (100.94.82.35)
+- Chat page now loads without errors
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat fixes to production (COMPLETED Jan 18, 2026)
