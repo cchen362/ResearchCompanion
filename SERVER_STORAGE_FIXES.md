@@ -1708,6 +1708,144 @@ docker-compose up --build -d
 - Updated to commit 127d622
 - All services running successfully
 
+### Issue 25: Clear Chat Endpoint Missing (January 20, 2026) [FIXED & DEPLOYED]
+
+**Problem:**
+- Clear chat failing with 404 error - endpoint didn't exist in backend
+
+**Root Cause:**
+- Backend chats.routes.ts had no DELETE endpoint for messages
+- ChatModel was missing clearMessages() method
+
+**Fix (Commit 4b20b8b):**
+1. **Added DELETE endpoints to backend:**
+   ```typescript
+   // Added two routes to support both URL patterns:
+   router.delete('/chats/:id/messages', ...)
+   router.delete('/topics/:topicId/chats/:chatId/messages', ...)
+   ```
+
+2. **Added clearMessages method to ChatModel:**
+   ```typescript
+   static async clearMessages(chatId: string, userId: string): Promise<void> {
+     await query('DELETE FROM chat_messages WHERE chat_id = $1 AND user_id = $2', [chatId, userId]);
+     await query('UPDATE chats SET message_count = 0 WHERE id = $1', [chatId]);
+   }
+   ```
+
+**Deployment (January 20, 2026 at 17:10 UTC):**
+- Updated to commit 4b20b8b
+- Force rebuilt with --no-cache to ensure frontend changes included
+- Clear chat now works without errors
+- Citation clicks working again (displaying modal properly)
+
+## Testing & Deployment Process (IMPORTANT FOR NEXT AGENT)
+
+### Testing Approach
+**ALWAYS follow this exact process for testing changes:**
+
+1. **Make code changes locally**
+2. **Commit and push to GitHub:**
+   ```bash
+   git add -A
+   git commit -m "Description of changes"
+   git push origin fix/digest-findings-race-condition
+   ```
+
+3. **SSH into Debian server:**
+   ```bash
+   ssh chee@100.94.82.35
+   # Password will be required
+   ```
+
+4. **Navigate to project folder:**
+   ```bash
+   cd /home/chee/medical-pwa
+   ```
+
+5. **Pull latest changes:**
+   ```bash
+   git pull origin fix/digest-findings-race-condition
+   ```
+
+6. **Rebuild and restart Docker containers:**
+   ```bash
+   docker-compose down
+   docker-compose up --build -d
+   ```
+
+7. **If frontend changes aren't reflecting, force rebuild:**
+   ```bash
+   docker-compose down
+   docker-compose build --no-cache medical-companion
+   docker-compose up -d
+   ```
+
+8. **Check logs if needed:**
+   ```bash
+   docker-compose logs --tail 50 medical-companion
+   ```
+
+9. **Test at:** https://cl.zyroi.com
+
+### Important Notes
+- **Working Directory:** `C:\Users\cchen362\OneDrive\Desktop\medical-companion-pwa`
+- **Server:** 100.94.82.35 (Debian)
+- **Server Project Path:** `/home/chee/medical-pwa`
+- **Branch:** `fix/digest-findings-race-condition`
+- **Frontend Port:** 6767
+- **Backend Port:** 3001
+- **Database:** PostgreSQL on port 5434
+
+## Known Remaining Issues (As of January 20, 2026)
+
+### 1. Some Citations Still Show as Plain Text
+**Symptoms:**
+- Some citations appear as plain text (e.g., [9], [13], [20]) instead of blue buttons
+- Only citations with corresponding findings in the array show as buttons
+- Citations beyond the findings array length remain plain text
+
+**Likely Causes:**
+- Backend only sends first N findings but AI references citations beyond that
+- Frontend may need hard refresh to load new code
+- Findings might not be loading properly from API
+
+**Debug Logs to Check:**
+```javascript
+// Browser console should show:
+[ChatPanel] Loading findings for topic from API...
+[ChatPanel] Loaded findings from API: {totalCount: X, usingCount: 20}
+[ChatPanel] Sending findings context: {count: 20, findingIds: [...]}
+```
+
+### 2. Citations Array Sometimes Empty
+**Symptoms:**
+- AI response has 0 citations even when content clearly references findings
+- Backend logs show: `findingsCount: 0, currentFindingsCount: 0`
+
+**Likely Cause:**
+- Findings not being loaded from API before sending chat message
+- Could be timing issue or caching problem
+
+### 3. Browser Cache Issues
+**Symptoms:**
+- Old JavaScript code still running after deployment
+- New console.log statements not appearing
+
+**Solution:**
+- Users need to hard refresh (Ctrl+F5) or clear cache
+- Consider implementing cache busting in build process
+
+## Summary of All Fixes Implemented
+
+1. ✅ **Chat Panel Restoration** - Minimal component without circular dependencies
+2. ✅ **Citation Rendering** - Fixed JSON parsing from PostgreSQL
+3. ✅ **Message Persistence** - Chat messages now persist after refresh
+4. ✅ **Topic ID Parameter** - Fixed [object Object] error in API calls
+5. ✅ **Findings Context** - Load findings from API for citations
+6. ✅ **API URL Doubling** - Removed duplicate /api/ prefixes
+7. ✅ **Clear Chat Endpoint** - Added missing DELETE endpoint
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
