@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores/chatStore';
 import { useFindingsStore } from '../stores/findingsStore';
 import { useUIStore } from '../stores/uiStore';
-// Removed direct imports of services to avoid circular dependency
+// Removed ALL direct imports of services to avoid circular dependency
 // import { chatService } from '../services/chat.service';
-import { findingsService } from '../services/findings.service';
+// import { findingsService } from '../services/findings.service';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
@@ -92,6 +92,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     const loadTopicFindings = async () => {
       setLoadingFindings(true);
       try {
+        // Dynamic import to avoid circular dependency
+        const { findingsService } = await import('../services/findings.service');
         const findings = await findingsService.getFindings(topicId);
         setTopicFindings(findings);
         console.log(`Loaded ${findings.length} findings for chat context in topic ${topicId}`);
