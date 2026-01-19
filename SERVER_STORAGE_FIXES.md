@@ -809,46 +809,95 @@ const findingsStore = useFindingsStore.getState(); // ❌ Never imported, never 
 - Deployed via Docker on production server (100.94.82.35)
 - Citations now working correctly in production
 
-### Issue 24: Chat Citations Not Persisting - JSON Parse Issue (FIXED - January 18, 2026)
-**Problem:** Citations appeared as plain text after page reload, even though they worked initially.
+### Issue 24: Chat Citations Not Rendering as Buttons - Critical Lookup Fix (FIXED - January 19, 2026)
+**Problem:** Citations appeared as plain text [1], [7], [10], [11] instead of clickable blue buttons, even after multiple fixes.
 
-**Root Cause:** PostgreSQL was returning citations as JSON strings, not parsed objects:
-- Citations column is JSONB in PostgreSQL
-- When saved: `JSON.stringify(citations)` converts to string
-- When retrieved: PostgreSQL returns the string, not the parsed object
-- ChatMessage component needs parsed objects to render buttons
+**Root Cause - The Real Issue:** Frontend was using ARRAY INDEX to look up citations instead of finding by `citationNumber` property:
+```typescript
+// BROKEN CODE (ChatMessage.tsx line 52):
+const citationIndex = parseInt(num) - 1;
+const citation = message.citations?.[citationIndex]; // WRONG! Uses array position
 
-**Investigation:**
-- Rendering logic in ChatMessage.tsx was perfect
-- Database had citations column and was saving correctly
-- Issue was in the retrieval pipeline - JSON not being parsed
+// Example: Citation [10] would look for array index 9
+// But if only 5 citations exist, citation[9] = undefined
+// Result: Plain text [10] instead of button
+```
 
-**Fix Applied:**
-1. **Modified `ChatModel.getMessages()`**:
-   - Added JSON parsing for citations and metadata fields
-   - Returns parsed objects instead of strings
+**Additional Contributing Issues:**
+1. PostgreSQL returning citations as JSON strings (needed parsing)
+2. Frontend had 20-finding limits while backend used all findings
+3. Backend streaming endpoint using wrong context variable
+4. Zustand store not persisting chats on refresh
 
-2. **Modified `ChatModel.addMessage()`**:
-   - Parse citations when returning newly created messages
-   - Ensures consistency between create and retrieve
+**The Critical Fix:**
+```typescript
+// FIXED CODE (ChatMessage.tsx lines 58-66):
+const citationNum = parseInt(num);
+const citation = message.citations?.find(c => c.citationNumber === citationNum);
+// Now correctly finds citation with citationNumber=10, regardless of array position
+```
 
-3. **Fixed message order**:
-   - Changed from DESC to ASC for proper chronological display
+**Complete Solution Applied:**
+1. **Changed citation lookup logic** (ChatMessage.tsx):
+   - From: `message.citations?.[citationIndex]` (array index)
+   - To: `message.citations?.find(c => c.citationNumber === citationNum)` (property search)
+   - Added comprehensive debug logging
+
+2. **Fixed PostgreSQL JSON parsing** (chat.model.ts):
+   - Parse citations and metadata when retrieving from DB
+   - Changed message order from DESC to ASC
+
+3. **Removed frontend finding limits**:
+   - ChatPanel.tsx: Removed `.slice(0, 20)`
+   - chat.service.ts: Removed `Math.min(20 - ...)` limits
+
+4. **Fixed chat persistence** (chatStore.ts):
+   - Added `onRehydrateStorage` hook to reload messages
+   - Auto-loads messages when activeChatId exists
 
 **Files Modified:**
+- `src/components/ChatMessage.tsx`:
+  - Lines 58-66: Changed from array index to find() by citationNumber
+  - Lines 42-46, 62-66: Added debug logging
 - `backend/src/models/chat.model.ts`:
   - Lines 140-145: Parse JSON fields in getMessages
   - Lines 183-188: Parse JSON fields in addMessage
   - Line 135: Changed order to ASC
+- `src/components/ChatPanel.tsx`:
+  - Line 87: Removed `.slice(0, 20)` limit
+  - Lines 173-180: Removed break condition after 20
+  - Added useEffect to auto-load messages on mount
+- `src/services/chat.service.ts`:
+  - Line 376: Removed `Math.min(20 - ...)` limit
+- `src/stores/chatStore.ts`:
+  - Added onRehydrateStorage hook for persistence
+  - Added loadMessages debug logging
+- `backend/src/routes/chat.routes.ts`:
+  - Line 201: Fixed to use `enrichedContext.findings`
+
+**Why This Was Hard to Debug:**
+- Multiple overlapping issues masked the root cause
+- Citations worked initially but broke on different scenarios
+- Array index lookup "seemed" logical but was fundamentally wrong
+- User feedback "still doesn't work" led to deeper investigation
+
+**Lessons Learned:**
+- Don't assume array position matches semantic IDs
+- Use find() for lookups by property, not array indexing
+- Add verbose debug logging when issues persist
+- Test with edge cases (citations beyond array length)
 
 **Testing Results:**
-- Citations persist across page reloads
-- Citations remain clickable buttons after refresh
-- Message order displays correctly (oldest to newest)
+- All citations [1] through [21+] now render as clickable buttons
+- Citations persist correctly after page reload
+- Chat messages persist across browser sessions
+- Clicking citations navigates to finding details
 
-**Deployment:** Successfully deployed to production at 19:05 UTC
-- Citations now persist and remain clickable
-- Complete fix for citation rendering issue
+**Deployment:** Successfully deployed to production at 19:05 UTC (January 19, 2026)
+- Built with all fixes integrated
+- Deployed via Docker on production server (100.94.82.35)
+- Citations fully functional in production environment
+- Complete resolution of citation rendering issue
 
 ---
 

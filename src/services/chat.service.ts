@@ -1,5 +1,4 @@
 import { api } from './api';
-import { useChatStore } from '../stores/chatStore';
 import { findingsService } from './findings.service';
 import type {
   ChatMessage,
@@ -9,6 +8,15 @@ import type {
   Finding,
   ResearchFinding
 } from '../types';
+
+// Lazy import to avoid circular dependency
+let getChatStore: () => any;
+if (typeof window !== 'undefined') {
+  getChatStore = () => {
+    const { useChatStore } = require('../stores/chatStore');
+    return useChatStore.getState();
+  };
+}
 
 interface ChatRequest {
   message: string;
@@ -44,7 +52,10 @@ class ChatService {
     request: ChatRequest,
     callbacks?: StreamCallbacks
   ): Promise<ChatResponse> {
-    const chatStore = useChatStore.getState();
+    const chatStore = getChatStore?.();
+    if (!chatStore) {
+      throw new Error('Chat store not available');
+    }
 
     try {
       // Add user message to store immediately
@@ -103,7 +114,10 @@ class ChatService {
     chatId: string,
     payload: any
   ): Promise<ChatResponse> {
-    const chatStore = useChatStore.getState();
+    const chatStore = getChatStore?.();
+    if (!chatStore) {
+      throw new Error('Chat store not available');
+    }
 
     try {
       const response = await api.post('/chat/complete', payload);
@@ -156,7 +170,10 @@ class ChatService {
     payload: any,
     callbacks: StreamCallbacks
   ): Promise<ChatResponse> {
-    const chatStore = useChatStore.getState();
+    const chatStore = getChatStore?.();
+    if (!chatStore) {
+      throw new Error('Chat store not available');
+    }
 
     return new Promise((resolve, reject) => {
       // Create abort controller for cancellation

@@ -850,6 +850,53 @@ export const DB_NAME = 'MedCompanionDB';
 
 For detailed case study, see [docs/VOICE-RECORDING-FIX-CASE-STUDY.md](docs/VOICE-RECORDING-FIX-CASE-STUDY.md)
 
+### The Citation Rendering Investigation (January 2026)
+
+**Problem**: Citations appeared as plain text [1], [7], [10], [11] instead of clickable blue buttons.
+
+**Root Cause**: Frontend was using array index to look up citations instead of finding by `citationNumber` property.
+
+#### What Went Wrong
+
+```typescript
+// ❌ BAD: ChatMessage.tsx used array index lookup
+const citationIndex = parseInt(num) - 1;
+const citation = message.citations?.[citationIndex]; // WRONG!
+
+// Example: Citation [10] looks for array index 9
+// But if only 5 citations exist, citation[9] = undefined
+// Result: Plain text [10] instead of button
+```
+
+#### The Fix
+
+```typescript
+// ✅ GOOD: Use find() to match by property
+const citationNum = parseInt(num);
+const citation = message.citations?.find(c => c.citationNumber === citationNum);
+
+// Now correctly finds citation with citationNumber=10
+// Works regardless of array position or length
+```
+
+#### Key Lessons
+
+1. **Don't Assume Array Position Matches IDs**: Citation [10] doesn't mean array index 9
+2. **Use find() for Property Lookups**: When matching by semantic ID, use find() not array indexing
+3. **Test Edge Cases**: Test with citations beyond array length to catch index issues
+4. **Add Verbose Debug Logging**: When user says "still doesn't work", add detailed logging
+5. **Look for Multiple Root Causes**: This issue had 4 overlapping problems masking each other
+
+#### Why This Was Hard to Debug
+
+- Multiple issues created confusing symptoms:
+  - Backend streaming using wrong context
+  - Frontend had 20-finding limits
+  - PostgreSQL returning JSON strings
+  - Chat not persisting on refresh
+- Array index lookup "seemed" logical but was fundamentally wrong
+- User feedback "we are starting to go in circles" prompted deeper investigation
+
 ### Debugging Best Practices
 
 #### 1. Systematic Investigation
