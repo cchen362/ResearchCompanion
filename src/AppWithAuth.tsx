@@ -11,7 +11,7 @@ import FindingsViewerProgressive from './components/FindingsViewerProgressive';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanel';
+import { ChatPanel } from './components/ChatPanelLazy';
 import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';

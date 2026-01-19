@@ -10,7 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanel';
+import { ChatPanel } from './components/ChatPanelLazy';
 import { AnalyticsView } from './components/AnalyticsView';
 import { DebugPanel } from './components/DebugPanel';
 import { useUIStore } from './stores/uiStore';
