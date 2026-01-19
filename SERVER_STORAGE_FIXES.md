@@ -1138,13 +1138,108 @@ export function ChatPanel({ topicId, topicName }: ChatPanelProps) {
 
 ---
 
+## Issue 28: Chat UI/UX Restoration (FIXED - January 19, 2026)
+
+### Problem
+After fixing the circular dependency issues (Issues 25-27), the chat was functional but had minimal UI/UX:
+- Raw markdown symbols showing (**, ##, *, etc.)
+- Citations appeared as plain text [1], [2], [3] instead of clickable blue buttons
+- Basic HTML input instead of rich text area
+- No suggested questions
+- No export/clear functionality
+- Poor visual styling
+
+### Solution - Three-Phase Restoration
+
+#### Phase 1: Visual Improvements (COMPLETED)
+**Changes:**
+- Imported ChatMessage component (safe - no circular dependencies)
+- Replaced basic `<p>` tags with `<ChatMessage>` component
+- Added citation click handler
+
+**Results:**
+- ✅ Markdown renders correctly (bold, headings, lists, code blocks)
+- ✅ Citations appear as clickable blue buttons
+- ✅ Professional message cards with proper styling
+- ✅ No circular dependency errors
+
+#### Phase 2: Input Enhancement (COMPLETED)
+**Verification:**
+- Checked that ChatInput's store imports (findingsStore, uiStore) don't import chat services
+- Confirmed safe to use without circular dependencies
+
+**Changes:**
+- Imported ChatInput component
+- Replaced basic `<input>` with ChatInput
+- Updated handleSendMessage to accept message parameter
+
+**Results:**
+- ✅ Auto-resize textarea for multi-line input
+- ✅ Character counter (4000 max)
+- ✅ Keyboard shortcuts (Enter to send, Shift+Enter for newline)
+- ✅ Professional input styling with focus states
+- ✅ Loading indicators during message sending
+
+#### Phase 3: Advanced Features (COMPLETED)
+**Changes:**
+- Added suggested questions state and UI
+- Implemented export chat functionality (markdown download)
+- Added clear chat with confirmation
+- Added action buttons to header (export, clear)
+- All using dynamic imports to maintain circular dependency fix
+
+**Results:**
+- ✅ Suggested questions appear after AI responses
+- ✅ Questions are clickable to auto-populate and send
+- ✅ Export downloads chat as markdown file
+- ✅ Clear removes all messages with confirmation
+- ✅ Professional button styling with icons
+- ✅ Buttons disabled when no messages
+
+### Files Modified
+- `src/components/ChatPanelMinimal.tsx` - All restoration changes applied here
+- `src/components/ChatPanelMinimal.backup.tsx` - Backup created before changes
+
+### Technical Details
+
+**Safe Import Pattern Maintained:**
+```typescript
+// Static imports (SAFE - no circular dependencies):
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+import { Button } from './ui/button';
+
+// Dynamic imports (REQUIRED for stores/services):
+const { chatService } = await import('../services/chat.service');
+const { api } = await import('../services/api');
+```
+
+**Key Improvements:**
+1. **ChatMessage component** provides full markdown rendering with citation support
+2. **ChatInput component** offers rich text input with all professional features
+3. **Dynamic imports** for all service calls prevent circular dependencies
+4. **Suggested questions** enhance conversation flow
+5. **Export/Clear** provide essential chat management
+
+### Testing
+- All builds successful with no errors
+- No circular dependency warnings
+- All features tested and working
+
+### Deployment Ready
+The restored chat is ready for production deployment with:
+- Full visual formatting
+- Rich input experience
+- Advanced features
+- Maintained stability (no circular dependencies)
+
 ## Next Steps
 
-1. ✅ Deploy chat fixes to production (COMPLETED Jan 19, 2026)
+1. ✅ Deploy chat restoration to production (Ready for deployment)
 2. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
 3. Add chat history persistence to PostgreSQL (for multi-device sync)
-4. Complete Phase 2 to 100% (message feedback, chat sidebar UI)
-5. Implement retry logic for network failures
-6. Add batch operations for performance
-7. Create data migration tools
+4. Implement citation navigation to finding details (currently logs to console)
+5. Add maximize/fullscreen mode for chat
+6. Implement message search functionality
+7. Add retry logic for network failures
 8. Review any remaining IndexedDB direct usage
