@@ -168,8 +168,9 @@ class ChatService {
           metadata: {
             error: error instanceof Error ? error.message : 'Unknown error',
             timestamp: new Date().toISOString()
-        }
-      });
+          }
+        });
+      }
       throw error;
     }
   }
