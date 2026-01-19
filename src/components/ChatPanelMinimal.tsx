@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageSquare, X, Download, Trash2, Maximize2 } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -13,6 +14,7 @@ interface ChatPanelProps {
 
 // Minimal chat panel with NO store imports to break all circular dependencies
 export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatPanelProps) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -73,9 +75,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
   const handleCitationClick = (findingId: string) => {
     console.log('Citation clicked - Finding ID:', findingId);
-    // TODO: Implement navigation to finding detail
-    // Could use: navigate(`/findings/${findingId}`) from react-router
-    // For now, just log to verify clicking works
+    // Navigate to the finding detail view
+    navigate(`/topics/${topicId}/findings/${findingId}`);
   };
 
   const handleExport = async () => {
@@ -191,6 +192,14 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         citations: response.data.citations,
         timestamp: new Date()
       };
+
+      // Debug logging for citations
+      console.log('📚 [ChatPanel] AI Response Citations:', {
+        totalCitations: response.data.citations?.length || 0,
+        citations: response.data.citations,
+        contentPreview: response.data.content.substring(0, 200)
+      });
+
       setMessages(prev => [...prev, aiMessage]);
 
       // Set suggested questions if available

@@ -308,26 +308,29 @@ export function ChatMessage({
 
             {showCitations && (
               <div className="space-y-2">
-                {message.citations.map((citation, index) => (
-                  <div
-                    key={`${citation.findingId}_${index}`}
-                    className="flex items-start gap-2 p-2 bg-background/50 rounded cursor-pointer hover:bg-background/70 transition-colors"
-                    onClick={() => onCitationClick?.(citation.findingId)}
-                  >
-                    <Badge variant="outline" className="mt-0.5">
-                      [{citation.citationNumber || index + 1}]
-                    </Badge>
-                    <div className="flex-1">
-                      <p className="text-sm line-clamp-2">{citation.citationText}</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          View finding
-                        </span>
+                {message.citations
+                  .sort((a, b) => (a.citationNumber || 0) - (b.citationNumber || 0))
+                  .map((citation, index) => (
+                    <div
+                      key={`${citation.findingId}_${index}`}
+                      className="flex items-start gap-2 p-2 bg-background/50 rounded cursor-pointer hover:bg-background/70 transition-colors"
+                      onClick={() => onCitationClick?.(citation.findingId)}
+                    >
+                      <Badge variant="outline" className="mt-0.5">
+                        [{citation.citationNumber || index + 1}]
+                      </Badge>
+                      <div className="flex-1">
+                        <p className="text-sm line-clamp-2">{citation.citationText}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            View finding
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                }
               </div>
             )}
           </div>
