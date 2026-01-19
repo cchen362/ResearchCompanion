@@ -76,50 +76,278 @@ This caused errors when accessing `topic.diseaseProfile.name` because raw API da
 **Files Modified:**
 - `src/services/topics.api.service.ts`
 
+### Issue 7: Chat Page Circular Dependency Crash (FIXED)
+**Problem:** Chat page crashed with "Cannot access 'K' before initialization" error due to circular dependencies between ChatPanel, chatStore, and chat services.
+
+**Root Cause:** Static imports created initialization order issues in production build:
+- ChatPanel → imports chatStore → imports chat.service → imports chatStore (CIRCULAR!)
+
+**Fix:** Created ChatPanelMinimal.tsx with zero static store imports and dynamic loading after mount.
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Complete rewrite with dynamic imports
+- `src/components/ChatPanelLazy.tsx` - Lazy loading wrapper
+
+### Issue 8: Chat 414 URI Too Large Error (FIXED)
+**Problem:** EventSource GET request for streaming put entire context in URL, causing 414 error.
+
+**Fix:** Used POST endpoint `/api/chat/complete` with minimal context instead of streaming.
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Switch to POST with minimal context
+
+### Issue 9: Chat 401 Unauthorized Error (FIXED)
+**Problem:** Raw fetch() for EventSource didn't include auth headers.
+
+**Fix:** Used axios API service which automatically includes auth headers.
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Use `api.post()` instead of fetch()
+
+### Issue 10: Chat History Not Persisting on Refresh (FIXED)
+**Problem:** Chat messages disappeared when browser refreshed despite API loading them.
+
+**Fix:** Added explicit `loadMessages()` and `loadFindings()` calls after component mount.
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Added message and findings loading in useEffect
+
+### Issue 11: Citations Not Rendering as Blue Buttons (FIXED - January 19, 2026)
+**Problem:** Some citations appeared as plain text [1], [7], [10] instead of clickable blue buttons.
+
+**Root Cause:** Backend `extractCitations` function used array index mapping, causing mismatches when AI referenced citation numbers beyond array length.
+
+**Example:**
+- AI references [10] in text
+- Backend tries to find findings[9] (index 9)
+- If only 5 findings exist, citation is undefined
+- Frontend renders as plain text instead of button
+
+**Fix:** Updated backend to properly handle citation numbers with deduplication and logging.
+
+**Files Modified:**
+- `backend/src/routes/chat.routes.ts` (lines 366-401) - Fixed `extractCitations` function:
+  - Added `seenCitations` Set to prevent duplicates
+  - Use actual citation number from text instead of recalculating
+  - Added comprehensive logging for debugging
+  - Log warnings when citations reference non-existent findings
+
+### Issue 12: Citation Clicks Showing Alert Instead of Proper UI (FIXED - January 19, 2026)
+**Problem:** Clicking citations showed browser alert with finding details instead of proper UI.
+
+**Fix:** Created FindingDetailModal component for professional finding display.
+
+**Files Created:**
+- `src/components/FindingDetailModal.tsx` - New modal component with:
+  - Title, content, source information
+  - Publication date and journal details
+  - Tags display
+  - Source URL with external link
+  - Professional styling with close button
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx`:
+  - Import FindingDetailModal
+  - Added modal state management
+  - Replaced alert() with modal display
+  - Added modal to component render
+
+### Issue 13: Citation Clicks Redirecting to Dashboard (FIXED - January 19, 2026)
+**Problem:** Clicking citations caused page refresh and redirect to dashboard.
+
+**Root Cause:** Code tried to use React Router `navigate()` but app doesn't use React Router - it's a single-page app.
+
+**Fix:** Removed navigation code, implemented modal-based finding display.
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Removed React Router navigation, use modal instead
+
+---
+
+## Deployment Summary (January 19, 2026)
+
+### Latest Deployment
+- **Time:** 15:24 UTC
+- **Server:** 100.94.82.35
+- **Ports:** 6767 (frontend), 3001 (backend API)
+- **Branch:** fix/digest-findings-race-condition
+- **Commit:** a1ffaf9
+
+### Deployment Process Used
+```bash
+# On local machine
+git add -A
+git commit -m "Fix citation rendering and navigation issues"
+git push origin fix/digest-findings-race-condition
+
+# On server (SSH to chee@100.94.82.35)
+cd /home/chee/medical-pwa
+git pull origin fix/digest-findings-race-condition
+docker-compose build
+docker-compose down
+docker-compose up -d
+
+# Verify
+docker ps | grep medical
+docker logs medical-companion --tail 30
+```
+
+### Container Status
+- `medical-companion` - Running (healthy)
+- `medcompanion-postgres` - Running (healthy)
+- Database connected successfully
+- Backend API responding correctly
+
 ---
 
 ## Known Remaining Issues
 
-### Issue: App Still Not Working After Fixes
-The app is not functioning correctly even after the above fixes. Further investigation needed:
+### Critical Issue: Citations Still Not Working Fully
+Despite fixes, user reports:
+1. **Not all citations showing as blue buttons** - Some still appear as plain text
+2. **Missing citations in citation section** - Not all referenced citations appear
+3. **Need to verify in production** - Test at http://100.94.82.35:6767
 
-1. **Check other API services for similar transformation issues:**
-   - `findings.api.service.ts`
-   - `agents.api.service.ts`
-   - `digests.api.service.ts`
+### Potential Root Causes to Investigate
+1. **Frontend ChatMessage.tsx may have issues:**
+   - Check citation rendering logic
+   - Verify it's using `citationNumber` not array index
 
-2. **Check agentRunner.ts:**
-   - May still be using direct IndexedDB access instead of unified services
-   - See `src/services/agentRunner.ts` lines 152-177
+2. **Backend may not be sending all citations:**
+   - Check if findings are properly loaded before extraction
+   - Verify citation extraction covers all references
 
-3. **Verify API response formats:**
-   - Backend may return different field names than frontend expects
-   - Need to verify all `transformApiXxx()` functions are correct
+3. **Race conditions:**
+   - Citations may be extracted before all findings loaded
+   - Check timing of finding enrichment vs citation extraction
+
+---
+
+## Lessons Learned
+
+### 1. Circular Dependencies in Production Builds
+- **Issue:** Works in dev, crashes in production with "Cannot access X before initialization"
+- **Solution:** Use dynamic imports in useEffect, not static imports at top
+- **Pattern:** Component → Dynamic Import → Store/Service
+
+### 2. Citation System Architecture
+- **Issue:** Array index mapping breaks when citations reference beyond array
+- **Solution:** Use semantic IDs (citationNumber) not positional indices
+- **Best Practice:** Always use `.find()` for ID lookups, not array[index]
+
+### 3. PWA Deployment on Debian
+- **Correct Directory:** `/home/chee/medical-pwa` (not ResearchCompanion)
+- **Network:** `medical-pwa_medcompanion-network`
+- **Database URL:** `postgresql://medcompanion:medcompanion@medcompanion-postgres:5432/medcompanion`
+
+### 4. Debugging Production Issues
+- **Always check:** Browser console, Network tab, Docker logs
+- **Add verbose logging:** Especially for data transformations
+- **Test in production build locally:** `npm run build && npm run preview`
+
+---
+
+## Next Steps for Future Agent
+
+### Immediate Priority: Fix Remaining Citation Issues
+1. **Check ChatMessage.tsx citation rendering:**
+   ```typescript
+   // src/components/ChatMessage.tsx
+   // Verify it's using:
+   const citation = message.citations?.find(c => c.citationNumber === citationNum);
+   // NOT:
+   const citation = message.citations?.[citationIndex];
+   ```
+
+2. **Debug why some citations missing:**
+   - Add console.log in backend `enrichFindingsContext` to see how many findings loaded
+   - Check if AI is referencing findings that don't exist in the topic
+   - Verify citation extraction happens AFTER findings are enriched
+
+3. **Test Citation Flow End-to-End:**
+   - Create topic with 20+ findings
+   - Ask question that should reference multiple findings
+   - Check console logs for citation extraction
+   - Verify all citations render as buttons
+
+### Code Locations to Check
+- `src/components/ChatMessage.tsx` (lines ~200-250) - Citation rendering
+- `backend/src/routes/chat.routes.ts` (lines 366-401) - Citation extraction
+- `backend/src/routes/chat.routes.ts` (lines 450-560) - Finding enrichment
+
+### Testing Commands
+```bash
+# Check backend logs for citation extraction
+ssh chee@100.94.82.35 "docker logs medical-companion --tail 100 | grep citation"
+
+# Check if findings are being loaded
+ssh chee@100.94.82.35 "docker logs medical-companion --tail 100 | grep enriching"
+```
 
 ---
 
 ## Files Summary
 
-### Frontend Files Modified
-| File | Purpose |
-|------|---------|
-| `src/services/topics.api.service.ts` | Topics API - added transformation |
-| `src/services/topics.service.ts` | Topics unified service - added `updateTopicById()` |
-| `src/services/findings.api.service.ts` | Findings API - always POST |
-| `src/services/agents.api.service.ts` | Agents API - always POST |
-| `src/services/digests.api.service.ts` | Digests API - always POST |
-| `src/components/TopicManager.tsx` | Use unified services |
-| `src/utils/api.ts` | New file - API utility (if created) |
+### Frontend Files Modified (January 19, 2026)
+| File | Purpose | Changes |
+|------|---------|---------|
+| `src/components/ChatPanelMinimal.tsx` | Chat UI | Complete rewrite with dynamic imports, modal integration |
+| `src/components/FindingDetailModal.tsx` | Finding display | NEW - Modal for citation details |
+| `src/components/ChatPanelLazy.tsx` | Lazy wrapper | Wrapper for circular dependency fix |
+| `src/services/topics.api.service.ts` | Topics API | Added data transformation |
+| `src/services/topics.service.ts` | Topics service | Added `updateTopicById()` |
+| `src/services/findings.api.service.ts` | Findings API | POST for new findings |
+| `src/services/agents.api.service.ts` | Agents API | POST for new agents |
+| `src/services/digests.api.service.ts` | Digests API | POST for new digests |
+| `src/components/TopicManager.tsx` | Topic management | Use unified services |
 
-### Backend Files Modified
-| File | Purpose |
-|------|---------|
-| `backend/src/services/auth.service.ts` | Use PostgreSQL auth |
-| `backend/src/routes/findings.routes.ts` | Zod nullable |
-| `backend/src/routes/agents.routes.ts` | Zod nullable |
-| `backend/src/routes/digests.crud.routes.ts` | Zod nullable |
-| `backend/src/routes/conversations.routes.ts` | Zod nullable |
-| `backend/src/models/*.model.ts` | TypeScript null types |
+### Backend Files Modified (January 19, 2026)
+| File | Purpose | Changes |
+|------|---------|---------|
+| `backend/src/routes/chat.routes.ts` | Chat endpoints | Fixed extractCitations function |
+| `backend/src/routes/findings.routes.ts` | Findings CRUD | Added .nullable() to Zod schemas |
+| `backend/src/routes/agents.routes.ts` | Agents CRUD | Added .nullable() to Zod schemas |
+| `backend/src/routes/digests.crud.routes.ts` | Digests CRUD | Added .nullable() to Zod schemas |
+| `backend/src/models/finding.model.ts` | Finding model | Added `| null` to types |
+| `backend/src/models/agent.model.ts` | Agent model | Added `| null` to types |
+| `backend/src/models/digest.model.ts` | Digest model | Added `| null` to types |
+| `backend/src/services/auth.service.ts` | Auth service | Use PostgreSQL instead of SQLite |
+
+---
+
+## Summary for Handoff
+
+### What Was Fixed Today (January 19, 2026)
+1. ✅ Chat circular dependency crash - Created ChatPanelMinimal with dynamic imports
+2. ✅ Chat 414 URI Too Large - Switched to POST with minimal context
+3. ✅ Chat 401 Unauthorized - Used axios API service with auth headers
+4. ✅ Chat history persistence - Added explicit loadMessages() calls
+5. ✅ Citation navigation - Created FindingDetailModal, removed router navigation
+6. ✅ Backend citation extraction - Fixed array index mapping issue
+7. ✅ Deployed to production - Running at 100.94.82.35:6767
+
+### What Still Needs Work
+1. ❌ Some citations still showing as plain text (not all blue buttons)
+2. ❌ Not all citations appearing in citations section
+3. ❌ Need to verify ChatMessage.tsx is using citationNumber correctly
+4. ❌ May need to improve finding enrichment timing
+
+### Critical Information
+- **Server:** SSH to chee@100.94.82.35
+- **App Directory:** `/home/chee/medical-pwa`
+- **Branch:** `fix/digest-findings-race-condition`
+- **Docker Network:** `medical-pwa_medcompanion-network`
+- **Database:** PostgreSQL at `medcompanion-postgres:5432`
+
+### Immediate Next Task
+Check why some citations aren't rendering as buttons despite backend fix. Start with:
+1. Examine ChatMessage.tsx citation rendering logic
+2. Add more logging to track which citations are missing
+3. Test with a topic containing 20+ findings
+
+---
+
+*Document last updated: January 19, 2026, 15:30 UTC*
 
 ---
 
@@ -1258,12 +1486,95 @@ docker-compose up --build -d
 - Professional styling throughout
 - Maintained stability (no circular dependencies)
 
+---
+
+### Issue 25: Critical Chat Issues - Citation Rendering and Message Display (FIXED - January 19, 2026)
+
+**Problems Identified:**
+1. **Chat messages not displaying after refresh** - Messages loaded in console but UI showed 0 messages
+2. **Some citations rendering as plain text** - Citations [13], [17] showed as plain text while [9], [14], [15], [18], [20] showed as buttons
+3. **Citation clicks not working** - Clicking citations had no response, finding lookup failed
+
+**Root Causes:**
+
+1. **Streaming Citation Bug (Most Critical)**:
+   - Backend extracted citations TOO EARLY during streaming
+   - Used `citationsSent = true` flag that prevented later citations from being extracted
+   - Citations generated after the flag was set ([13], [17]) were never sent to frontend
+   - Result: Only early citations became buttons, later ones remained plain text
+
+2. **Message Display Race Condition**:
+   - `loadMessages()` was awaited but state update was asynchronous
+   - Component immediately read state before it was updated
+   - Result: Messages loaded from API but UI showed empty array
+
+3. **Citation Click Handler Missing Fallback**:
+   - Findings existed in PostgreSQL but not in local IndexedDB cache
+   - Handler only checked local store, had no API fallback
+   - Result: Citation clicks failed silently
+
+**Fixes Applied:**
+
+1. **backend/src/routes/chat.routes.ts**:
+   - Moved citation extraction from during-stream to `message_stop` event
+   - Removed `citationsSent` flag completely
+   - Now extracts ALL citations after response is complete
+   ```typescript
+   // OLD: Extract during streaming (WRONG)
+   if (!citationsSent && fullContent.includes('[')) {
+     const citations = extractCitations(...);
+     citationsSent = true; // Blocks later citations!
+   }
+
+   // NEW: Extract at completion (CORRECT)
+   } else if (chunk.type === 'message_stop') {
+     const citations = extractCitations(fullContent, ...);
+     // Send ALL citations at once
+   }
+   ```
+
+2. **src/components/ChatPanelMinimal.tsx**:
+   - Added 100ms delay after `loadMessages()` to ensure state updates
+   - Refresh state after loading to get updated messages
+   - Added API fallback in citation click handler
+   ```typescript
+   // Race condition fix
+   await chatStore.loadMessages(chatStore.activeChatId);
+   await new Promise(resolve => setTimeout(resolve, 100));
+   const updatedState = chatStoreModule.useChatStore.getState();
+   const loadedMessages = updatedState.messages.get(chatStore.activeChatId) || [];
+   setMessages(loadedMessages);
+
+   // Citation click fix
+   if (!finding) {
+     const { findingsAPIService } = await import('../services/findings.api.service');
+     const apiFindings = await findingsAPIService.getFindings({ topicId });
+     finding = apiFindings.find(f => f.id === findingId);
+   }
+   ```
+
+3. **src/services/chat.api.service.ts**:
+   - Parse citations and metadata if they come as JSON strings from PostgreSQL
+   ```typescript
+   citations: typeof message.citations === 'string'
+     ? JSON.parse(message.citations)
+     : message.citations,
+   ```
+
+**Commit:** 4a992b5 - "Fix critical chat issues: citation rendering and message display"
+
+**Key Lessons Learned:**
+1. **Streaming requires complete data** - Don't extract partial data during streaming
+2. **State updates are asynchronous** - Need to wait or refresh after store operations
+3. **Always have API fallbacks** - Don't rely solely on local cache for critical data
+4. **PostgreSQL JSONB needs parsing** - Fields may come as strings and need JSON.parse()
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
-2. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
-3. Add chat history persistence to PostgreSQL (for multi-device sync)
-4. Implement citation navigation to finding details (currently logs to console)
+2. ✅ Fix citation rendering and message display issues (COMPLETED Jan 19, 2026)
+3. Deploy latest fixes to production (PENDING)
+4. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
 5. Add maximize/fullscreen mode for chat
 6. Implement message search functionality
 7. Add retry logic for network failures
