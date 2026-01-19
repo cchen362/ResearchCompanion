@@ -67,7 +67,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         // Load findings for the topic so citations can be resolved
         const findingsStore = findingsStoreModule.useFindingsStore.getState();
-        await findingsStore.loadFindings({ topicId });
+        await findingsStore.loadFindings(topicId);
         console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsStore.findings.length);
 
         const unsubscribe = chatStoreModule.useChatStore.subscribe(
@@ -98,7 +98,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // First, try to load findings if not already loaded
       if (findingsStore.findings.length === 0) {
         console.log('Loading findings for topic...');
-        await findingsStore.loadFindings({ topicId });
+        await findingsStore.loadFindings(topicId);
       }
 
       let finding = findingsStore.findings.find((f: any) => f.id === findingId);
@@ -108,7 +108,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         console.log('Finding not in local store, fetching from API...');
         try {
           const { findingsAPIService } = await import('../services/findings.api.service');
-          const apiFindings = await findingsAPIService.getFindings({ topicId });
+          const apiFindings = await findingsAPIService.getFindings(topicId);
 
           // Find the specific finding from the API response
           finding = apiFindings.find((f: any) => f.id === findingId);
@@ -215,14 +215,42 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Dynamically import chat service
       const { chatService } = await import('../services/chat.service');
       const chatStore = stores.useChatStore.getState();
+      const findingsStore = stores.useFindingsStore.getState();
 
-      // Create a minimal context to avoid URI too large error
-      const minimalContext = {
-        currentFindings: [], // Don't send all findings in URL
+      // Load findings for this topic if not already loaded
+      if (!findingsStore.findings.length || findingsStore.filters?.topicId !== topicId) {
+        console.log('[ChatPanel] Loading findings for topic before sending message...');
+        await findingsStore.loadFindings(topicId);
+      }
+
+      // Get up to 20 findings for context (backend expects these for citations)
+      const topicFindings = findingsStore.findings
+        .filter((f: any) => f.topicId === topicId)
+        .slice(0, 20); // Limit to 20 to match backend's citation range
+
+      console.log('[ChatPanel] Sending findings context:', {
+        count: topicFindings.length,
+        findingIds: topicFindings.map((f: any) => f.id)
+      });
+
+      // Transform findings to match backend schema
+      const transformedFindings = topicFindings.map((f: any) => ({
+        id: f.id,
+        title: f.title || '',
+        content: f.details || f.summary || '',
+        source: f.source?.displayName || f.source?.name || 'Unknown Source',
+        type: f.type || 'research',
+        createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
+        priority: f.priority || 'medium'
+      }));
+
+      // Create context with actual findings in the correct 'findings' field
+      const contextWithFindings = {
+        findings: transformedFindings, // Use 'findings' field as expected by backend schema
+        currentFindings: topicFindings.map((f: any) => f.id), // Just IDs for backward compat
         expandedTopics: [],
         recentInteractions: [],
         userPreferences: {},
-        // Don't include the full findings array in context
       };
 
       // First add the user message to the local state
@@ -243,7 +271,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         message: userMessage.content,
         chatId: chatStore.activeChatId!,
         topicId,
-        context: minimalContext, // Use minimal context
+        context: contextWithFindings, // Use context with actual findings
         stream: false // Use non-streaming endpoint
       });
 

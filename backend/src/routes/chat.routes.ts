@@ -368,6 +368,21 @@ function extractCitations(
   const seenCitations = new Set<number>();
   let match;
 
+  // Extract all citation numbers from the content first
+  const allCitationNumbers: number[] = [];
+  while ((match = citationPattern.exec(content)) !== null) {
+    allCitationNumbers.push(parseInt(match[1]));
+  }
+
+  console.log(`🔍 [extractCitations] Found citation numbers in content:`, {
+    citationNumbers: [...new Set(allCitationNumbers)].sort((a, b) => a - b),
+    findingsCount: findings.length,
+    findingIds: findings.slice(0, 5).map(f => f.id) // Show first 5 IDs for debugging
+  });
+
+  // Reset pattern for actual extraction
+  citationPattern.lastIndex = 0;
+
   while ((match = citationPattern.exec(content)) !== null) {
     const citationNum = parseInt(match[1]);
 
@@ -390,14 +405,14 @@ function extractCitations(
         highlightEnd: match.index + match[0].length
       });
 
-      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id}`);
+      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id} (${finding.title?.substring(0, 30)}...)`);
     } else {
       // Log when a citation number doesn't have a corresponding finding
       console.warn(`⚠️ [extractCitations] Citation [${citationNum}] has no corresponding finding (arrayIndex=${arrayIndex}, findings.length=${findings.length})`);
     }
   }
 
-  console.log(`📚 [extractCitations] Extracted ${citations.length} valid citations from content with ${findings.length} available findings`);
+  console.log(`📚 [extractCitations] Final result: Extracted ${citations.length} valid citations from ${seenCitations.size} unique citation numbers`);
   return citations;
 }
 
@@ -479,9 +494,28 @@ async function enrichFindingsContext(
   topicId: string
 ): Promise<any> {
   try {
-    // Get the finding IDs from the context
+    // Check what findings were provided from frontend
     const contextFindings = context.findings || [];
-    const findingIds = contextFindings.map((f: any) => f.id).filter(Boolean);
+    const currentFindingIds = context.currentFindings || [];
+
+    console.log(`📚 [enrichFindingsContext] Received from frontend:`, {
+      findingsCount: contextFindings.length,
+      currentFindingsCount: currentFindingIds.length,
+      hasFindings: contextFindings.length > 0,
+      topicId
+    });
+
+    // If frontend provided findings in the correct format, use them directly
+    if (contextFindings.length > 0) {
+      console.log(`✅ [enrichFindingsContext] Using ${contextFindings.length} findings from frontend`);
+      return {
+        ...context,
+        findings: contextFindings
+      };
+    }
+
+    // Otherwise, fetch findings from database
+    const findingIds = currentFindingIds.filter(Boolean);
 
     // Always try to fetch ALL findings for the topic to provide complete context
     if (findingIds.length < 5 || contextFindings.length === 0) {
