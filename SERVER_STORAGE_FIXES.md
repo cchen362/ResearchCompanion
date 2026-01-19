@@ -902,51 +902,65 @@ const citation = message.citations?.find(c => c.citationNumber === citationNum);
 ---
 
 ### Issue 25: Chat Page Crash - Circular Dependency (FIXED - January 19, 2026)
-**Problem:** When clicking the chat icon, the entire page went blank with error: "Cannot access 'se' before initialization"
+**Problem:** When clicking the chat icon, the entire page went blank with error: "Cannot access 'K' before initialization"
 
-**Root Cause:** Circular dependency between chat.service.ts and chatStore:
-- chat.service.ts imported useChatStore directly at module level
-- ChatPanel imported both useChatStore and chatService
-- This created a circular dependency chain causing initialization errors
+**History of Fix Attempts:**
+1. **Initial attempts (commits fef8a62, 2b20a91, b864793):** Tried various approaches with dynamic imports in chat.service.ts and chatStore.ts
+2. **Commit 8fd2ef3:** Removed chatAPIService import from chatStore - partial fix
+3. **Final fix (commit 68ce8e0):** Implemented lazy-loaded ChatPanel wrapper
 
-**Investigation:**
-- Error appeared in minified production code (index-CeaxUYz2.js)
-- Variable 'se' was part of minified/bundled code
-- Tracked back to chat.service.ts calling `useChatStore.getState()`
+**Root Cause:** Circular dependency chain at module initialization:
+- App.tsx/AppWithAuth.tsx → ChatPanel → chatStore + chatService → circular references
+- ChatPanel was importing both `useChatStore` and `chatService` directly
+- This created a circular dependency chain: ChatPanel → chatStore → chatAPIService → chat.service → chatStore
+- The minified variable 'K' referred to one of these circularly dependent modules
 
-**Fix:** Implemented lazy loading of chatStore in chat.service.ts:
+**Final Solution:** Created lazy-loaded wrapper for ChatPanel:
 ```typescript
-// Instead of direct import:
-// import { useChatStore } from '../stores/chatStore';
+// src/components/ChatPanelLazy.tsx
+import { lazy, Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 
-// Use lazy loading with require():
-let getChatStore: () => any;
-if (typeof window !== 'undefined') {
-  getChatStore = () => {
-    const { useChatStore } = require('../stores/chatStore');
-    return useChatStore.getState();
-  };
+const ChatPanelImpl = lazy(() =>
+  import('./ChatPanel').then(module => ({
+    default: module.ChatPanel
+  }))
+);
+
+export function ChatPanel(props: ChatPanelProps) {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ChatPanelImpl {...props} />
+    </Suspense>
+  );
 }
-
-// Then use getChatStore() in methods instead of direct store access
 ```
 
 **Files Modified:**
-- `src/services/chat.service.ts`:
-  - Removed direct import of useChatStore
-  - Added lazy loading with require()
-  - Replaced all `useChatStore.getState()` with `getChatStore()`
+- `src/components/ChatPanelLazy.tsx`: Created new lazy wrapper component
+- `src/App.tsx`: Updated import from ChatPanel to ChatPanelLazy
+- `src/AppWithAuth.tsx`: Updated import from ChatPanel to ChatPanelLazy
 
 **Why This Fixed It:**
-- Breaks the circular dependency at build time
-- Store is only loaded when actually needed at runtime
-- Prevents initialization order conflicts
+- Lazy loading ChatPanel breaks the circular dependency chain at module initialization
+- ChatPanel is now loaded in a separate chunk (ChatPanel-*.js) only when needed
+- The circular references still exist but are resolved at runtime, not initialization
+- Build succeeds with ChatPanel in its own chunk, confirming proper code splitting
+
+**Build Evidence:**
+```
+dist/assets/ChatPanel-BycU2QF0.js  45.62 kB │ gzip: 12.76 kB
+```
+ChatPanel is now in a separate chunk, loaded on demand.
+
+**Deployment:** Successfully deployed to production at 100.94.82.35:6767 on January 19, 2026
 
 **Lessons Learned:**
-1. **Services shouldn't directly import stores** - Creates tight coupling and circular dependencies
-2. **"Cannot access before initialization"** = Circular dependency issue
-3. **Use lazy loading** for optional dependencies to break cycles
-4. **Consider dependency injection** instead of direct imports in services
+1. **Lazy load components that create circular dependencies** - Breaks the chain at build time
+2. **"Cannot access before initialization"** in production = Circular dependency issue
+3. **Minified variable names (K, se, etc.)** make debugging harder - check source maps
+4. **Multiple fix attempts** indicate incomplete understanding - need thorough investigation
+5. **ChatPanel should be lazy-loaded** since it's not always visible and has heavy dependencies
 
 **Deployment:** Successfully deployed to production at 9:21 UTC (January 19, 2026)
 - Built and tested locally first
