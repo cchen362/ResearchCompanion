@@ -596,15 +596,19 @@ export const useChatStore = create<ChatStore>()(
         },
         partialize: (state) => ({
           activeChatId: state.activeChatId,
-          context: state.context
+          context: state.context,
+          messages: state.messages // Now persist messages too!
         }),
         onRehydrateStorage: () => (state) => {
           console.log('🔄 [chatStore] Rehydrated from localStorage:', {
             activeChatId: state?.activeChatId,
-            hasContext: !!state?.context
+            hasContext: !!state?.context,
+            messageCount: state?.messages ? state.messages.size : 0,
+            messagesForActiveChat: state?.messages && state?.activeChatId ?
+              (state.messages.get(state.activeChatId)?.length || 0) : 0
           });
-          // Messages will be loaded explicitly by ChatPanelMinimal component
-          // This prevents duplicate loading and race conditions
+          // If we have persisted messages for the active chat, they'll be available immediately
+          // This prevents the "messages disappearing on refresh" issue
         }
       }
     )

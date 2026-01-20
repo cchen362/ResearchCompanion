@@ -63,18 +63,47 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           await chatStore.createChat(topicId);
         }
 
-        // Load messages for the active chat
+        // Load messages for the active chat with proper state synchronization
         if (chatStore.activeChatId) {
-          await chatStore.loadMessages(chatStore.activeChatId);
+          // Create a promise that resolves when messages are actually loaded
+          const messagesLoaded = new Promise<void>((resolve) => {
+            // Subscribe to message changes temporarily
+            const unsubscribe = chatStoreModule.useChatStore.subscribe(
+              (state) => state.messages.get(chatStore.activeChatId),
+              (messages) => {
+                if (messages && messages.length > 0) {
+                  // Messages loaded successfully
+                  setMessages(messages);
+                  console.log('[ChatPanelMinimal] Messages loaded successfully:', messages.length);
+                  unsubscribe();
+                  resolve();
+                }
+              }
+            );
 
-          // After loading, get the messages from the updated state
-          // Use a small delay to ensure state has been updated
-          await new Promise(resolve => setTimeout(resolve, 100));
+            // Start loading messages
+            chatStore.loadMessages(chatStore.activeChatId).then(() => {
+              // Check if messages were loaded immediately (from cache)
+              const currentMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId);
+              if (currentMessages && currentMessages.length > 0) {
+                setMessages(currentMessages);
+                console.log('[ChatPanelMinimal] Messages loaded from cache:', currentMessages.length);
+                unsubscribe();
+                resolve();
+              } else {
+                // Wait up to 3 seconds for messages to load
+                setTimeout(() => {
+                  const finalMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId) || [];
+                  setMessages(finalMessages);
+                  console.log('[ChatPanelMinimal] Messages after timeout:', finalMessages.length);
+                  unsubscribe();
+                  resolve();
+                }, 3000);
+              }
+            });
+          });
 
-          const updatedState = chatStoreModule.useChatStore.getState();
-          const loadedMessages = updatedState.messages.get(chatStore.activeChatId) || [];
-          setMessages(loadedMessages);
-          console.log('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
+          await messagesLoaded;
         }
 
         // Load findings for the topic so citations can be resolved
@@ -129,7 +158,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             console.log('Found finding from API:', finding);
 
             // Optionally add to store for future use
-            findingsStore.addFindingToCache(finding);
+            // Check if the method exists before calling
+            if (findingsStore && typeof findingsStore.addFindingToCache === 'function') {
+              findingsStore.addFindingToCache(finding);
+            } else {
+              console.warn('addFindingToCache method not available on findingsStore:', {
+                hasStore: !!findingsStore,
+                storeKeys: findingsStore ? Object.keys(findingsStore) : [],
+                typeOfMethod: typeof findingsStore?.addFindingToCache
+              });
+            }
           }
         } catch (error) {
           console.error('Failed to fetch finding from API:', error);
