@@ -114,16 +114,49 @@ class ChatAPIService {
     citations?: any,
     metadata?: any
   ): Promise<ChatMessage> {
+    console.log('🚀 [chatAPIService] addMessage called:', {
+      chatId,
+      role,
+      contentLength: content.length,
+      hasCitations: !!citations,
+      hasMetadata: !!metadata
+    });
+
     try {
-      const response = await api.post(`/chats/${chatId}/messages`, {
+      const payload = {
         role,
         content,
         citations,
         metadata
+      };
+      console.log('📤 [chatAPIService] Sending POST request to:', `/chats/${chatId}/messages`);
+      console.log('📤 [chatAPIService] Payload:', {
+        role: payload.role,
+        contentLength: payload.content.length,
+        citationsCount: citations?.length || 0
       });
-      return transformMessage(response.data.message);
-    } catch (error) {
-      console.error('Failed to add message:', error);
+
+      const response = await api.post(`/chats/${chatId}/messages`, payload);
+
+      console.log('📥 [chatAPIService] Response received:', {
+        status: response.status,
+        hasMessage: !!response.data?.message,
+        messageId: response.data?.message?.id
+      });
+
+      const transformedMessage = transformMessage(response.data.message);
+      console.log('✅ [chatAPIService] Message transformed and returning:', {
+        id: transformedMessage.id,
+        timestamp: transformedMessage.timestamp
+      });
+
+      return transformedMessage;
+    } catch (error: any) {
+      console.error('❌ [chatAPIService] Failed to add message:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw error;
     }
   }

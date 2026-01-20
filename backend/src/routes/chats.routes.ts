@@ -168,28 +168,58 @@ router.get('/chats/:id/messages', async (req, res) => {
 
 // POST /api/chats/:id/messages - Add a message to a chat
 router.post('/chats/:id/messages', async (req, res) => {
+  console.log('📨 [Backend] POST /chats/:id/messages received:', {
+    chatId: req.params.id,
+    userId: (req as any).user?.id,
+    role: req.body.role,
+    contentLength: req.body.content?.length,
+    hasCitations: !!req.body.citations,
+    hasMetadata: !!req.body.metadata,
+    headers: {
+      authorization: !!req.headers.authorization,
+      contentType: req.headers['content-type']
+    }
+  });
+
   try {
     const userId = (req as any).user.id;
     const chatId = req.params.id;
     const data = AddMessageSchema.parse(req.body);
 
+    console.log('📨 [Backend] Parsed message data:', {
+      role: data.role,
+      contentLength: data.content.length,
+      citationsCount: data.citations?.length || 0
+    });
+
     // Verify chat exists and belongs to user
+    console.log('🔍 [Backend] Looking up chat:', { chatId, userId });
     const chat = await ChatModel.getById(chatId, userId);
+
     if (!chat) {
+      console.error('❌ [Backend] Chat not found:', { chatId, userId });
       return res.status(404).json({
         success: false,
         error: 'Chat not found'
       });
     }
 
+    console.log('✅ [Backend] Chat found, adding message...');
     const message = await ChatModel.addMessage(chatId, userId, data);
+
+    console.log('✅ [Backend] Message added successfully:', {
+      messageId: message.id,
+      chatId: message.chat_id,
+      role: message.role,
+      timestamp: message.created_at
+    });
 
     res.json({
       success: true,
       message
     });
   } catch (error) {
-    console.error('Error adding message:', error);
+    console.error('❌ [Backend] Error adding message:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to add message'

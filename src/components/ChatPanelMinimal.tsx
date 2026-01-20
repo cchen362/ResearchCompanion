@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
 import { FindingDetailModal } from './FindingDetailModal';
+import { useToast } from './ui/use-toast';
 
 interface ChatPanelProps {
   topicId: string;
@@ -22,6 +23,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [selectedFinding, setSelectedFinding] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -63,47 +65,29 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           await chatStore.createChat(topicId);
         }
 
-        // Load messages for the active chat with proper state synchronization
+        // Load messages for the active chat with proper async handling
         if (chatStore.activeChatId) {
-          // Create a promise that resolves when messages are actually loaded
-          const messagesLoaded = new Promise<void>((resolve) => {
-            // Subscribe to message changes temporarily
-            const unsubscribe = chatStoreModule.useChatStore.subscribe(
-              (state) => state.messages.get(chatStore.activeChatId),
-              (messages) => {
-                if (messages && messages.length > 0) {
-                  // Messages loaded successfully
-                  setMessages(messages);
-                  console.log('[ChatPanelMinimal] Messages loaded successfully:', messages.length);
-                  unsubscribe();
-                  resolve();
-                }
-              }
-            );
+          console.log('[ChatPanelMinimal] Loading messages for chat:', chatStore.activeChatId);
 
-            // Start loading messages
-            chatStore.loadMessages(chatStore.activeChatId).then(() => {
-              // Check if messages were loaded immediately (from cache)
-              const currentMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId);
-              if (currentMessages && currentMessages.length > 0) {
-                setMessages(currentMessages);
-                console.log('[ChatPanelMinimal] Messages loaded from cache:', currentMessages.length);
-                unsubscribe();
-                resolve();
-              } else {
-                // Wait up to 3 seconds for messages to load
-                setTimeout(() => {
-                  const finalMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId) || [];
-                  setMessages(finalMessages);
-                  console.log('[ChatPanelMinimal] Messages after timeout:', finalMessages.length);
-                  unsubscribe();
-                  resolve();
-                }, 3000);
-              }
-            });
-          });
+          try {
+            // Load messages from API/cache
+            await chatStore.loadMessages(chatStore.activeChatId);
 
-          await messagesLoaded;
+            // Get the loaded messages
+            const loadedMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId) || [];
+            console.log('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
+
+            // Set messages regardless of count (even if 0, it's valid)
+            setMessages(loadedMessages);
+
+            // If no messages loaded, log for debugging
+            if (loadedMessages.length === 0) {
+              console.log('[ChatPanelMinimal] No messages found for chat, this might be a new conversation');
+            }
+          } catch (error) {
+            console.error('[ChatPanelMinimal] Error loading messages:', error);
+            // Don't set empty array on error, just keep current state
+          }
         }
 
         // Load findings for the topic so citations can be resolved
@@ -371,14 +355,79 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       }
 
       // Save to store if needed
+      console.log('💾 [ChatPanelMinimal] Attempting to save messages to store...', {
+        hasStores: !!stores,
+        activeChatId: stores?.useChatStore.getState().activeChatId,
+        userMessageId: userMessage.id,
+        aiMessageId: aiMessage.id
+      });
+
       if (stores) {
         const chatStore = stores.useChatStore.getState();
-        if (chatStore.addMessage) {
-          await chatStore.addMessage(chatStore.activeChatId!, userMessage);
-          await chatStore.addMessage(chatStore.activeChatId!, aiMessage);
+        console.log('💾 [ChatPanelMinimal] Chat store state:', {
+          hasAddMessage: !!chatStore.addMessage,
+          activeChatId: chatStore.activeChatId,
+          messageCount: chatStore.messages.get(chatStore.activeChatId!)?.length || 0
+        });
+
+        if (chatStore.addMessage && chatStore.activeChatId) {
+          try {
+            console.log('💾 [ChatPanelMinimal] Saving user message...');
+            await chatStore.addMessage(chatStore.activeChatId, userMessage);
+            console.log('✅ [ChatPanelMinimal] User message saved successfully');
+
+            console.log('💾 [ChatPanelMinimal] Saving AI message...');
+            await chatStore.addMessage(chatStore.activeChatId, aiMessage);
+            console.log('✅ [ChatPanelMinimal] AI message saved successfully');
+
+            // Verify messages were saved
+            const savedMessages = chatStore.messages.get(chatStore.activeChatId);
+            console.log('🔍 [ChatPanelMinimal] Messages after save:', {
+              count: savedMessages?.length || 0,
+              lastTwo: savedMessages?.slice(-2).map(m => ({
+                id: m.id,
+                role: m.role,
+                contentLength: m.content.length,
+                hasCitations: !!m.citations?.length
+              }))
+            });
+          } catch (saveError) {
+            console.error('❌ [ChatPanelMinimal] Failed to save messages:', saveError);
+
+            // Show toast notification for save failure
+            toast({
+              title: 'Failed to save message',
+              description: 'Your message was sent but could not be saved. It may not appear after refresh.',
+              variant: 'destructive',
+              action: {
+                label: 'Retry',
+                handler: async () => {
+                  try {
+                    await chatStore.addMessage(chatStore.activeChatId, userMessage);
+                    await chatStore.addMessage(chatStore.activeChatId, aiMessage);
+                    toast({
+                      title: 'Messages saved',
+                      description: 'Your conversation has been saved successfully.'
+                    });
+                  } catch (retryError) {
+                    console.error('❌ Retry failed:', retryError);
+                  }
+                }
+              }
+            });
+
+            // Don't re-throw, let the user continue chatting
+          }
+        } else {
+          console.warn('⚠️ [ChatPanelMinimal] Cannot save messages:', {
+            hasAddMessage: !!chatStore.addMessage,
+            activeChatId: chatStore.activeChatId
+          });
         }
+      } else {
+        console.warn('⚠️ [ChatPanelMinimal] Stores not available, messages not saved to backend');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
       setIsLoading(false);
 
@@ -390,6 +439,17 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
+
+      // Show toast notification
+      toast({
+        title: 'Error sending message',
+        description: error?.response?.data?.error || error?.message || 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+        action: {
+          label: 'Retry',
+          handler: () => handleSend(inputValue)
+        }
+      });
     }
   };
 

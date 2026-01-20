@@ -328,12 +328,22 @@ export const useChatStore = create<ChatStore>()(
         },
 
         addMessage: async (chatId: string, messageData: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+          console.log('📨 [chatStore] addMessage called:', {
+            chatId,
+            role: messageData.role,
+            contentLength: messageData.content.length,
+            hasCitations: !!messageData.citations?.length,
+            useServerStorage: storageConfig.useServerStorage
+          });
+
           try {
             let newMessage: ChatMessage;
 
             if (storageConfig.useServerStorage) {
+              console.log('🌐 [chatStore] Using server storage, calling API...');
               // Use API when server storage is enabled
               const { chatAPIService } = await import('../services/chat.api.service');
+              console.log('🌐 [chatStore] Calling chatAPIService.addMessage...');
               newMessage = await chatAPIService.addMessage(
                 chatId,
                 messageData.role,
@@ -341,7 +351,12 @@ export const useChatStore = create<ChatStore>()(
                 messageData.citations,
                 messageData.metadata
               );
+              console.log('✅ [chatStore] Message saved to server:', {
+                messageId: newMessage.id,
+                timestamp: newMessage.timestamp
+              });
             } else {
+              console.log('💾 [chatStore] Using local IndexedDB storage...');
               // Fall back to IndexedDB for local storage
               const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
               const timestamp = new Date().toISOString();
@@ -575,20 +590,50 @@ export const useChatStore = create<ChatStore>()(
           getItem: async (name) => {
             const value = localStorage.getItem(name);
             if (!value) return null;
-            // Parse and handle Map serialization
-            const parsed = JSON.parse(value);
-            if (parsed.state?.messages) {
-              parsed.state.messages = new Map(parsed.state.messages);
+
+            try {
+              const parsed = JSON.parse(value);
+
+              // Handle Map deserialization properly
+              if (parsed.state?.messages && Array.isArray(parsed.state.messages)) {
+                console.log('🔄 [chatStore] Deserializing messages Map from localStorage:', {
+                  entriesCount: parsed.state.messages.length
+                });
+                parsed.state.messages = new Map(parsed.state.messages);
+              } else if (parsed.state?.messages && !(parsed.state.messages instanceof Map)) {
+                console.warn('⚠️ [chatStore] Messages in unexpected format, creating new Map');
+                parsed.state.messages = new Map();
+              }
+
+              return parsed;
+            } catch (error) {
+              console.error('❌ [chatStore] Error deserializing from localStorage:', error);
+              return null;
             }
-            return parsed;
           },
           setItem: async (name, value) => {
-            // Convert Map to array for serialization
-            const toStore = { ...value };
-            if (toStore.state?.messages instanceof Map) {
-              toStore.state.messages = Array.from(toStore.state.messages.entries());
+            try {
+              // Deep clone the value to avoid mutating the original
+              const toStore = JSON.parse(JSON.stringify({
+                ...value,
+                state: {
+                  ...value.state,
+                  messages: value.state?.messages instanceof Map
+                    ? Array.from(value.state.messages.entries())
+                    : value.state?.messages
+                }
+              }));
+
+              const serialized = JSON.stringify(toStore);
+              console.log('💾 [chatStore] Serializing to localStorage:', {
+                messageMapSize: value.state?.messages?.size || 0,
+                serializedLength: serialized.length
+              });
+
+              localStorage.setItem(name, serialized);
+            } catch (error) {
+              console.error('❌ [chatStore] Error serializing to localStorage:', error);
             }
-            localStorage.setItem(name, JSON.stringify(toStore));
           },
           removeItem: async (name) => {
             localStorage.removeItem(name);
