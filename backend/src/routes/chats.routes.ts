@@ -26,11 +26,23 @@ const AddMessageSchema = z.object({
 
 // GET /api/chats - Get all chats for the user
 router.get('/chats', async (req, res) => {
+  console.log('📋 [Backend] GET /chats - Loading chats:', {
+    userId: (req as any).user?.id,
+    topicId: req.query.topic_id,
+    timestamp: new Date().toISOString()
+  });
+
   try {
     const userId = (req as any).user.id;
     const topicId = req.query.topic_id as string | undefined;
 
     const chats = await ChatModel.getAll(userId, topicId);
+
+    console.log('📋 [Backend] Chats loaded:', {
+      count: chats.length,
+      topicId: topicId,
+      chatIds: chats.map(c => ({ id: c.id, title: c.title }))
+    });
 
     res.json({
       success: true,
@@ -75,18 +87,34 @@ router.get('/chats/:id', async (req, res) => {
 
 // POST /api/chats - Create a new chat
 router.post('/chats', async (req, res) => {
+  console.log('📝 [Backend] POST /chats - Creating new chat:', {
+    userId: (req as any).user?.id,
+    topicId: req.body.topic_id,
+    title: req.body.title,
+    timestamp: new Date().toISOString()
+  });
+
   try {
     const userId = (req as any).user.id;
     const data = CreateChatSchema.parse(req.body);
 
+    // Log before creating
+    console.log('📝 [Backend] Checking for existing chat for topic:', data.topic_id);
+
     const chat = await ChatModel.create(userId, data);
+
+    console.log('✅ [Backend] Chat created successfully:', {
+      chatId: chat.id,
+      topicId: chat.topic_id,
+      title: chat.title
+    });
 
     res.json({
       success: true,
       chat
     });
   } catch (error) {
-    console.error('Error creating chat:', error);
+    console.error('❌ [Backend] Error creating chat:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create chat'

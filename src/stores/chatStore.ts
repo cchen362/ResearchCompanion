@@ -166,15 +166,36 @@ export const useChatStore = create<ChatStore>()(
           }
         },
 
+        getChatByTopicId: (topicId: string) => {
+          const { chats } = get();
+          return chats.find(c => c.topicId === topicId);
+        },
+
         setActiveChat: async (chatId: string) => {
+          console.log('🔄 [chatStore] Setting active chat:', chatId);
           try {
             const { chats } = get();
-            const chat = chats.find(c => c.id === chatId);
+            let chat = chats.find(c => c.id === chatId);
+
+            // If chat not in memory, try to load from server
+            if (!chat && storageConfig.useServerStorage) {
+              console.log('🌐 [chatStore] Chat not in memory, loading from server...');
+              const { chatAPIService } = await import('../services/chat.api.service');
+              const topicChats = await chatAPIService.getChats(undefined); // Get all chats
+              chat = topicChats.find(c => c.id === chatId);
+
+              if (chat) {
+                // Add to local state
+                set({ chats: [...get().chats, chat] });
+              }
+            }
 
             if (!chat) {
+              console.error(`❌ [chatStore] Chat ${chatId} not found`);
               throw new Error(`Chat ${chatId} not found`);
             }
 
+            console.log('✅ [chatStore] Active chat set:', chat.title);
             set({ activeChat: chat, activeChatId: chatId });
 
             // Load messages if not already loaded
@@ -640,20 +661,28 @@ export const useChatStore = create<ChatStore>()(
           },
         },
         partialize: (state) => ({
+          chats: state.chats,           // Persist full chat list
+          activeChat: state.activeChat, // Persist active chat object
           activeChatId: state.activeChatId,
           context: state.context,
-          messages: state.messages // Now persist messages too!
+          messages: state.messages      // Persist messages Map
         }),
         onRehydrateStorage: () => (state) => {
           console.log('🔄 [chatStore] Rehydrated from localStorage:', {
+            chatsCount: state?.chats?.length || 0,
+            hasActiveChat: !!state?.activeChat,
             activeChatId: state?.activeChatId,
             hasContext: !!state?.context,
             messageCount: state?.messages ? state.messages.size : 0,
             messagesForActiveChat: state?.messages && state?.activeChatId ?
               (state.messages.get(state.activeChatId)?.length || 0) : 0
           });
-          // If we have persisted messages for the active chat, they'll be available immediately
-          // This prevents the "messages disappearing on refresh" issue
+
+          // If we have a persisted activeChatId, load messages for it
+          if (state?.activeChatId && !state?.messages?.has(state.activeChatId)) {
+            console.log('📨 [chatStore] Auto-loading messages for persisted chat:', state.activeChatId);
+            // Messages will be loaded by ChatPanelMinimal
+          }
         }
       }
     )

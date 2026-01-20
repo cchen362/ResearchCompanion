@@ -61,8 +61,38 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         const chatStore = chatStoreModule.useChatStore.getState();
         await chatStore.loadChats(topicId);
 
+        // CRITICAL FIX: Check for existing chat before creating new one
+        console.log('[ChatPanelMinimal] Checking for existing chat:', {
+          activeChatId: chatStore.activeChatId,
+          activeChat: chatStore.activeChat?.id,
+          chatsCount: chatStore.chats.length
+        });
+
+        // First, check if we already have an active chat ID from persistence
+        if (chatStore.activeChatId && !chatStore.activeChat) {
+          console.log('[ChatPanelMinimal] Rehydrating chat from persisted ID:', chatStore.activeChatId);
+          try {
+            await chatStore.setActiveChat(chatStore.activeChatId);
+          } catch (error) {
+            console.error('[ChatPanelMinimal] Failed to rehydrate chat:', error);
+            // Clear invalid chat ID
+            chatStore.activeChatId = null;
+          }
+        }
+
+        // If still no active chat, try to find existing chat for this topic
         if (!chatStore.activeChat) {
-          await chatStore.createChat(topicId);
+          const existingChat = chatStore.getChatByTopicId(topicId);
+          if (existingChat) {
+            console.log('[ChatPanelMinimal] Found existing chat for topic:', existingChat.id);
+            await chatStore.setActiveChat(existingChat.id);
+          } else {
+            // Only create new chat if no existing chat for this topic
+            console.log('[ChatPanelMinimal] No existing chat found, creating new one');
+            await chatStore.createChat(topicId);
+          }
+        } else {
+          console.log('[ChatPanelMinimal] Using active chat:', chatStore.activeChat.id);
         }
 
         // Load messages for the active chat with proper async handling
