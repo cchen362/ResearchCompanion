@@ -20,7 +20,7 @@ const UpdateChatSchema = z.object({
 const AddMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1),
-  citations: z.array(z.any()).optional(),
+  citations: z.array(z.any()).optional().nullable(), // Allow null for user messages without citations
   metadata: z.record(z.string(), z.any()).optional()
 });
 
