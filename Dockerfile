@@ -19,8 +19,8 @@ ENV VITE_API_URL=/api
 # Build frontend
 RUN npm run build
 
-# Stage 2: Build backend
-FROM node:20-alpine AS backend-builder
+# Stage 2: Build backend - Using standard node image to avoid segfault with bcrypt
+FROM node:20 AS backend-builder
 
 WORKDIR /app/backend
 
@@ -34,11 +34,11 @@ COPY backend/ ./
 # Build backend TypeScript
 RUN npm run build
 
-# Stage 3: Production image
-FROM node:20-alpine AS production
+# Stage 3: Production image - Using standard node image to avoid segfault
+FROM node:20-slim AS production
 
 # Install nginx for serving frontend
-RUN apk add --no-cache nginx
+RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
 # Fix nginx permissions - create temp directories and set ownership
 RUN mkdir -p /var/lib/nginx/tmp/client_body \
