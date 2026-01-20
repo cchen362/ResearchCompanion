@@ -392,6 +392,62 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 
 ---
 
+## January 20, 2026 - Segmentation Fault Fix & Final Deployment
+
+### Issue 41: Segmentation Fault in Production (FIXED)
+**Problem:** Backend crashing with segmentation fault when connecting to PostgreSQL database.
+
+**Root Cause:** Alpine Linux incompatibility with native Node.js modules (specifically bcrypt). The Alpine version uses musl libc instead of glibc, which causes binary incompatibility with pre-compiled native modules.
+
+**Error Pattern:**
+```
+Segmentation fault (core dumped)
+```
+
+**Fix:** Changed Docker base images from Alpine to standard Node images:
+
+**Files Modified:**
+- `Dockerfile` (lines 23, 38, 41):
+  ```dockerfile
+  # BEFORE (caused segfaults):
+  FROM node:20-alpine AS backend-builder
+  FROM node:20-alpine AS production
+
+  # AFTER (works perfectly):
+  FROM node:20 AS backend-builder
+  FROM node:20-slim AS production
+  ```
+
+**Key Changes:**
+1. Backend builder: `node:20-alpine` → `node:20` (full glibc support)
+2. Production image: `node:20-alpine` → `node:20-slim` (smaller but still glibc)
+3. Nginx installation: `apk add nginx` → `apt-get install -y nginx`
+
+**Lesson Learned:** Alpine Linux is great for size optimization but incompatible with many native Node.js modules. Use standard Node images when native dependencies are involved.
+
+### Deployment Completed Successfully
+**Timestamp:** January 20, 2026 at 13:57 UTC
+**Server:** 100.94.82.35:6767
+**Status:** ✅ All systems operational
+
+**What Was Fixed Today:**
+1. ✅ Chat message persistence - Fixed race condition with Zustand subscriptions
+2. ✅ Message ordering - Verified correct chronological order
+3. ✅ Citation click handler - Added defensive programming
+4. ✅ Segmentation fault - Resolved Alpine Linux incompatibility
+
+**Deployment Commands Used:**
+```bash
+# Rebuild with new Dockerfile (non-Alpine)
+ssh chee@100.94.82.35 "cd medical-pwa && \
+  git pull && \
+  docker-compose down && \
+  docker-compose build --no-cache medical-companion && \
+  docker-compose up -d"
+```
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -404,8 +460,9 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 8. ✅ Fix missing chat database tables (COMPLETED Jan 20, 2026 at 08:05 UTC)
 9. ✅ Fix citation click "addFinding" error (COMPLETED Jan 20, 2026 at 08:08 UTC)
 10. ✅ Fix chat message persistence and ordering (COMPLETED Jan 20, 2026)
-11. Deploy latest persistence fixes to production
-12. Monitor and verify all chat features work correctly
-13. Consider implementing proper streaming with fetch + ReadableStream API
-14. Add maximize/fullscreen mode for chat
-15. Implement message search functionality
+11. ✅ Deploy latest persistence fixes to production (COMPLETED Jan 20, 2026 at 13:57 UTC)
+12. ✅ Fix segmentation fault issue with Alpine Linux (COMPLETED Jan 20, 2026)
+13. Monitor and verify all chat features work correctly
+14. Consider implementing proper streaming with fetch + ReadableStream API
+15. Add maximize/fullscreen mode for chat
+16. Implement message search functionality
