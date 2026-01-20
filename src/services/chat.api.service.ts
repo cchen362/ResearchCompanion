@@ -98,8 +98,8 @@ class ChatAPIService {
   async getMessages(chatId: string, limit = 100): Promise<ChatMessage[]> {
     try {
       const response = await api.get(`/chats/${chatId}/messages?limit=${limit}`);
-      // Messages come in reverse order from DB, so reverse them
-      return response.data.messages.reverse().map(transformMessage);
+      // Messages are already in chronological order (ASC) from database
+      return response.data.messages.map(transformMessage);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
       throw error;

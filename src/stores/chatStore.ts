@@ -603,17 +603,8 @@ export const useChatStore = create<ChatStore>()(
             activeChatId: state?.activeChatId,
             hasContext: !!state?.context
           });
-
-          // Auto-load messages and chat details if we have an active chat
-          if (state?.activeChatId && storageConfig.useServerStorage) {
-            console.log('📨 [chatStore] Auto-loading messages for chat:', state.activeChatId);
-            // Load messages asynchronously after rehydration
-            setTimeout(() => {
-              state.loadMessages(state.activeChatId).catch((error: any) => {
-                console.error('Failed to auto-load messages:', error);
-              });
-            }, 100);
-          }
+          // Messages will be loaded explicitly by ChatPanelMinimal component
+          // This prevents duplicate loading and race conditions
         }
       }
     )

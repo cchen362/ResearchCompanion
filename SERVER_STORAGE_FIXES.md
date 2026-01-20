@@ -1994,6 +1994,89 @@ findingsStore.addFindingToCache(finding);
 
 ---
 
+## Issue 34: Chat Message Order Bug (January 20, 2026) ✅ FIXED
+
+**Problem:** Messages displayed in incorrect order after browser refresh - assistant replies appeared before user questions.
+
+**Root Cause:** Frontend was incorrectly reversing message order from database.
+- Backend returns messages in correct chronological order (ORDER BY created_at ASC)
+- Frontend had `.reverse()` call based on incorrect assumption
+- Comment said "Messages come in reverse order from DB" but this was FALSE
+
+**Fix:**
+```typescript
+// BEFORE (src/services/chat.api.service.ts line 102):
+return response.data.messages.reverse().map(transformMessage);
+
+// AFTER:
+return response.data.messages.map(transformMessage);
+```
+
+**Files Modified:**
+- `src/services/chat.api.service.ts` - Removed incorrect `.reverse()` call
+- `src/components/ChatPanelMinimal.tsx` - Added auto-scroll to bottom for new messages
+
+---
+
+## Issue 35: Duplicate Message Loading (January 20, 2026) ✅ FIXED
+
+**Problem:** Messages were being loaded twice, causing race conditions and duplicate API calls.
+
+**Root Cause:** Both chatStore's onRehydrateStorage and ChatPanelMinimal were loading messages.
+
+**Fix:** Removed auto-load from chatStore, letting ChatPanelMinimal handle it explicitly.
+
+```typescript
+// BEFORE (chatStore.ts lines 607-616):
+onRehydrateStorage: () => (state) => {
+  // ... auto-load logic with setTimeout
+}
+
+// AFTER:
+onRehydrateStorage: () => (state) => {
+  console.log('🔄 [chatStore] Rehydrated from localStorage:', {
+    activeChatId: state?.activeChatId,
+    hasContext: !!state?.context
+  });
+  // Messages will be loaded explicitly by ChatPanelMinimal component
+}
+```
+
+**Files Modified:**
+- `src/stores/chatStore.ts` - Removed auto-load from onRehydrateStorage
+
+---
+
+## Issue 36: Dead Code for Non-Existent UIStore Method (January 20, 2026) ✅ FIXED
+
+**Problem:** Code tried to call `uiStore.setSelectedFinding()` which doesn't exist.
+
+**Root Cause:** Dead code referencing a method that was never implemented in UIStore.
+
+**Fix:** Removed dead code, added clarifying comment.
+
+```typescript
+// REMOVED (ChatPanelMinimal.tsx lines 147-150):
+const uiStore = stores.useUIStore.getState();
+if (uiStore.setSelectedFinding) {
+  uiStore.setSelectedFinding(finding);
+}
+
+// REPLACED WITH COMMENT:
+// Note: setSelectedFinding doesn't exist in UIStore
+// Modal state is managed locally via setSelectedFinding and setIsModalOpen
+```
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Removed dead code
+
+**Testing Completed:** January 20, 2026 at 09:12 UTC
+- Built backend and frontend successfully
+- Dev server running on port 5181
+- Ready for production deployment
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)

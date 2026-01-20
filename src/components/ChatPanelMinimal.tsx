@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, MessageSquare, X, Download, Trash2, Maximize2 } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -21,6 +21,18 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current && messages.length > 0) {
+      // Scroll to bottom with smooth behavior
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages]);
 
   // Dynamically load ALL stores and services after component mounts
   useEffect(() => {
@@ -131,11 +143,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         setSelectedFinding(finding);
         setIsModalOpen(true);
 
-        // Also set in UI store if available
-        const uiStore = stores.useUIStore.getState();
-        if (uiStore.setSelectedFinding) {
-          uiStore.setSelectedFinding(finding);
-        }
+        // Note: setSelectedFinding doesn't exist in UIStore
+        // Modal state is managed locally via setSelectedFinding and setIsModalOpen
       } else {
         console.log('Finding not found in store or API. Finding ID:', findingId);
         // Could show a toast notification here instead of alert
@@ -398,7 +407,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
             <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
