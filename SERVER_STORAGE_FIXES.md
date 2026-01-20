@@ -449,32 +449,43 @@ ssh chee@100.94.82.35 "cd medical-pwa && \
 ---
 
 ### Issue 15: Chat Message Persistence Completely Broken (FIXED)
-**Problem:** Messages were not being saved to PostgreSQL at all. Database showed 0 messages even though users could see them in UI. Additionally, message loading had a race condition causing messages to disappear after second refresh.
+**Problem:** Messages were not being saved to PostgreSQL. Additionally, a NEW chat was being created on every page refresh, causing messages to be lost.
 
 **Root Causes:**
-1. **Messages not saving to database**: The `addMessage` function was being called but not reaching the API endpoint
-2. **Race condition in message loading**: 3-second timeout was causing messages to be set to empty array before API responded
-3. **Map serialization broken**: localStorage couldn't properly serialize/deserialize the messages Map structure
-4. **No error visibility**: Save failures happened silently without user notification
+1. **NEW CHAT CREATED ON EVERY REFRESH**: ChatPanelMinimal only checked `activeChat` (not persisted) instead of `activeChatId` (which IS persisted)
+2. **Messages not saving to database**: The `addMessage` function was being called but not reaching the API endpoint
+3. **Race condition in message loading**: 3-second timeout was causing messages to be set to empty array before API responded
+4. **Map serialization broken**: localStorage couldn't properly serialize/deserialize the messages Map structure
+5. **Zustand not persisting chat objects**: Only persisted `activeChatId`, not the full `chats` array or `activeChat` object
 
-**Fix:**
+**Fix (Round 1 - January 20, 16:00 UTC):**
 1. Added comprehensive logging throughout the message save flow
 2. Fixed race condition by removing 3-second timeout and using proper async/await
 3. Fixed Map serialization with proper array conversion and error handling
 4. Added toast notifications for save failures with retry option
 
-**Files Modified:**
-- `src/components/ChatPanelMinimal.tsx` - Added logging, fixed race condition, added toast notifications
-- `src/stores/chatStore.ts` - Added logging, fixed Map serialization
-- `src/services/chat.api.service.ts` - Added verbose logging for API calls
-- `backend/src/routes/chats.routes.ts` - Added request logging
+**Fix (Round 2 - January 20, 16:40 UTC):**
+1. **CRITICAL**: Fixed ChatPanelMinimal to check `activeChatId` from persistence before creating new chat
+2. Added `getChatByTopicId` method to find existing chat for topic
+3. Fixed Zustand to persist full `chats` array and `activeChat` object
+4. Added backend logging to track when new chats are created
+5. Improved `setActiveChat` to load from server if not in memory
 
-**Deployment:** January 20, 2026 at 16:00 UTC
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Fixed chat creation logic, added persistence check
+- `src/stores/chatStore.ts` - Added getChatByTopicId, fixed persistence, improved setActiveChat
+- `src/services/chat.api.service.ts` - Added verbose logging for API calls
+- `backend/src/routes/chats.routes.ts` - Added comprehensive request logging
+
+**Deployment:**
+- Round 1: January 20, 2026 at 16:00 UTC
+- Round 2: January 20, 2026 at 16:40 UTC
 
 **Lessons:**
+- Always check persisted state before creating new entities
+- Zustand persistence must include all necessary state for rehydration
 - Race conditions can hide in timeout-based logic
 - Map serialization requires special handling in localStorage
-- Always provide user feedback for failed operations
 - Comprehensive logging is essential for debugging async flows
 
 ## Next Steps
