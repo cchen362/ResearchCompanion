@@ -37,8 +37,10 @@ RUN npm run build
 # Stage 3: Production image - Using standard node image to avoid segfault
 FROM node:20-slim AS production
 
-# Install nginx for serving frontend
-RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
+# Install nginx for serving frontend and create nginx user
+RUN apt-get update && apt-get install -y nginx && \
+    useradd -r -s /bin/false nginx || true && \
+    rm -rf /var/lib/apt/lists/*
 
 # Fix nginx permissions - create temp directories and set ownership
 RUN mkdir -p /var/lib/nginx/tmp/client_body \
