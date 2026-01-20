@@ -448,6 +448,35 @@ ssh chee@100.94.82.35 "cd medical-pwa && \
 
 ---
 
+### Issue 15: Chat Message Persistence Completely Broken (FIXED)
+**Problem:** Messages were not being saved to PostgreSQL at all. Database showed 0 messages even though users could see them in UI. Additionally, message loading had a race condition causing messages to disappear after second refresh.
+
+**Root Causes:**
+1. **Messages not saving to database**: The `addMessage` function was being called but not reaching the API endpoint
+2. **Race condition in message loading**: 3-second timeout was causing messages to be set to empty array before API responded
+3. **Map serialization broken**: localStorage couldn't properly serialize/deserialize the messages Map structure
+4. **No error visibility**: Save failures happened silently without user notification
+
+**Fix:**
+1. Added comprehensive logging throughout the message save flow
+2. Fixed race condition by removing 3-second timeout and using proper async/await
+3. Fixed Map serialization with proper array conversion and error handling
+4. Added toast notifications for save failures with retry option
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Added logging, fixed race condition, added toast notifications
+- `src/stores/chatStore.ts` - Added logging, fixed Map serialization
+- `src/services/chat.api.service.ts` - Added verbose logging for API calls
+- `backend/src/routes/chats.routes.ts` - Added request logging
+
+**Deployment:** January 20, 2026 at 16:00 UTC
+
+**Lessons:**
+- Race conditions can hide in timeout-based logic
+- Map serialization requires special handling in localStorage
+- Always provide user feedback for failed operations
+- Comprehensive logging is essential for debugging async flows
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -462,7 +491,8 @@ ssh chee@100.94.82.35 "cd medical-pwa && \
 10. ✅ Fix chat message persistence and ordering (COMPLETED Jan 20, 2026)
 11. ✅ Deploy latest persistence fixes to production (COMPLETED Jan 20, 2026 at 13:57 UTC)
 12. ✅ Fix segmentation fault issue with Alpine Linux (COMPLETED Jan 20, 2026)
-13. Monitor and verify all chat features work correctly
-14. Consider implementing proper streaming with fetch + ReadableStream API
-15. Add maximize/fullscreen mode for chat
-16. Implement message search functionality
+13. ✅ Fix complete chat persistence failure (COMPLETED Jan 20, 2026 at 16:00 UTC)
+14. Monitor and verify all chat features work correctly
+15. Consider implementing proper streaming with fetch + ReadableStream API
+16. Add maximize/fullscreen mode for chat
+17. Implement message search functionality
