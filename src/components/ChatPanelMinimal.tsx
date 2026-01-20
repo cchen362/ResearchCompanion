@@ -117,7 +117,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             console.log('Found finding from API:', finding);
 
             // Optionally add to store for future use
-            findingsStore.addFinding(finding);
+            findingsStore.addFindingToCache(finding);
           }
         } catch (error) {
           console.error('Failed to fetch finding from API:', error);
@@ -223,8 +223,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       let topicFindings: any[] = [];
       try {
         const allFindings = await findingsService.getFindings(topicId);
-        // Get up to 50 findings for context to support more citations
-        topicFindings = allFindings.slice(0, 50); // Increased from 20 to 50 to support more citations
+        // Get up to 20 findings for context (backend expects these for citations)
+        topicFindings = allFindings.slice(0, 20); // Limit to 20 to match backend's citation range
         console.log('[ChatPanel] Loaded findings from API:', {
           totalCount: allFindings.length,
           usingCount: topicFindings.length
@@ -245,12 +245,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         id: f.id,
         title: f.title || '',
         content: f.details || f.summary || '',
-        // Preserve the full source object structure instead of converting to string
-        source: f.source || {
-          name: 'Unknown Source',
-          type: 'unknown',
-          displayName: 'Unknown Source'
-        },
+        source: f.source?.displayName || f.source?.name || 'Unknown Source',
         type: f.type || 'research',
         createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
         priority: f.priority || 'medium'

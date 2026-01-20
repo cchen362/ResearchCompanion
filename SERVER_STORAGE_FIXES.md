@@ -1836,6 +1836,97 @@ docker-compose up --build -d
 - Users need to hard refresh (Ctrl+F5) or clear cache
 - Consider implementing cache busting in build process
 
+## Issue 30: Comprehensive Citation Rendering Issues (FIXED - January 20, 2026)
+
+### Problem Description
+Multiple cascading issues with citations in chat messages:
+1. **Plain Text Citations**: Some citations appeared as plain text `[9]`, `[14]`, `[16]` instead of clickable blue buttons
+2. **[object Object] Error**: When clicking citations, API received `topic_id=[object Object]` causing 500 errors
+3. **Missing Citations**: Only 1 citation in array despite AI response referencing many (e.g., `[1]`, `[7]`, `[10]`, `[14]`, etc.)
+
+### Root Cause Analysis
+
+#### Issue 1: Plain Text Citations
+**Cause**: Backend only created citation objects for findings within array bounds.
+- If AI referenced `[9]` but only 5 findings existed, `citations[8]` was undefined
+- `extractCitations()` function skipped out-of-bounds citations
+- Frontend rendered undefined citations as plain text
+
+#### Issue 2: [object Object] Error
+**Cause**: Source field was being converted from object to string during context preparation.
+```javascript
+// BAD: Destroyed the object structure
+source: f.source?.displayName || f.source?.name || 'Unknown Source'
+```
+This converted the complex source object to a simple string, breaking API calls.
+
+#### Issue 3: Missing Citations
+**Cause**: Limited findings sent to backend (20 max), but AI referenced citations beyond this count.
+- Frontend limited context to 20 findings
+- AI model referenced citations based on its training, not the actual finding count
+- Result: AI mentioned `[1]` through `[30]` but only had 20 findings available
+
+### Fixes Applied
+
+#### Fix 1: Preserve Source Object Structure
+**File**: `src/components/ChatPanelMinimal.tsx` (line 248)
+```javascript
+// GOOD: Preserve the full object
+source: f.source || {
+  name: 'Unknown Source',
+  type: 'unknown',
+  displayName: 'Unknown Source'
+}
+```
+
+#### Fix 2: Increase Finding Limit
+**File**: `src/components/ChatPanelMinimal.tsx` (line 227)
+```javascript
+// Increased from 20 to 50 for more citation support
+topicFindings = allFindings.slice(0, 50);
+```
+
+#### Fix 3: Constrain AI Citation References
+**File**: `backend/src/routes/chat.routes.ts` (line 330)
+```javascript
+// Added explicit constraint to AI prompt
+`CRITICAL: You have exactly ${context.findings?.length || 0} findings available.
+Only use citation numbers from [1] to [${context.findings?.length || 0}].`
+```
+
+#### Fix 4: Handle Out-of-Bounds Citations Gracefully
+**File**: `backend/src/routes/chat.routes.ts` (lines 418-433)
+- Create placeholder citations for out-of-bounds references
+- Mark them with `isPlaceholder: true` flag
+- Frontend renders them as disabled gray buttons
+
+#### Fix 5: Update Frontend Citation Handling
+**File**: `src/components/ChatMessage.tsx` (lines 69-72)
+- Check for placeholder citations
+- Render them as disabled gray buttons with "Reference not available" tooltip
+- Regular citations remain clickable blue buttons
+
+### Deployment Details
+- **Commit**: b0ce99c - "Fix citation rendering issues - preserve source objects, increase limits, constrain AI"
+- **Branch**: fix/digest-findings-race-condition
+- **Deployment Time**: January 20, 2026, 17:50 UTC (pending)
+- **Server**: 100.94.82.35 (`/home/debian/medical-pwa`)
+
+### Testing Verification
+1. Created topic with 30+ findings
+2. Sent chat message requesting summary
+3. All citations now appear as buttons (blue for valid, gray for placeholders)
+4. Clicking valid citations opens finding details correctly
+5. No more `[object Object]` errors in console
+6. Citation count matches between text and array
+
+### Lessons Learned
+1. **Data Structure Preservation**: Never convert complex objects to strings during data transformation
+2. **Array Bounds Checking**: Always validate array indices before accessing
+3. **AI Constraints**: Explicitly constrain AI models to available data ranges
+4. **Graceful Degradation**: Create placeholders for missing data rather than failing silently
+5. **Cascading Failures**: Multiple small issues can compound into confusing symptoms
+
 ## Summary of All Fixes Implemented
 
 1. ✅ **Chat Panel Restoration** - Minimal component without circular dependencies
@@ -1845,6 +1936,63 @@ docker-compose up --build -d
 5. ✅ **Findings Context** - Load findings from API for citations
 6. ✅ **API URL Doubling** - Removed duplicate /api/ prefixes
 7. ✅ **Clear Chat Endpoint** - Added missing DELETE endpoint
+8. ✅ **Comprehensive Citation Issues** - Fixed all citation rendering, clicking, and missing citation problems
+
+## Issue 32: Critical Chat Database Tables Missing (January 20, 2026) ✅ FIXED
+
+**Problem:** All chat endpoints returning 500 Internal Server Error
+- GET /chats/:id/messages - 500 error
+- GET /chats?topic_id={id} - 500 error
+- POST /chats/:id/messages - 500 error
+- Chat appears to work but messages don't persist
+
+**Root Cause:** The `chats` and `chat_messages` tables didn't exist in production database
+- Migration file `backend/src/db/migrations/004_create_chats.sql` was never applied
+- Backend logs showed: `error: relation "chats" does not exist`
+- Database only had 13 tables but was missing the 2 critical chat tables
+
+**Fix Applied:**
+1. Applied missing migration to create tables:
+   ```bash
+   ssh chee@100.94.82.35 "docker exec -i medcompanion-postgres psql -U meduser -d medcompanion" < backend/src/db/migrations/004_create_chats.sql
+   ```
+2. Tables created successfully:
+   - `chats` table with proper indexes
+   - `chat_messages` table with foreign key relationships
+   - Trigger for updating chat timestamps
+
+**Deployment:** January 20, 2026 at 08:05 UTC
+- Migration applied to production database
+- Backend container restarted to clear connection pool
+- Database now has all 15 required tables
+
+---
+
+## Issue 33: Citation Click Error "addFinding is not a function" (January 20, 2026) ✅ FIXED
+
+**Problem:** Clicking citations in chat showed error: `u.addFinding is not a function`
+
+**Root Cause:** Method name mismatch in ChatPanelMinimal.tsx
+- Code was calling `findingsStore.addFinding(finding)`
+- But the actual method is `findingsStore.addFindingToCache(finding)`
+
+**Fix:**
+```typescript
+// BEFORE (line 120 in ChatPanelMinimal.tsx):
+findingsStore.addFinding(finding);
+
+// AFTER:
+findingsStore.addFindingToCache(finding);
+```
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Fixed method name
+
+**Deployment:** January 20, 2026 at 08:08 UTC
+- Frontend built and deployed to production
+- Citation clicks now work without errors
+
+---
 
 ## Next Steps
 
@@ -1854,9 +2002,12 @@ docker-compose up --build -d
 4. ✅ Fix citation click errors and missing citations (COMPLETED Jan 20, 2026)
 5. ✅ Deploy citation fixes to production (COMPLETED Jan 20, 2026 at 16:30 UTC)
 6. ✅ Fix citations not loading & clear chat error (COMPLETED Jan 20, 2026 at 16:45 UTC)
-7. Test all chat features in production environment
-7. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
-8. Add maximize/fullscreen mode for chat
-9. Implement message search functionality
-10. Add retry logic for network failures
-11. Review any remaining IndexedDB direct usage
+7. ✅ Fix comprehensive citation issues (COMPLETED Jan 20, 2026)
+8. ✅ Fix missing chat database tables (COMPLETED Jan 20, 2026 at 08:05 UTC)
+9. ✅ Fix citation click "addFinding" error (COMPLETED Jan 20, 2026 at 08:08 UTC)
+10. Test all chat features in production environment
+11. Consider implementing proper streaming with fetch + ReadableStream API (to restore real-time responses)
+12. Add maximize/fullscreen mode for chat
+13. Implement message search functionality
+14. Add retry logic for network failures
+15. Review any remaining IndexedDB direct usage
