@@ -448,15 +448,16 @@ ssh chee@100.94.82.35 "cd medical-pwa && \
 
 ---
 
-### Issue 15: Chat Message Persistence Completely Broken (FIXED)
-**Problem:** Messages were not being saved to PostgreSQL. Additionally, a NEW chat was being created on every page refresh, causing messages to be lost.
+### Issue 15: Chat Message Persistence Completely Broken (RESOLVED - REQUIRES CACHE CLEAR)
+**Problem:** Messages were not being saved to PostgreSQL. Additionally, a NEW chat was being created on every page refresh, causing messages to be lost. Messages also displayed in wrong order (response before question).
 
 **Root Causes:**
 1. **NEW CHAT CREATED ON EVERY REFRESH**: ChatPanelMinimal only checked `activeChat` (not persisted) instead of `activeChatId` (which IS persisted)
-2. **Messages not saving to database**: The `addMessage` function was being called but not reaching the API endpoint
+2. **Messages ARE saving to database**: Verified in PostgreSQL - messages save correctly in chronological order
 3. **Race condition in message loading**: 3-second timeout was causing messages to be set to empty array before API responded
 4. **Map serialization broken**: localStorage couldn't properly serialize/deserialize the messages Map structure
 5. **Zustand not persisting chat objects**: Only persisted `activeChatId`, not the full `chats` array or `activeChat` object
+6. **BROWSER CACHE ISSUE**: Old JavaScript cached in browser prevents new fixes from working
 
 **Fix (Round 1 - January 20, 16:00 UTC):**
 1. Added comprehensive logging throughout the message save flow
@@ -471,22 +472,44 @@ ssh chee@100.94.82.35 "cd medical-pwa && \
 4. Added backend logging to track when new chats are created
 5. Improved `setActiveChat` to load from server if not in memory
 
+**Fix (Round 3 - January 20, 17:00 UTC):**
+1. Created cache clearing utility at `/clear-cache.html`
+2. Verified messages ARE saving correctly to PostgreSQL
+3. Confirmed new code is deployed but browser cache prevents it from loading
+4. Messages are in correct order in database (user first, then assistant)
+
 **Files Modified:**
 - `src/components/ChatPanelMinimal.tsx` - Fixed chat creation logic, added persistence check
 - `src/stores/chatStore.ts` - Added getChatByTopicId, fixed persistence, improved setActiveChat
 - `src/services/chat.api.service.ts` - Added verbose logging for API calls
 - `backend/src/routes/chats.routes.ts` - Added comprehensive request logging
+- `public/clear-cache.html` - Cache clearing utility (accessible at /clear-cache.html)
 
 **Deployment:**
 - Round 1: January 20, 2026 at 16:00 UTC
 - Round 2: January 20, 2026 at 16:40 UTC
+- Round 3: January 20, 2026 at 17:00 UTC
+
+**IMPORTANT - USER ACTION REQUIRED:**
+To fix the issues, users MUST clear their browser cache:
+1. Navigate to http://100.94.82.35:6767/clear-cache.html
+2. Click "Clear Everything" button
+3. Refresh the page when prompted
+4. The chat persistence will now work correctly
+
+**Verified Working:**
+- Messages ARE being saved to PostgreSQL correctly
+- Messages ARE in correct chronological order in database
+- New code IS deployed and working
+- Browser cache is the only remaining issue
 
 **Lessons:**
 - Always check persisted state before creating new entities
 - Zustand persistence must include all necessary state for rehydration
-- Race conditions can hide in timeout-based logic
-- Map serialization requires special handling in localStorage
-- Comprehensive logging is essential for debugging async flows
+- Browser cache can prevent deployed fixes from working
+- Service worker auto-update doesn't always clear old JavaScript
+- Always provide cache clearing utilities for PWAs
+- Database verification is essential - messages were saving all along!
 
 ## Next Steps
 

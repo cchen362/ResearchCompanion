@@ -150,9 +150,10 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
     if (stores) {
       const findingsStore = stores.useFindingsStore.getState();
 
-      // First, try to load findings if not already loaded
-      if (findingsStore.findings.length === 0) {
-        console.log('Loading findings for topic...');
+      // First, check if we need to load findings (loadFindings has built-in cache check)
+      // Only call if we have very few findings, as the store will handle caching
+      if (findingsStore.findings.length < 5) {
+        console.log('Few findings loaded, checking for more...');
         await findingsStore.loadFindings(topicId);
       }
 

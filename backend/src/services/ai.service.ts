@@ -10,9 +10,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 
-// Initialize API clients
+// Initialize API clients with retry configuration
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
+  maxRetries: 3, // Retry up to 3 times
+  timeout: 60000, // 60 second timeout
 });
 
 const openai = new OpenAI({

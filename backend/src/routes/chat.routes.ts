@@ -82,7 +82,13 @@ router.post('/complete', async (req: Request, res: Response) => {
       messages.unshift(...contextMessages);
     }
 
-    // Get AI response
+    // Log request size for debugging
+    const requestSize = JSON.stringify({ system: systemPrompt, messages }).length;
+    console.log(`📊 [chat.routes] AI Request size: ${requestSize} bytes (${(requestSize / 1024).toFixed(2)} KB)`);
+    console.log(`📊 [chat.routes] System prompt tokens (est): ${Math.ceil(systemPrompt.length / 4)}`);
+    console.log(`📊 [chat.routes] Total findings in context: ${enrichedContext.findings?.length || 0}`);
+
+    // Get AI response with built-in retry from SDK
     const response = await aiService.client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
@@ -122,8 +128,37 @@ router.post('/complete', async (req: Request, res: Response) => {
       tokens: response.usage?.output_tokens,
       processingTime: Date.now()
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Chat completion error:', error);
+
+    // Check for specific error types
+    if (error?.status === 529 || error?.error?.error?.type === 'overloaded_error') {
+      console.log('⚠️ [chat.routes] Anthropic API overloaded (529), SDK should have retried 3 times');
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'The AI service is currently overloaded. Please try again in a few moments.',
+        retryAfter: 5
+      });
+    }
+
+    if (error?.status === 429) {
+      console.log('⚠️ [chat.routes] Rate limit hit (429)');
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: 'Too many requests. Please slow down and try again in a moment.',
+        retryAfter: 10
+      });
+    }
+
+    if (error?.status === 401) {
+      console.error('❌ [chat.routes] API key invalid or missing');
+      return res.status(500).json({
+        error: 'Configuration error',
+        message: 'AI service is not properly configured. Please contact support.'
+      });
+    }
+
+    // Generic error response
     res.status(500).json({
       error: 'Failed to generate response',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -235,11 +270,30 @@ router.post('/stream', async (req: Request, res: Response) => {
         res.end();
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Streaming error:', error);
+
+    let errorMessage = 'Stream failed';
+    let shouldRetry = false;
+
+    // Check for specific error types
+    if (error?.status === 529 || error?.error?.error?.type === 'overloaded_error') {
+      console.log('⚠️ [streaming] Anthropic API overloaded (529)');
+      errorMessage = 'The AI service is currently overloaded. Please try again in a few moments.';
+      shouldRetry = true;
+    } else if (error?.status === 429) {
+      console.log('⚠️ [streaming] Rate limit hit (429)');
+      errorMessage = 'Too many requests. Please slow down and try again.';
+      shouldRetry = true;
+    } else if (error?.status === 401) {
+      console.error('❌ [streaming] API key invalid or missing');
+      errorMessage = 'AI service configuration error. Please contact support.';
+    }
+
     res.write(`data: ${JSON.stringify({
       type: 'error',
-      message: error instanceof Error ? error.message : 'Stream failed'
+      message: errorMessage,
+      shouldRetry
     })}\n\n`);
     res.end();
   }
@@ -334,15 +388,20 @@ Important: You are NOT providing medical advice. Encourage users to consult with
 
   if (context.findings && context.findings.length > 0) {
     prompt += '\n\nAvailable research findings for reference:\n';
-    context.findings.forEach((finding: any, index: number) => {
+    // Limit to 30 findings in prompt to prevent token overflow
+    const findingsToInclude = context.findings.slice(0, 30);
+    if (context.findings.length > 30) {
+      prompt += `Note: Showing first 30 of ${context.findings.length} available findings for context.\n`;
+    }
+    findingsToInclude.forEach((finding: any, index: number) => {
       const sourceInfo = finding.source || 'Unknown Source';
       const title = finding.title || 'Untitled';
       const content = finding.content || finding.summary || '';
 
       prompt += `\n[${index + 1}] ${sourceInfo} - "${title}"`;
       if (content) {
-        // Provide more context, up to 400 chars instead of 200
-        prompt += `\nContent: ${content.substring(0, 400)}${content.length > 400 ? '...' : ''}`;
+        // Limit content preview to reduce token usage (200 chars max)
+        prompt += `\nContent: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`;
       }
       prompt += '\n';
     });
@@ -539,17 +598,17 @@ async function enrichFindingsContext(
     // Otherwise, fetch findings from database
     const findingIds = currentFindingIds.filter(Boolean);
 
-    // Always try to fetch ALL findings for the topic to provide complete context
+    // Always try to fetch findings for the topic, but with a reasonable limit
     if (findingIds.length < 5 || contextFindings.length === 0) {
-      // Fetch ALL findings for the topic to ensure we have complete context
-      // No artificial limits - users deserve access to all their research
+      // Fetch recent findings for the topic with a limit to prevent API overload
+      // 50 findings provides good context without overwhelming the AI
       const topicFindings = await FindingModel.getFiltered(userId, {
-        topic_id: topicId
-        // No limit - fetch all available findings
+        topic_id: topicId,
+        limit: 50  // Limit to 50 most recent findings to prevent API token overflow
       });
 
       if (topicFindings.length > 0) {
-        console.log(`📚 [BACKEND] Loaded ALL ${topicFindings.length} topic findings for complete context`);
+        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} recent findings (max 50) for context`);
         return {
           ...context,
           findings: topicFindings.map(f => ({
