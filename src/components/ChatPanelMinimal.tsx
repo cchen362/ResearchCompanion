@@ -285,11 +285,13 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       let topicFindings: any[] = [];
       try {
         const allFindings = await findingsService.getFindings(topicId);
-        // Get up to 20 findings for context (backend expects these for citations)
-        topicFindings = allFindings.slice(0, 20); // Limit to 20 to match backend's citation range
+        // Get up to 50 findings for context to match backend's limit
+        // This ensures all cited findings are available for citation extraction
+        topicFindings = allFindings.slice(0, 50); // Increased from 20 to 50 to match backend
         console.log('[ChatPanel] Loaded findings from API:', {
           totalCount: allFindings.length,
-          usingCount: topicFindings.length
+          usingCount: topicFindings.length,
+          note: 'Using 50 findings to match backend citation extraction limit'
         });
       } catch (error) {
         console.error('[ChatPanel] Failed to load findings:', error);

@@ -329,6 +329,41 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 
 **Backend Status:** Citation extraction is working correctly at `chat.routes.ts` lines 358-436.
 
+### Issue 41: Anthropic API 529 Overload Errors (FIXED - January 21, 2026)
+**Problem:** Chat messages failing with 500 error - Anthropic API returning 529 "overloaded_error"
+
+**Root Causes:**
+1. No retry logic for API failures
+2. Backend fetching ALL findings (could be 100+) with no limit
+3. Massive system prompts including all findings (400 chars each)
+4. No proper error type handling for specific API errors
+
+**Fixes Applied:**
+1. **Added retry configuration** to Anthropic client:
+   - `maxRetries: 3` - Retry up to 3 times
+   - `timeout: 60000` - 60 second timeout per request
+
+2. **Limited findings in backend queries**:
+   - Added `limit: 50` to `FindingModel.getFiltered()` calls
+   - Prevents fetching unlimited findings that overwhelm API
+
+3. **Reduced system prompt size**:
+   - Limited to 30 findings max in prompt (was unlimited)
+   - Reduced content preview from 400 to 200 characters
+   - Added truncation notice when more findings available
+
+4. **Improved error handling**:
+   - Specific handling for 529, 429, 401 errors
+   - User-friendly error messages
+   - `shouldRetry` flag for frontend to know when to retry
+
+**Files Modified:**
+- `backend/src/services/ai.service.ts` - Added retry configuration
+- `backend/src/routes/chat.routes.ts` - Limited findings, reduced prompt, better errors
+- `src/components/ChatPanelMinimal.tsx` - Minor fix for duplicate loading
+
+**Deployment:** Fixes deployed to production (commit 066a60c)
+
 ---
 
 ## Deployment Summary
@@ -338,7 +373,7 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 - **Port:** 6767
 - **Database:** PostgreSQL on port 5434
 
-## Known Remaining Issues (As of January 20, 2026)
+## Known Remaining Issues (As of January 21, 2026)
 
 ### 1. Some Citations Still Show as Plain Text
 **Symptoms:**
@@ -368,21 +403,24 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 
 ## Summary for Handoff
 
-### What Was Fixed (January 20, 2026)
+### What Was Fixed (January 20-21, 2026)
 1. ✅ Chat message persistence - Fixed race condition and added localStorage persistence
 2. ✅ Message ordering - Verified correct chronological order throughout
 3. ✅ Citation click errors - Added defensive programming for method calls
 4. ✅ Backend citation extraction - Verified working correctly
+5. ✅ **Anthropic API 529 errors** - Added retry logic, limited findings, reduced prompts
+6. ✅ **Token overflow prevention** - Capped at 50 findings fetched, 30 in prompt
 
 ### What Still Needs Attention
 1. Some citations still showing as plain text (frontend accumulation issue)
 2. Edge cases in message persistence
-3. Performance optimization for large message histories
+3. SSH deployment commands hanging (need to investigate server connection)
 
-### Files Modified Today
-- `src/components/ChatPanelMinimal.tsx` - Message loading sync, citation handler safety
-- `src/stores/chatStore.ts` - Added message persistence to localStorage
-- Backend citation extraction verified working (no changes needed)
+### Files Modified (January 21, 2026)
+- `backend/src/services/ai.service.ts` - Added retry configuration for Anthropic client
+- `backend/src/routes/chat.routes.ts` - Limited findings, reduced prompt size, better error handling
+- `src/components/ChatPanelMinimal.tsx` - Minor optimization for duplicate loading
+- `SERVER_STORAGE_FIXES.md` - Updated documentation
 
 ### Testing Recommendations
 1. Test chat persistence across browser refreshes
@@ -510,6 +548,38 @@ To fix the issues, users MUST clear their browser cache:
 - Service worker auto-update doesn't always clear old JavaScript
 - Always provide cache clearing utilities for PWAs
 - Database verification is essential - messages were saving all along!
+
+### Issue 17: Citation Loss in Chat Messages (FIXED)
+**Problem:** Citations were being lost between AI response generation and database storage. Some messages would have only 1-3 citations in their arrays when 10-20 citations were referenced in the content, causing citation references like [1], [7], [10] to appear as plain text instead of clickable buttons.
+
+**Root Causes:**
+1. **Finding limit mismatch**: Frontend was sending only 20 findings while backend expected up to 50
+2. **JSONB parsing issues**: PostgreSQL returned citations as strings inconsistently
+3. **Missing validation**: No validation of citations during serialization/deserialization
+4. **Array index assumption**: Frontend code assumed citation [10] meant array index 9
+
+**Fix:**
+1. **Synchronized finding limits**: Both frontend and backend now use 50 findings consistently
+2. **Robust JSONB handling**: Added explicit `::jsonb` cast and consistent parsing helpers
+3. **Citation validation layer**: Created Zod schemas for citation validation
+4. **Comprehensive logging**: Added debug logging throughout citation pipeline
+5. **Proper citation lookup**: Frontend uses `find()` by `citationNumber` property, not array index
+
+**Files Modified:**
+- `src/components/ChatPanelMinimal.tsx` - Increased finding limit from 20 to 50
+- `backend/src/routes/chat.routes.ts` - Added citation debug logging, synchronized limits
+- `backend/src/models/chat.model.ts` - Fixed JSONB parsing with validation
+- `backend/src/routes/chats.routes.ts` - Added citation tracking in API
+- `src/services/chat.api.service.ts` - Improved citation parsing and validation
+- `backend/src/utils/validation/citations.ts` - Created citation validation schemas
+
+**Testing:**
+- Citations persist correctly through save/load cycle
+- Large citation arrays (20+) work properly
+- Citation references render as clickable buttons
+- Citations survive page refresh and re-login
+
+**Deployment:** January 21, 2026
 
 ## Next Steps
 

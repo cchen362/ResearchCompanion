@@ -14,21 +14,51 @@ const transformChat = (chat: any): FindingsChat => ({
 });
 
 // Transform backend message to frontend format
-const transformMessage = (message: any): ChatMessage => ({
-  id: message.id,
-  chatId: message.chat_id,
-  role: message.role,
-  content: message.content,
-  // Parse citations if they come as JSON string from PostgreSQL
-  citations: typeof message.citations === 'string'
-    ? JSON.parse(message.citations)
-    : message.citations,
-  // Also handle metadata if it's JSON string
-  metadata: typeof message.metadata === 'string'
-    ? JSON.parse(message.metadata)
-    : message.metadata,
-  timestamp: message.created_at
-});
+const transformMessage = (message: any): ChatMessage => {
+  // Robust citation parsing with validation
+  let citations = message.citations;
+
+  if (typeof citations === 'string') {
+    try {
+      citations = citations === 'null' ? null : JSON.parse(citations);
+    } catch (error) {
+      console.error('❌ [transformMessage] Failed to parse citations:', error);
+      console.error('❌ [transformMessage] Raw citations:', citations);
+      citations = null;
+    }
+  }
+
+  // Validate citations array
+  if (citations && Array.isArray(citations)) {
+    const citationNumbers = citations
+      .map((c: any) => c?.citationNumber)
+      .filter(Boolean)
+      .sort((a: number, b: number) => a - b);
+    console.log(`📝 [transformMessage] Message ${message.id} has ${citations.length} citations: [${citationNumbers.join(', ')}]`);
+  } else if (message.role === 'assistant' && !citations) {
+    console.warn(`⚠️ [transformMessage] Assistant message ${message.id} has no citations`);
+  }
+
+  // Robust metadata parsing
+  let metadata = message.metadata;
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+
+  return {
+    id: message.id,
+    chatId: message.chat_id,
+    role: message.role,
+    content: message.content,
+    citations: citations,
+    metadata: metadata || {},
+    timestamp: message.created_at
+  };
+};
 
 class ChatAPIService {
   // Get all chats for a topic
@@ -119,21 +149,34 @@ class ChatAPIService {
       role,
       contentLength: content.length,
       hasCitations: !!citations,
+      citationsCount: citations?.length || 0,
       hasMetadata: !!metadata
     });
+
+    // Log citation details if present
+    if (citations && Array.isArray(citations)) {
+      const citationNumbers = citations
+        .map((c: any) => c?.citationNumber)
+        .filter(Boolean)
+        .sort((a: number, b: number) => a - b);
+      console.log(`📝 [chatAPIService] Sending ${citations.length} citations: [${citationNumbers.join(', ')}]`);
+      if (citations.length > 0) {
+        console.log(`📝 [chatAPIService] First citation:`, citations[0]);
+      }
+    }
 
     try {
       const payload = {
         role,
         content,
-        citations,
-        metadata
+        citations: citations || null, // Ensure null instead of undefined
+        metadata: metadata || {}
       };
       console.log('📤 [chatAPIService] Sending POST request to:', `/chats/${chatId}/messages`);
       console.log('📤 [chatAPIService] Payload:', {
         role: payload.role,
         contentLength: payload.content.length,
-        citationsCount: citations?.length || 0
+        citationsCount: payload.citations?.length || 0
       });
 
       const response = await api.post(`/chats/${chatId}/messages`, payload);

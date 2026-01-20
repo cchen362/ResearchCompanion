@@ -1,4 +1,5 @@
 import { query, queryOne } from '../db/database.js';
+import { validateCitations, type Citation } from '../utils/validation/citations.js';
 
 export interface Chat {
   id: string;
@@ -25,6 +26,39 @@ export interface ChatMessage {
 }
 
 export class ChatModel {
+  // Helper method to parse citations from PostgreSQL JSONB
+  private static parseCitations(citations: any): Citation[] | null {
+    // Use the validation utility for consistent parsing
+    const validated = validateCitations(citations);
+
+    if (validated && validated.length > 0) {
+      console.log(`✅ [CITATION PARSE] Successfully parsed ${validated.length} valid citations`);
+    } else if (citations) {
+      console.warn(`⚠️ [CITATION PARSE] No valid citations parsed from input`);
+    }
+
+    return validated;
+  }
+
+  // Helper method to parse metadata from PostgreSQL JSONB
+  private static parseMetadata(metadata: any): any {
+    if (!metadata) return {};
+
+    if (typeof metadata === 'object' && !Array.isArray(metadata)) {
+      return metadata;
+    }
+
+    if (typeof metadata === 'string') {
+      try {
+        return JSON.parse(metadata);
+      } catch {
+        return {};
+      }
+    }
+
+    return {};
+  }
+
   // Get all chats for a user
   static async getAll(userId: string, topicId?: string): Promise<Chat[]> {
     let queryStr = 'SELECT * FROM chats WHERE user_id = $1';
@@ -137,12 +171,26 @@ export class ChatModel {
       [chatId, userId, limit]
     );
 
+    console.log(`📚 [CITATION DEBUG - getMessages] Retrieved ${messages.length} messages from DB`);
+
     // Parse JSON fields that PostgreSQL returns as strings
-    return messages.map(msg => ({
-      ...msg,
-      citations: typeof msg.citations === 'string' ? JSON.parse(msg.citations) : msg.citations,
-      metadata: typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata
-    }));
+    return messages.map((msg, index) => {
+      const parsedCitations = this.parseCitations(msg.citations);
+      const citationCount = Array.isArray(parsedCitations) ? parsedCitations.length : 0;
+
+      if (citationCount > 0 && parsedCitations) {
+        const citationNumbers = parsedCitations.map((c: any) => c.citationNumber).filter(Boolean).sort((a: number, b: number) => a - b);
+        console.log(`📖 [CITATION DEBUG - getMessages] Message ${index} (${msg.role}) has ${citationCount} citations: [${citationNumbers.join(', ')}]`);
+      } else if (msg.role === 'assistant') {
+        console.log(`⚠️ [CITATION DEBUG - getMessages] Assistant message ${index} has NO citations`);
+      }
+
+      return {
+        ...msg,
+        citations: parsedCitations,
+        metadata: this.parseMetadata(msg.metadata)
+      };
+    });
   }
 
   // Add a message to a chat
@@ -151,24 +199,54 @@ export class ChatModel {
     userId: string,
     data: Partial<ChatMessage>
   ): Promise<ChatMessage> {
+    // Validate citations before saving
+    const validatedCitations = data.citations ? validateCitations(data.citations) : null;
+
+    // Debug logging for citation tracking
+    const citationCount = validatedCitations ? validatedCitations.length : 0;
+    const citationNumbers = validatedCitations
+      ? validatedCitations.map(c => c.citationNumber).filter(Boolean).sort((a, b) => a - b)
+      : [];
+
+    console.log(`📝 [CITATION DEBUG - addMessage] Saving message with ${citationCount} validated citations`);
+    if (citationCount > 0) {
+      console.log(`📝 [CITATION DEBUG - addMessage] Citation numbers: [${citationNumbers.join(', ')}]`);
+      console.log(`📝 [CITATION DEBUG - addMessage] First citation:`, validatedCitations?.[0]);
+    }
+
+    const citationsJson = validatedCitations ? JSON.stringify(validatedCitations) : null;
+    console.log(`📝 [CITATION DEBUG - addMessage] Serialized citations length: ${citationsJson ? citationsJson.length : 0} chars`);
+
     const message = await queryOne<ChatMessage>(
       `INSERT INTO chat_messages (
         chat_id, user_id, role, content, citations, metadata
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
       RETURNING *`,
       [
         chatId,
         userId,
         data.role,
         data.content,
-        JSON.stringify(data.citations || null),
+        citationsJson,
         JSON.stringify(data.metadata || {})
       ]
     );
 
     if (!message) {
       throw new Error('Failed to add message');
+    }
+
+    // Verify what was actually saved to database
+    const savedCitationCount = typeof message.citations === 'string'
+      ? (message.citations === 'null' ? 0 : JSON.parse(message.citations).length)
+      : (Array.isArray(message.citations) ? message.citations.length : 0);
+
+    console.log(`✅ [CITATION DEBUG - addMessage] Message saved to DB with ${savedCitationCount} citations`);
+    if (savedCitationCount > 0) {
+      const savedCitations = typeof message.citations === 'string' ? JSON.parse(message.citations) : message.citations;
+      const savedNumbers = savedCitations.map((c: any) => c.citationNumber).filter(Boolean).sort((a: number, b: number) => a - b);
+      console.log(`✅ [CITATION DEBUG - addMessage] Saved citation numbers: [${savedNumbers.join(', ')}]`);
     }
 
     // Update chat's last message time and count
@@ -181,11 +259,16 @@ export class ChatModel {
     );
 
     // Parse JSON fields that PostgreSQL returns as strings
-    return {
+    const parsedMessage = {
       ...message,
-      citations: typeof message.citations === 'string' ? JSON.parse(message.citations) : message.citations,
-      metadata: typeof message.metadata === 'string' ? JSON.parse(message.metadata) : message.metadata
+      citations: this.parseCitations(message.citations),
+      metadata: this.parseMetadata(message.metadata)
     };
+
+    const finalCitationCount = Array.isArray(parsedMessage.citations) ? parsedMessage.citations.length : 0;
+    console.log(`✅ [CITATION DEBUG - addMessage] Returning message with ${finalCitationCount} citations to frontend`);
+
+    return parsedMessage;
   }
 
   // Clear all messages in a chat

@@ -220,6 +220,16 @@ router.post('/chats/:id/messages', async (req, res) => {
       citationsCount: data.citations?.length || 0
     });
 
+    // Additional citation debugging
+    if (data.citations && data.citations.length > 0) {
+      const citationNumbers = data.citations
+        .map((c: any) => c.citationNumber)
+        .filter(Boolean)
+        .sort((a: number, b: number) => a - b);
+      console.log(`📝 [CITATION DEBUG - API] Received ${data.citations.length} citations from frontend: [${citationNumbers.join(', ')}]`);
+      console.log(`📝 [CITATION DEBUG - API] First citation:`, data.citations[0]);
+    }
+
     // Verify chat exists and belongs to user
     console.log('🔍 [Backend] Looking up chat:', { chatId, userId });
     const chat = await ChatModel.getById(chatId, userId);

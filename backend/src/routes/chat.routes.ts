@@ -232,10 +232,26 @@ router.post('/stream', async (req: Request, res: Response) => {
 
         // Don't extract citations during streaming - wait until message is complete
       } else if (chunk.type === 'message_stop') {
+        // Debug log the content and findings before citation extraction
+        console.log(`🔍 [CITATION DEBUG - STREAMING] Response complete. Analyzing citations...`);
+        console.log(`🔍 [CITATION DEBUG - STREAMING] Content length: ${fullContent.length} chars`);
+        console.log(`🔍 [CITATION DEBUG - STREAMING] Available findings: ${enrichedContext.findings?.length || 0}`);
+
+        // Find all citation numbers mentioned in content
+        const mentionedCitations = new Set<number>();
+        const citationPattern = /\[(\d+)\]/g;
+        let match;
+        while ((match = citationPattern.exec(fullContent)) !== null) {
+          mentionedCitations.add(parseInt(match[1]));
+        }
+        console.log(`🔍 [CITATION DEBUG - STREAMING] Citations mentioned in content: [${Array.from(mentionedCitations).sort((a, b) => a - b).join(', ')}]`);
+
         // Extract ALL citations now that the response is complete
         const citations = extractCitations(fullContent, enrichedContext.findings || []);
         if (citations.length > 0) {
-          console.log(`📝 [STREAMING] Extracted ${citations.length} citations from complete response using ${enrichedContext.findings?.length || 0} findings`);
+          console.log(`📝 [CITATION DEBUG - STREAMING] Extracted ${citations.length} citations from complete response`);
+          const extractedNumbers = citations.map(c => c.citationNumber).sort((a, b) => a - b);
+          console.log(`📝 [CITATION DEBUG - STREAMING] Extracted citation numbers: [${extractedNumbers.join(', ')}]`);
 
           // Send all citations at once
           for (const citation of citations) {
@@ -244,6 +260,8 @@ router.post('/stream', async (req: Request, res: Response) => {
               citation
             })}\n\n`);
           }
+        } else {
+          console.log(`⚠️ [CITATION DEBUG - STREAMING] No citations extracted despite ${mentionedCitations.size} being mentioned`);
         }
 
         // Generate metadata at the end
@@ -388,11 +406,12 @@ Important: You are NOT providing medical advice. Encourage users to consult with
 
   if (context.findings && context.findings.length > 0) {
     prompt += '\n\nAvailable research findings for reference:\n';
-    // Limit to 30 findings in prompt to prevent token overflow
-    const findingsToInclude = context.findings.slice(0, 30);
-    if (context.findings.length > 30) {
-      prompt += `Note: Showing first 30 of ${context.findings.length} available findings for context.\n`;
-    }
+    // Use ALL findings provided by frontend for citation consistency
+    // Frontend should limit to 50 findings to prevent token overflow
+    const findingsToInclude = context.findings;
+
+    console.log(`📚 [buildSystemPrompt] Including ${findingsToInclude.length} findings in prompt for citations`);
+
     findingsToInclude.forEach((finding: any, index: number) => {
       const sourceInfo = finding.source || 'Unknown Source';
       const title = finding.title || 'Untitled';
@@ -601,14 +620,14 @@ async function enrichFindingsContext(
     // Always try to fetch findings for the topic, but with a reasonable limit
     if (findingIds.length < 5 || contextFindings.length === 0) {
       // Fetch recent findings for the topic with a limit to prevent API overload
-      // 50 findings provides good context without overwhelming the AI
+      // 50 findings provides good context without overwhelming the AI and matches frontend limit
       const topicFindings = await FindingModel.getFiltered(userId, {
         topic_id: topicId,
-        limit: 50  // Limit to 50 most recent findings to prevent API token overflow
+        limit: 50  // CRITICAL: This must match the frontend limit in ChatPanelMinimal.tsx
       });
 
       if (topicFindings.length > 0) {
-        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} recent findings (max 50) for context`);
+        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} recent findings (max 50) for context - matches frontend limit`);
         return {
           ...context,
           findings: topicFindings.map(f => ({
