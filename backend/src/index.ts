@@ -58,8 +58,7 @@ const allowedOrigins = [
   'http://localhost:6767',
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://cl.zyroi.com',
-  'http://cl.zyroi.com'
+  'https://cl.zyroi.com' // Production domain (HTTPS only for security)
 ];
 
 app.use(cors({

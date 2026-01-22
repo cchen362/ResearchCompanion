@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { api } from './api';
 
 export interface LoginCredentials {
   email: string;
@@ -30,8 +28,8 @@ class AuthService {
   // Register a new user
   async register(data: RegisterData): Promise<AuthResponse> {
     try {
-      const response = await axios.post<AuthResponse>(
-        `${API_BASE_URL}/auth/register`,
+      const response = await api.post<AuthResponse>(
+        '/auth/register',
         data
       );
 
@@ -53,8 +51,8 @@ class AuthService {
   // Login user
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await axios.post<AuthResponse>(
-        `${API_BASE_URL}/auth/login`,
+      const response = await api.post<AuthResponse>(
+        '/auth/login',
         credentials
       );
 
@@ -84,8 +82,8 @@ class AuthService {
     }
 
     try {
-      const response = await axios.get<{ success: boolean; user: AuthUser }>(
-        `${API_BASE_URL}/auth/verify`,
+      const response = await api.get<{ success: boolean; user: AuthUser }>(
+        '/auth/verify',
         {
           headers: {
             Authorization: `Bearer ${token}`,

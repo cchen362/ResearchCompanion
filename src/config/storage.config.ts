@@ -8,8 +8,8 @@
 // Environment variable or feature flag to enable server storage
 export const USE_SERVER_STORAGE = import.meta.env.VITE_USE_SERVER_STORAGE === 'true' || false;
 
-// API base URL
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// API base URL - Use relative path to leverage nginx proxy in production
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Storage configuration
 export const storageConfig = {
