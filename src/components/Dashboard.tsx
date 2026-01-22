@@ -7,6 +7,7 @@ import { getDB } from '@/utils/db/database';
 import { FileText, Bot, MessageSquare, TrendingUp, Plus, X } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { findingsService } from '@/services/findings.service';
+import { digestQueueService } from '@/services/digestQueue.service';
 
 interface DashboardProps {
   setCurrentView?: (view: string) => void;
@@ -26,6 +27,12 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Initialize digest queue service to ensure it starts processing
+    // This fixes the issue where digest generation requires navigation to Findings page
+    console.log('[Dashboard] Initializing digest queue service');
+    // Simply importing the service ensures the singleton is created and queue processor starts
+    const queueService = digestQueueService;
   }, []);
 
   const loadDashboardData = async () => {

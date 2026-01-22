@@ -14,8 +14,6 @@ export async function createTopic(
   diseaseProfile: DiseaseProfile,
   patientContext?: PatientContext
 ): Promise<Topic> {
-  const db = await getDB();
-
   const topic: Topic = {
     id: generateId(),
     name,
@@ -31,6 +29,27 @@ export async function createTopic(
     familyAccess: []
   };
 
+  // If using server storage, delegate to API service
+  if (storageConfig.useServerStorage) {
+    try {
+      const createdTopic = await topicsAPIService.createTopic(topic);
+      console.log(`[Server Storage] Created topic ${createdTopic.id} via server API`);
+
+      // Also add to local IndexedDB cache
+      const db = await getDB();
+      await db.add('topics', createdTopic);
+
+      // Dispatch event to notify UI components
+      window.dispatchEvent(new CustomEvent('topic-created', { detail: { topic: createdTopic } }));
+      return createdTopic;
+    } catch (error) {
+      console.error(`Failed to create topic on server:`, error);
+      throw error;
+    }
+  }
+
+  // Original IndexedDB-only implementation
+  const db = await getDB();
   await db.add('topics', topic);
 
   // Dispatch event to notify UI components
@@ -59,6 +78,24 @@ export async function getAllTopics(): Promise<Topic[]> {
 
 // Update a topic
 export async function updateTopic(topic: Topic): Promise<void> {
+  // If using server storage, delegate to API service
+  if (storageConfig.useServerStorage) {
+    try {
+      await topicsAPIService.updateTopic(topic.id, topic);
+      console.log(`[Server Storage] Updated topic ${topic.id} via server API`);
+
+      // Also update local IndexedDB cache
+      const db = await getDB();
+      topic.updatedAt = Date.now();
+      await db.put('topics', topic);
+      return;
+    } catch (error) {
+      console.error(`Failed to update topic ${topic.id} on server:`, error);
+      throw error;
+    }
+  }
+
+  // Original IndexedDB-only implementation
   const db = await getDB();
   topic.updatedAt = Date.now();
   await db.put('topics', topic);
@@ -66,6 +103,28 @@ export async function updateTopic(topic: Topic): Promise<void> {
 
 // Delete a topic
 export async function deleteTopic(id: string): Promise<void> {
+  // If using server storage, delegate to API service
+  if (storageConfig.useServerStorage) {
+    try {
+      await topicsAPIService.deleteTopic(id);
+      console.log(`[Server Storage] Deleted topic ${id} and all associated data via server API`);
+
+      // Also clear from local IndexedDB cache
+      const db = await getDB();
+      const tx = db.transaction(['topics'], 'readwrite');
+      await tx.objectStore('topics').delete(id);
+      await tx.done;
+
+      // Dispatch event to notify UI components
+      window.dispatchEvent(new CustomEvent('topic-deleted', { detail: { topicId: id } }));
+      return;
+    } catch (error) {
+      console.error(`Failed to delete topic ${id} from server:`, error);
+      throw error;
+    }
+  }
+
+  // Original IndexedDB-only implementation
   const db = await getDB();
 
   // Get all associated data
@@ -124,7 +183,7 @@ export async function deleteTopic(id: string): Promise<void> {
 
   await tx.done;
 
-  console.log(`Deleted topic ${id} and all associated data:`, {
+  console.log(`[IndexedDB] Deleted topic ${id} and all associated data:`, {
     agents: agents.length,
     findings: findings.length,
     digests: digests.length,
@@ -132,6 +191,9 @@ export async function deleteTopic(id: string): Promise<void> {
     timeline: timeline.length,
     notifications: topicNotifications.length
   });
+
+  // Dispatch event to notify UI components
+  window.dispatchEvent(new CustomEvent('topic-deleted', { detail: { topicId: id } }));
 }
 
 // Search topics by name

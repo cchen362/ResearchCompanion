@@ -49,10 +49,26 @@ class TopicsService {
   }
 
   async deleteTopic(id: string): Promise<void> {
-    if (this.isUsingAPI) {
-      return await topicsAPIService.deleteTopic(id);
+    try {
+      console.log(`[TopicsService] Deleting topic ${id}, using API: ${this.isUsingAPI}`);
+
+      if (this.isUsingAPI) {
+        await topicsAPIService.deleteTopic(id);
+      } else {
+        await deleteTopic(id);
+      }
+
+      console.log(`[TopicsService] Successfully deleted topic ${id}`);
+    } catch (error) {
+      console.error(`[TopicsService] Failed to delete topic ${id}:`, error);
+
+      // Re-throw with more context
+      if (error instanceof Error) {
+        throw new Error(`Failed to delete topic: ${error.message}`);
+      } else {
+        throw new Error('Failed to delete topic: Unknown error');
+      }
     }
-    await deleteTopic(id);
   }
 
   async getActiveTopics(): Promise<Topic[]> {

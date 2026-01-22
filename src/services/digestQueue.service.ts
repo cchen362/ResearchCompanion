@@ -182,8 +182,8 @@ export class DigestQueueService {
     }
   }
 
-  // Process the queue
-  private async processQueue(): Promise<void> {
+  // Process the queue (made public so components can trigger immediate processing)
+  async processQueue(): Promise<void> {
     if (this.processingQueue) return;
 
     this.processingQueue = true;
@@ -468,6 +468,13 @@ export class DigestQueueService {
 
       console.log(`Queued digest generation from ${findings.length} existing findings`);
 
+      // Force immediate processing instead of waiting for the interval
+      // This fixes the issue where digest generation requires navigation
+      setTimeout(() => {
+        console.log('[DigestQueueService] Triggering immediate queue processing');
+        this.processQueue();
+      }, 100);
+
       return queueItem;
     } catch (error) {
       console.error('Error queueing digest from existing findings:', error);
@@ -507,7 +514,7 @@ export class DigestQueueService {
     // Call backend to generate digest
     try {
       const response = await longOperationApi.post('/generate-digest', {
-        findings: filteredFindings.slice(0, 100), // Limit to 100 findings
+        findings: filteredFindings.slice(0, 50), // Reduce to 50 findings to avoid timeouts
         topic,
         timeframe
       });
@@ -520,9 +527,35 @@ export class DigestQueueService {
       return response.data;
     } catch (error) {
       console.error('Error calling generate-digest API:', error);
-      // Check if it's an axios error with response
-      if (error && typeof error === 'object' && 'response' in error) {
+
+      // Check for timeout errors
+      if (error && typeof error === 'object') {
         const axiosError = error as any;
+
+        // Check for 504 Gateway Timeout
+        if (axiosError.response?.status === 504) {
+          console.error('Gateway timeout - digest generation took too long');
+          // Try with fewer findings
+          if (filteredFindings.length > 20) {
+            console.log('Retrying with only 20 findings to avoid timeout');
+            try {
+              const response = await longOperationApi.post('/generate-digest', {
+                findings: filteredFindings.slice(0, 20), // Retry with only 20 findings
+                topic,
+                timeframe
+              });
+              return response.data;
+            } catch (retryError) {
+              console.error('Retry with fewer findings also failed:', retryError);
+            }
+          }
+        }
+
+        // Check for other axios errors
+        if (axiosError.code === 'ECONNABORTED') {
+          throw new Error('Request timeout - digest generation took too long');
+        }
+
         if (axiosError.response?.data?.error) {
           throw new Error(axiosError.response.data.error);
         }

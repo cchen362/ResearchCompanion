@@ -66,18 +66,37 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         console.log('[ChatPanelMinimal] Checking for existing chat:', {
           activeChatId: chatStore.activeChatId,
           activeChat: chatStore.activeChat?.id,
+          activeTopicId: chatStore.activeChat?.topicId,
+          currentTopicId: topicId,
           chatsCount: chatStore.chats.length
         });
+
+        // IMPORTANT: Check if active chat belongs to current topic
+        if (chatStore.activeChat && chatStore.activeChat.topicId !== topicId) {
+          console.log('[ChatPanelMinimal] Active chat belongs to different topic, clearing it');
+          chatStore.activeChatId = null;
+          chatStore.activeChat = null;
+          setMessages([]); // Clear messages from old topic
+        }
 
         // First, check if we already have an active chat ID from persistence
         if (chatStore.activeChatId && !chatStore.activeChat) {
           console.log('[ChatPanelMinimal] Rehydrating chat from persisted ID:', chatStore.activeChatId);
           try {
             await chatStore.setActiveChat(chatStore.activeChatId);
+
+            // Verify the rehydrated chat belongs to current topic
+            if (chatStore.activeChat && chatStore.activeChat.topicId !== topicId) {
+              console.log('[ChatPanelMinimal] Rehydrated chat belongs to different topic, clearing it');
+              chatStore.activeChatId = null;
+              chatStore.activeChat = null;
+              setMessages([]);
+            }
           } catch (error) {
-            console.error('[ChatPanelMinimal] Failed to rehydrate chat:', error);
+            console.error('[ChatPanelMinimal] Failed to rehydrate chat (likely deleted):', error);
             // Clear invalid chat ID
             chatStore.activeChatId = null;
+            chatStore.activeChat = null;
           }
         }
 
@@ -89,7 +108,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             await chatStore.setActiveChat(existingChat.id);
           } else {
             // Only create new chat if no existing chat for this topic
-            console.log('[ChatPanelMinimal] No existing chat found, creating new one');
+            console.log('[ChatPanelMinimal] No existing chat found, creating new one for topic:', topicId);
             await chatStore.createChat(topicId);
           }
         } else {
@@ -135,7 +154,36 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           }
         );
 
-        return () => unsubscribe();
+        // Listen for topic deletion to clear stale chat references
+        const handleTopicDeleted = (event: any) => {
+          console.log('[ChatPanelMinimal] Topic deleted event received:', event.detail);
+          const deletedTopicId = event.detail?.topicId;
+
+          if (deletedTopicId === topicId) {
+            console.log('[ChatPanelMinimal] Current topic was deleted, clearing chat');
+            // Clear active chat and messages if the current topic was deleted
+            const chatStore = chatStoreModule.useChatStore.getState();
+            chatStore.activeChatId = null;
+            chatStore.activeChat = null;
+            setMessages([]);
+
+            // Notify user that the topic was deleted
+            if (toast) {
+              toast({
+                title: 'Topic Deleted',
+                description: 'The current topic has been deleted. Please select a new topic.',
+                variant: 'destructive'
+              });
+            }
+          }
+        };
+
+        window.addEventListener('topic-deleted', handleTopicDeleted);
+
+        return () => {
+          unsubscribe();
+          window.removeEventListener('topic-deleted', handleTopicDeleted);
+        };
       } catch (error) {
         console.error('[ChatPanelMinimal] Failed to load dependencies:', error);
       }

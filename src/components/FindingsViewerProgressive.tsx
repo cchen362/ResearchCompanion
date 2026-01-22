@@ -440,15 +440,60 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         if (existingQueue) {
           console.log('Found existing digest generation in queue:', existingQueue);
           setQueueItem(existingQueue);
-          setDigestGeneration({
-            isGenerating: true,
-            progress: existingQueue.progress?.percentage || 0,
-            message: existingQueue.progress?.message || 'Processing...'
-          });
+
+          // Check if it's already processing or completed
+          if (existingQueue.status === 'processing') {
+            setDigestGeneration({
+              isGenerating: true,
+              progress: existingQueue.progress?.percentage || 0,
+              message: existingQueue.progress?.message || 'Processing...'
+            });
+          } else if (existingQueue.status === 'pending') {
+            setDigestGeneration({
+              isGenerating: true,
+              progress: 0,
+              message: 'Waiting to start digest generation...'
+            });
+
+            // Force the queue to process immediately if it's pending
+            console.log('Triggering immediate queue processing for pending digest');
+            digestQueueService.processQueue();
+          } else if (existingQueue.status === 'failed') {
+            setDigestGeneration({
+              isGenerating: false,
+              progress: 0,
+              message: `Failed: ${existingQueue.error || 'Unknown error'}`
+            });
+          }
         } else {
-          // No cached digest and no queue - show the Generate button
-          // Users should explicitly click to generate digest
-          console.log('No cached digest or queued generation found for topic');
+          // No cached digest and no queue
+          // Check if we have findings - if yes and they're from agents, auto-queue digest
+          if (topicFindings.length > 0) {
+            // Check if any findings are from agents (not manual)
+            const hasAgentFindings = topicFindings.some(f =>
+              f.source?.type === 'agent' ||
+              f.metadata?.source === 'agent' ||
+              f.agentId
+            );
+
+            if (hasAgentFindings) {
+              console.log('Found agent findings without digest, auto-queueing digest generation');
+              const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+                topicId,
+                digestTimeframe
+              );
+              setQueueItem(newQueueItem);
+              setDigestGeneration({
+                isGenerating: true,
+                progress: 0,
+                message: 'Starting automatic digest generation...'
+              });
+            } else {
+              console.log('No agent findings found, showing manual generate button');
+            }
+          } else {
+            console.log('No findings available for digest generation');
+          }
         }
 
         setLoadingDigest(false);

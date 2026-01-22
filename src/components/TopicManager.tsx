@@ -43,9 +43,28 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
   };
 
   const handleDeleteTopic = async (id: string) => {
-    if (confirm('Are you sure you want to delete this topic and all associated data?')) {
-      await topicsService.deleteTopic(id);
-      await loadTopics();
+    if (confirm('Are you sure you want to delete this topic and all associated data?\n\nThis will permanently delete:\n• All research findings\n• All digests\n• All agents\n• All chat conversations\n• All associated data\n\nThis action cannot be undone.')) {
+      try {
+        console.log(`[TopicManager] Deleting topic ${id}`);
+        await topicsService.deleteTopic(id);
+
+        // Notify other components that the topic was deleted
+        window.dispatchEvent(new CustomEvent('topic-deleted', { detail: { topicId: id } }));
+
+        // Reload topics to reflect the deletion
+        await loadTopics();
+
+        // Notify parent component if callback provided
+        if (onTopicsChange) {
+          onTopicsChange();
+        }
+
+        // Show success message (if you have a toast system)
+        console.log(`[TopicManager] Successfully deleted topic ${id}`);
+      } catch (error) {
+        console.error('[TopicManager] Failed to delete topic:', error);
+        alert('Failed to delete topic. Please try again or check the console for details.');
+      }
     }
   };
 
