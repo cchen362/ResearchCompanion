@@ -402,7 +402,9 @@ function createCitationMapping(findings: any[], existingMap?: Map<string, number
 
 function buildSystemPrompt(context: any): string {
   // Create or update the citation mapping
-  const existingMap = context.citationMap ? new Map(Object.entries(context.citationMap)) : undefined;
+  const existingMap = context.citationMap
+    ? new Map(Object.entries(context.citationMap).map(([k, v]) => [k, Number(v)] as [string, number]))
+    : undefined;
   const citationMap = createCitationMapping(context.findings || [], existingMap);
 
   // Store the citation map back in the context for persistence
@@ -537,7 +539,7 @@ function extractCitations(
     seenCitations.add(citationNum);
 
     let finding = null;
-    let findingId = null;
+    let findingId: string | null = null;
 
     if (reverseMap.has(citationNum)) {
       // Use the citation map to find the correct finding
