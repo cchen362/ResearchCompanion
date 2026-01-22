@@ -195,7 +195,7 @@ async function runScheduledAgents() {
               if (topic) {
                 try {
                   // Call the API to run the agent
-                  const response = await fetch('http://localhost:3001/api/run-agent', {
+                  const response = await fetch('/api/run-agent', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json'
