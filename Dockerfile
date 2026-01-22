@@ -12,6 +12,9 @@ RUN npm ci
 # Copy frontend source
 COPY . ./
 
+# Remove any local .env files to ensure we use Docker ENV variables only
+RUN rm -f .env .env.local .env.production.local
+
 # Set Vite environment variables for build
 ENV VITE_USE_SERVER_STORAGE=true
 ENV VITE_API_URL=/api
