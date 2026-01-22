@@ -689,13 +689,15 @@ export interface ChatMessage {
 }
 
 export interface SourceCitation {
-  findingId: string;
+  findingId: string | null;         // Can be null for placeholder citations
   text?: string;                    // Display text e.g., "[PubMed Study, 2025]"
   position?: number;                // Character position in message
   highlightStart?: number;          // Start position for highlighting
   highlightEnd?: number;            // End position for highlighting
   citationText?: string;            // Text to display in citation
   citationNumber?: number;          // Citation number [1], [2], etc.
+  isPlaceholder?: boolean;          // True if citation references non-existent finding
+  source?: ResearchSource;          // Source information from the finding
 }
 
 export interface ChatContext {

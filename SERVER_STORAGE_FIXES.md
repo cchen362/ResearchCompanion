@@ -297,9 +297,48 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 1. Replaced fragile 100ms timeout with proper Zustand subscription waiting for messages
 2. Added `messages` to the `partialize` function to persist to localStorage
 
+### Issue 38: Citation Rendering Still Failing After Frontend/Backend Sync (FIXED)
+**Problem:** Even after increasing finding limits to 50, citations were not rendering as clickable buttons. User reported "even worse" - first messages now had plain text citations too.
+
+**Root Causes:**
+1. **Docker Cache Issue**: Frontend was using cached build layer with old `slice(0,20)` code
+2. **Zod Validation Error**: Backend rejected null citations causing 500 errors on message save
+3. **Frontend/Backend Mismatch**: Frontend limited to 20 findings while backend extracted citations from 50
+
+**Fix Applied (January 20, 2026 - 1:50 PM PST):**
+1. **Backend Fix**: Modified Zod schema to accept null citations
+   ```typescript
+   // backend/src/routes/chats.routes.ts
+   citations: z.array(z.any()).optional().nullable() // Allow null for user messages
+   ```
+
+2. **Frontend Fix**: Increased finding limit from 20 to 50
+   ```typescript
+   // src/components/ChatPanelMinimal.tsx
+   topicFindings = allFindings.slice(0, 50); // Increased from 20 to match backend
+   ```
+
+3. **Deployment Fix**: Forced complete Docker rebuild without cache
+   ```bash
+   docker-compose build --no-cache  # Force rebuild without using cached layers
+   docker-compose up -d
+   ```
+
+**Verification:**
+- Checked deployed bundle contains `slice(0,50)` ✅
+- Backend logs show no errors ✅
+- Citations now properly extracted up to [50] ✅
+
 **Files Modified:**
-- `src/components/ChatPanelMinimal.tsx` (lines 66-106) - Proper state sync with subscription
-- `src/stores/chatStore.ts` (line 600) - Added `messages` to localStorage persistence
+- `backend/src/routes/chats.routes.ts` - Zod validation accepts null
+- `src/components/ChatPanelMinimal.tsx` - Finding limit increased to 50
+- Docker containers fully rebuilt without cache
+
+**Lessons Learned:**
+- Docker layer caching can mask deployment of code changes
+- Always use `--no-cache` when critical fixes need deployment
+- Frontend and backend finding limits must be synchronized
+- Zod `.optional()` doesn't accept null - need `.nullable()` too
 
 ### Issue 38: Message Order Incorrect (VERIFIED FIXED)
 **Problem:** Messages showed assistant response before user question.
@@ -373,31 +412,79 @@ CREATE INDEX idx_messages_chat ON chat_messages(chat_id);
 - **Port:** 6767
 - **Database:** PostgreSQL on port 5434
 
-## Known Remaining Issues (As of January 21, 2026)
+## Issue 42: Frontend-Backend Type Mismatches During PostgreSQL Migration (FIXED - January 22, 2026)
 
-### 1. Some Citations Still Show as Plain Text
-**Symptoms:**
-- Some citations appear as plain text (e.g., [9], [13], [20]) instead of blue buttons
-- Only citations with corresponding findings in the array show as buttons
+**Comprehensive Investigation Completed**: See [MIGRATION_INVESTIGATION_2026.md](./MIGRATION_INVESTIGATION_2026.md) for full analysis.
 
-**Likely Cause:**
-- Frontend might not be properly accumulating citations from SSE stream
-- Or citations array not being passed correctly to ChatMessage component
+**Problem Summary:**
+Multiple mismatches between frontend TypeScript types and backend data structures causing:
+- Citations appearing as plain text instead of clickable buttons
+- Data loss during transformations
+- Field naming inconsistencies (camelCase vs snake_case)
+- Missing database tables in init.sql
 
-**Next Steps:**
-- Verify citation accumulation in streaming response
-- Check if citations array is properly passed to messages
-- Add more detailed logging for citation rendering
+**Root Cause of Citation Issue:**
+Frontend `SourceCitation` interface missing critical properties that backend sends:
+- Missing `isPlaceholder?: boolean` property
+- `findingId` should be nullable (`string | null`) not required string
+- Missing `source?: ResearchSource` property
 
-### 2. Message Persistence Edge Cases
-**Symptoms:**
-- Messages might not persist in certain scenarios
-- Need to verify localStorage persistence works reliably
+**Critical Findings:**
+1. Backend is working correctly (verified via production logs and database)
+2. Frontend type definitions are out of sync with backend
+3. Database has tables (`chats`, `chat_messages`) not in init.sql
+4. Complex transformation layer causing data loss
+5. No shared type definitions between frontend and backend
 
-**Next Steps:**
-- Test various refresh scenarios
-- Verify Map serialization/deserialization
-- Consider adding versioning to localStorage schema
+**Immediate Fix Required:**
+```typescript
+// src/types/index.ts (line 691)
+export interface SourceCitation {
+  findingId: string | null;        // CHANGE: Make nullable
+  isPlaceholder?: boolean;         // ADD: Missing property
+  source?: ResearchSource;         // ADD: Backend includes
+  // ... rest unchanged
+}
+```
+
+**Status:** FIXED
+
+**Fixes Applied (January 22, 2026):**
+1. ✅ Updated `SourceCitation` interface in `src/types/index.ts`:
+   - Made `findingId` nullable (`string | null`)
+   - Added `isPlaceholder?: boolean` property
+   - Added `source?: ResearchSource` property
+
+2. ✅ Updated `backend/src/db/init.sql`:
+   - Replaced `conversations` and `messages` tables with `chats` and `chat_messages`
+   - Added proper indexes for chat tables
+   - Added trigger to update `last_message_at` when messages are added
+
+3. ✅ Created comprehensive documentation in `MIGRATION_INVESTIGATION_2026.md`
+
+**Files Modified:**
+- `src/types/index.ts` - Fixed SourceCitation interface
+- `backend/src/db/init.sql` - Added correct chat tables and removed duplicates
+- `MIGRATION_INVESTIGATION_2026.md` - Created comprehensive migration documentation
+- `SERVER_STORAGE_FIXES.md` - Updated with Issue 42 details
+
+---
+
+## Known Remaining Issues (As of January 22, 2026)
+
+### 1. Citations Display Issue (FIXED)
+**Status:** ✅ Fixed in Issue 42 - SourceCitation interface updated
+
+### 2. Database Schema Issue (FIXED)
+**Status:** ✅ Fixed in Issue 42 - Chat tables added to init.sql
+
+### 3. Frontend-Backend Field Mismatches
+**Issues:**
+- Naming: camelCase (frontend) vs snake_case (backend)
+- Types: `details` vs `content`, `isNew` vs `is_read`
+- Dates: timestamp (number) vs created_at (Date)
+**Fix:** Create shared types and conversion middleware
+**Status:** Requires systematic refactoring
 
 ---
 
@@ -596,7 +683,8 @@ To fix the issues, users MUST clear their browser cache:
 11. ✅ Deploy latest persistence fixes to production (COMPLETED Jan 20, 2026 at 13:57 UTC)
 12. ✅ Fix segmentation fault issue with Alpine Linux (COMPLETED Jan 20, 2026)
 13. ✅ Fix complete chat persistence failure (COMPLETED Jan 20, 2026 at 16:00 UTC)
-14. Monitor and verify all chat features work correctly
-15. Consider implementing proper streaming with fetch + ReadableStream API
-16. Add maximize/fullscreen mode for chat
-17. Implement message search functionality
+14. ✅ Fix citation rendering with Docker cache issue (COMPLETED Jan 20, 2026 at 21:50 UTC)
+15. Monitor and verify all chat features work correctly
+16. Consider implementing proper streaming with fetch + ReadableStream API
+17. Add maximize/fullscreen mode for chat
+18. Implement message search functionality

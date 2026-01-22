@@ -134,26 +134,28 @@ CREATE TABLE IF NOT EXISTS audio_recordings (
     processed_at TIMESTAMP WITH TIME ZONE
 );
 
--- Chat conversations
-CREATE TABLE IF NOT EXISTS conversations (
+-- Chat conversations (using 'chats' table as per actual application code)
+CREATE TABLE IF NOT EXISTS chats (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-    title VARCHAR(500),
+    title VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     context JSONB DEFAULT '{}',
     message_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    archived BOOLEAN DEFAULT false
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Chat messages
-CREATE TABLE IF NOT EXISTS messages (
+-- Chat messages (using 'chat_messages' table as per actual application code)
+CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
     content TEXT NOT NULL,
+    citations JSONB,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -211,8 +213,11 @@ CREATE INDEX idx_timeline_user_id ON timeline_events(user_id);
 CREATE INDEX idx_timeline_topic_id ON timeline_events(topic_id);
 CREATE INDEX idx_timeline_event_date ON timeline_events(event_date DESC);
 CREATE INDEX idx_audio_user_id ON audio_recordings(user_id);
-CREATE INDEX idx_conversations_user_id ON conversations(user_id);
-CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_chats_user_id ON chats(user_id);
+CREATE INDEX idx_chats_topic_id ON chats(user_id, topic_id);
+CREATE INDEX idx_chats_last_message ON chats(last_message_at DESC);
+CREATE INDEX idx_chat_messages_chat_id ON chat_messages(chat_id, created_at);
+CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX idx_sessions_token_hash ON user_sessions(token_hash);
 CREATE INDEX idx_sessions_expires_at ON user_sessions(expires_at);
 CREATE INDEX idx_api_usage_user_id ON api_usage(user_id);
@@ -242,11 +247,27 @@ CREATE TRIGGER update_findings_updated_at BEFORE UPDATE ON findings
 CREATE TRIGGER update_timeline_updated_at BEFORE UPDATE ON timeline_events
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations
+CREATE TRIGGER update_chats_updated_at BEFORE UPDATE ON chats
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_preferences_updated_at BEFORE UPDATE ON user_preferences
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to update chat's last_message_at when a message is added
+CREATE OR REPLACE FUNCTION update_chat_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE chats
+    SET last_message_at = CURRENT_TIMESTAMP,
+        message_count = message_count + 1
+    WHERE id = NEW.chat_id;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_chat_timestamp
+AFTER INSERT ON chat_messages
+FOR EACH ROW EXECUTE FUNCTION update_chat_updated_at();
 
 -- Create default admin user (optional, remove in production)
 -- Password: admin123 (change this!)
