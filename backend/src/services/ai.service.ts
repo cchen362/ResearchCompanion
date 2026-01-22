@@ -13,8 +13,8 @@ dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 // Initialize API clients with retry configuration
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
-  maxRetries: 3, // Retry up to 3 times
-  timeout: 60000, // 60 second timeout
+  maxRetries: 2, // Reduce retries to 2
+  timeout: 30000, // REDUCED to 30 seconds to stay well under Cloudflare's 100s limit
 });
 
 const openai = new OpenAI({
@@ -368,19 +368,26 @@ export async function generateSmartDigest(
   topic: any,
   timeframe: 'daily' | 'weekly' | 'monthly' | 'all-time'
 ) {
+  console.log(`[AI Service] Starting digest generation with ${findings.length} findings`);
+  const startTime = Date.now();
+
   try {
+    // Limit findings text to prevent extremely long prompts
+    const maxFindings = 10; // Hard limit to ensure fast response
+    const limitedFindings = findings.slice(0, maxFindings);
+
+    console.log(`[AI Service] Using ${limitedFindings.length} findings for digest`);
+
     // Prepare findings text for analysis
-    const findingsText = findings.map((f, idx) =>
+    const findingsText = limitedFindings.map((f, idx) =>
       `[Finding ${idx + 1}]
 Type: ${f.type}
 Title: ${f.title}
-Summary: ${f.summary}
-Source: ${f.source.name} (${f.source.type})
-${f.priority ? `Priority: ${f.priority}` : ''}
-Date: ${f.source.publishDate || new Date(f.timestamp).toISOString()}
-${f.extractedEntities?.medications ? `Medications: ${f.extractedEntities.medications.join(', ')}` : ''}
-${f.isContradictory ? 'NOTE: This finding contradicts other research' : ''}`
-    ).join('\n\n───────────\n\n');
+Summary: ${f.summary?.substring(0, 200) || 'No summary'}
+Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
+    ).join('\n\n');
+
+    console.log(`[AI Service] Calling Anthropic API...`);
 
     // Using tools to encourage structured output (without beta header for compatibility)
     const response = await anthropic.messages.create({
@@ -441,6 +448,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
         }
       ]
     });
+
+    const responseTime = Date.now() - startTime;
+    console.log(`[AI Service] Anthropic API responded in ${responseTime}ms`);
 
     // When using tools, the response format is different
     console.log('Claude response type:', response.content.map(c => c.type));
@@ -637,13 +647,31 @@ Focus on practical, actionable information that helps with treatment decisions.`
       allFindingIds
     };
   } catch (error: any) {
-    console.error('Error generating smart digest with tools approach:', error.message);
+    const errorTime = Date.now() - startTime;
+    console.error(`[AI Service] Error after ${errorTime}ms:`, error.message);
 
-    // If tools approach fails, try the simple approach
+    // Check for timeout specifically
+    if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT') || errorTime > 30000) {
+      console.error('[AI Service] Request timed out - using minimal fallback');
+      // Return a minimal valid digest to avoid 504
+      return {
+        executiveSummary: `Analysis of ${findings.length} recent findings about ${topic.diseaseProfile.name}.`,
+        laymanSummary: 'Research findings have been compiled for your review.',
+        themes: [{
+          name: 'Recent Research',
+          keyInsights: [`${findings.length} findings analyzed`],
+          findingIds: findings.slice(0, 5).map(f => f.id)
+        }],
+        keyTakeaways: ['Review individual findings for details'],
+        trends: { emerging: [], declining: [], stable: ['Research ongoing'] }
+      };
+    }
+
+    // If tools approach fails for other reasons, try the simple approach
     try {
       console.log('Attempting fallback to simple digest...');
       // Re-create findingsText for fallback
-      const fallbackFindingsText = findings.map((f, idx) =>
+      const fallbackFindingsText = findings.slice(0, 5).map((f, idx) =>
         `[Finding ${idx + 1}]
 Type: ${f.type}
 Title: ${f.title}

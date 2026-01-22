@@ -513,8 +513,9 @@ export class DigestQueueService {
 
     // Call backend to generate digest
     try {
+      // Use only 10 findings to ensure fast response and avoid Cloudflare timeout
       const response = await longOperationApi.post('/generate-digest', {
-        findings: filteredFindings.slice(0, 50), // Reduce to 50 findings to avoid timeouts
+        findings: filteredFindings.slice(0, 10), // REDUCED to 10 findings to avoid Cloudflare 100s timeout
         topic,
         timeframe
       });
@@ -535,18 +536,32 @@ export class DigestQueueService {
         // Check for 504 Gateway Timeout
         if (axiosError.response?.status === 504) {
           console.error('Gateway timeout - digest generation took too long');
-          // Try with fewer findings
-          if (filteredFindings.length > 20) {
-            console.log('Retrying with only 20 findings to avoid timeout');
+          // Try with even fewer findings
+          if (filteredFindings.length > 5) {
+            console.log('Retrying with only 5 findings to avoid timeout');
             try {
               const response = await longOperationApi.post('/generate-digest', {
-                findings: filteredFindings.slice(0, 20), // Retry with only 20 findings
+                findings: filteredFindings.slice(0, 5), // Retry with only 5 findings
                 topic,
                 timeframe
               });
               return response.data;
             } catch (retryError) {
               console.error('Retry with fewer findings also failed:', retryError);
+              // Last resort - try with just 2 findings
+              if (filteredFindings.length > 2) {
+                console.log('Final attempt with only 2 findings');
+                try {
+                  const finalResponse = await longOperationApi.post('/generate-digest', {
+                    findings: filteredFindings.slice(0, 2), // Final attempt with minimal findings
+                    topic,
+                    timeframe
+                  });
+                  return finalResponse.data;
+                } catch (finalError) {
+                  console.error('All retry attempts failed');
+                }
+              }
             }
           }
         }
@@ -588,15 +603,19 @@ export class DigestQueueService {
     // Update progress: Generating
     await this.updateProgress(queueItem.id, 'generating', 50, 'Generating intelligent digest...');
 
-    // Implement retry logic with exponential backoff
+    // Implement retry logic with exponential backoff - but with MUCH fewer findings
     let lastError: Error | null = null;
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduce retries to avoid long waits
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // API call using long operation API with 5-minute timeout
+        // API call with drastically reduced findings to prevent timeout
+        // Start with only 10 findings, then 5 on retry
+        const findingLimit = attempt === 1 ? 10 : 5;
+        console.log(`[DigestQueue] Attempt ${attempt}: Sending ${findingLimit} findings to avoid timeout`);
+
         const response = await longOperationApi.post('/generate-digest', {
-          findings: findings.slice(0, 100), // Increased limit to 100 findings for more comprehensive digests
+          findings: findings.slice(0, findingLimit), // DRASTICALLY reduced to avoid Cloudflare timeout
           topic,
           timeframe
         });
