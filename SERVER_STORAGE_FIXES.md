@@ -647,10 +647,89 @@ To fix the issues, users MUST clear their browser cache:
 
 **Fix:**
 1. **Synchronized finding limits**: Both frontend and backend now use 50 findings consistently
-2. **Robust JSONB handling**: Added explicit `::jsonb` cast and consistent parsing helpers
-3. **Citation validation layer**: Created Zod schemas for citation validation
-4. **Comprehensive logging**: Added debug logging throughout citation pipeline
-5. **Proper citation lookup**: Frontend uses `find()` by `citationNumber` property, not array index
+
+### Issue 18: Complete Citation System Overhaul (FIXED - January 22, 2026)
+**Problem:** Despite multiple fixes, citations continued to display as plain text. Investigation revealed that the AI was mentioning citation numbers that didn't match the array indices of findings, causing a fundamental mismatch between what the AI referenced and what the backend could extract.
+
+**Root Cause Analysis:**
+The citation system was fundamentally flawed:
+1. **Unstable citation numbers**: Array-based indexing meant citation numbers changed as findings were added/removed
+2. **AI-backend mismatch**: AI would mention citations like [1,3,5,9,11,15] but backend extracted different numbers
+3. **No persistence**: Citation mappings were not preserved across messages
+4. **Fragile extraction**: Relied on array positions which could shift
+
+**Complete Overhaul Solution:**
+Implemented a stable citation mapping system that assigns permanent citation numbers to findings:
+
+1. **Created `createCitationMapping` function** (`backend/src/routes/chat.routes.ts`):
+   - Assigns stable citation numbers to findings that persist across messages
+   - Returns a Map<findingId, citationNumber> for consistent reference
+   - Preserves existing mappings and only assigns new numbers to new findings
+
+2. **Updated `buildSystemPrompt` function**:
+   - Creates/updates citation map before building prompt
+   - Explicitly lists findings with their assigned citation numbers
+   - Provides clear instructions to AI: "USE ONLY THE CITATION NUMBERS SHOWN ABOVE"
+   - Stores citation map in context for persistence
+
+3. **Rewrote `extractCitations` function**:
+   - Now accepts citation map as parameter
+   - Uses map-based lookup instead of array indexing
+   - Creates reverse map (citationNumber -> findingId) for efficient lookup
+   - Falls back to array index only if no map exists (backward compatibility)
+
+4. **Updated context persistence**:
+   - Added `citationMap` to ChatRequestSchema
+   - Response includes citation map for frontend storage
+   - Both streaming and non-streaming endpoints return citation map
+
+5. **Frontend integration** (`src/components/ChatPanelMinimal.tsx`):
+   - Added citation map state management
+   - Includes citation map in API requests
+   - Updates citation map from responses
+   - Passes previous messages for context continuity
+
+**Files Modified:**
+- `backend/src/routes/chat.routes.ts` - Complete citation system overhaul
+- `src/components/ChatPanelMinimal.tsx` - Citation map state management
+
+**Technical Implementation:**
+```typescript
+// Stable citation mapping
+const citationMap = new Map<string, number>();
+citationMap.set('finding-id-123', 1); // Finding always gets citation [1]
+citationMap.set('finding-id-456', 2); // Finding always gets citation [2]
+
+// System prompt with explicit numbering
+"[1] - Finding ID: finding-id-123
+Source: PubMed
+Title: Important Research
+Content: ..."
+
+// Map-based extraction
+if (reverseMap.has(citationNum)) {
+  findingId = reverseMap.get(citationNum);
+  // Guaranteed to find the right finding
+}
+```
+
+**Benefits of New System:**
+1. **Stable references**: Citation [7] always refers to the same finding
+2. **AI alignment**: System prompt explicitly tells AI which numbers to use
+3. **Persistence**: Citation mappings preserved across conversation
+4. **Reliability**: No more array index assumptions or mismatches
+5. **Debugging**: Clear logging shows citation map creation and lookup
+
+**Deployment:** January 22, 2026 at 18:30 UTC (pending)
+
+**Lessons Learned:**
+1. **Don't rely on array positions**: They're inherently unstable
+2. **Use explicit mapping**: Create clear, persistent associations
+3. **Instruct AI clearly**: Tell it exactly which citation numbers to use
+4. **Preserve state**: Citation mappings must persist across messages
+5. **Complete overhaul > incremental fixes**: Sometimes starting fresh is better
+
+---
 
 **Files Modified:**
 - `src/components/ChatPanelMinimal.tsx` - Increased finding limit from 20 to 50

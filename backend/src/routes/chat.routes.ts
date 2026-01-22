@@ -29,7 +29,8 @@ const ChatRequestSchema = z.object({
     expandedTopics: z.array(z.string()).optional(),
     recentInteractions: z.array(z.string()).optional(),
     userPreferences: z.record(z.string(), z.any()).optional(),
-    conversationFocus: z.string().optional()
+    conversationFocus: z.string().optional(),
+    citationMap: z.record(z.string(), z.number()).optional() // Add citation map for persistence
   }),
   stream: z.boolean().optional()
 });
@@ -102,9 +103,9 @@ router.post('/complete', async (req: Request, res: Response) => {
       ? response.content[0].text
       : '';
 
-    // Process citations from the response
+    // Process citations from the response using the citation map created in buildSystemPrompt
     const findingsForCitations = enrichedContext.findings || [];
-    const citations = extractCitations(content, findingsForCitations);
+    const citations = extractCitations(content, findingsForCitations, enrichedContext.citationMap);
 
     // Generate suggested questions
     const suggestedQuestions = await generateSuggestedQuestions(
@@ -126,7 +127,8 @@ router.post('/complete', async (req: Request, res: Response) => {
       relatedFindings,
       model: response.model,
       tokens: response.usage?.output_tokens,
-      processingTime: Date.now()
+      processingTime: Date.now(),
+      citationMap: enrichedContext.citationMap // Include citation map for persistence
     });
   } catch (error: any) {
     console.error('Chat completion error:', error);
@@ -246,8 +248,8 @@ router.post('/stream', async (req: Request, res: Response) => {
         }
         console.log(`🔍 [CITATION DEBUG - STREAMING] Citations mentioned in content: [${Array.from(mentionedCitations).sort((a, b) => a - b).join(', ')}]`);
 
-        // Extract ALL citations now that the response is complete
-        const citations = extractCitations(fullContent, enrichedContext.findings || []);
+        // Extract ALL citations now that the response is complete using the citation map
+        const citations = extractCitations(fullContent, enrichedContext.findings || [], enrichedContext.citationMap);
         if (citations.length > 0) {
           console.log(`📝 [CITATION DEBUG - STREAMING] Extracted ${citations.length} citations from complete response`);
           const extractedNumbers = citations.map(c => c.citationNumber).sort((a, b) => a - b);
@@ -276,11 +278,12 @@ router.post('/stream', async (req: Request, res: Response) => {
           validated.context.findings || []
         );
 
-        // Send metadata
+        // Send metadata including citation map for persistence
         res.write(`data: ${JSON.stringify({
           type: 'metadata',
           suggestedQuestions,
-          relatedFindings
+          relatedFindings,
+          citationMap: enrichedContext.citationMap // Include citation map
         })}\n\n`);
 
         // Send completion signal
@@ -373,7 +376,38 @@ router.post('/suggestions', async (req: Request, res: Response) => {
 
 // Helper functions
 
+/**
+ * Create a stable citation mapping for findings
+ * This assigns citation numbers to findings that persist across messages
+ */
+function createCitationMapping(findings: any[], existingMap?: Map<string, number>): Map<string, number> {
+  const citationMap = new Map<string, number>(existingMap);
+  let nextCitationNumber = existingMap ? Math.max(...Array.from(existingMap.values())) + 1 : 1;
+
+  // Assign citation numbers to new findings not yet in the map
+  for (const finding of findings) {
+    if (!citationMap.has(finding.id)) {
+      citationMap.set(finding.id, nextCitationNumber);
+      nextCitationNumber++;
+    }
+  }
+
+  console.log(`🗺️ [createCitationMapping] Created citation map with ${citationMap.size} entries`);
+  console.log(`🗺️ [createCitationMapping] Sample mappings:`,
+    Array.from(citationMap.entries()).slice(0, 5).map(([id, num]) => `${id.substring(0, 8)}... => [${num}]`)
+  );
+
+  return citationMap;
+}
+
 function buildSystemPrompt(context: any): string {
+  // Create or update the citation mapping
+  const existingMap = context.citationMap ? new Map(Object.entries(context.citationMap)) : undefined;
+  const citationMap = createCitationMapping(context.findings || [], existingMap);
+
+  // Store the citation map back in the context for persistence
+  context.citationMap = Object.fromEntries(citationMap);
+
   let prompt = `You are a knowledgeable medical research assistant helping users understand and explore medical research findings.
 You have access to research findings, clinical trials, and medical literature that the user has collected.
 
@@ -398,57 +432,87 @@ When you have limited information from the findings:
 - Share what IS known from the findings, even if incomplete
 - Suggest specific questions the user could explore or search terms to use
 
-When referencing research findings, use citations in the format [1], [2], etc. and briefly mention the source type.
-CRITICAL: You have exactly ${context.findings?.length || 0} findings available. Only use citation numbers from [1] to [${context.findings?.length || 0}].
-Never reference citations beyond [${context.findings?.length || 0}] as they do not exist in the current context.
+CRITICAL CITATION INSTRUCTIONS:
+When referencing research findings, you MUST use the EXACT citation numbers provided below.
+Each finding has been assigned a specific citation number that you must use when referencing it.
+DO NOT create your own citation numbers or use array positions.
 
-Important: You are NOT providing medical advice. Encourage users to consult with healthcare professionals for medical decisions. However, you CAN help interpret research findings and explain medical concepts.`;
+Available research findings with their assigned citation numbers:`;
 
   if (context.findings && context.findings.length > 0) {
-    prompt += '\n\nAvailable research findings for reference:\n';
-    // Use ALL findings provided by frontend for citation consistency
-    // Frontend should limit to 50 findings to prevent token overflow
     const findingsToInclude = context.findings;
 
-    console.log(`📚 [buildSystemPrompt] Including ${findingsToInclude.length} findings in prompt for citations`);
+    console.log(`📚 [buildSystemPrompt] Including ${findingsToInclude.length} findings with stable citation numbers`);
 
-    findingsToInclude.forEach((finding: any, index: number) => {
+    // Sort findings by their citation number for consistent presentation
+    const findingsWithNumbers = findingsToInclude.map((finding: any) => ({
+      finding,
+      citationNumber: citationMap.get(finding.id) || 999
+    })).sort((a: any, b: any) => a.citationNumber - b.citationNumber);
+
+    findingsWithNumbers.forEach(({ finding, citationNumber }: any) => {
       const sourceInfo = finding.source || 'Unknown Source';
       const title = finding.title || 'Untitled';
       const content = finding.content || finding.summary || '';
 
-      prompt += `\n[${index + 1}] ${sourceInfo} - "${title}"`;
+      prompt += `\n\n[${citationNumber}] - Finding ID: ${finding.id}`;
+      prompt += `\nSource: ${sourceInfo}`;
+      prompt += `\nTitle: ${title}`;
       if (content) {
         // Limit content preview to reduce token usage (200 chars max)
         prompt += `\nContent: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`;
       }
-      prompt += '\n';
     });
+
+    prompt += `\n\nREMINDER: You have exactly ${citationMap.size} findings available with citation numbers from [1] to [${citationMap.size}].`;
+    prompt += `\nUSE ONLY THE CITATION NUMBERS SHOWN ABOVE. Never create new citation numbers.`;
+  } else {
+    prompt += '\n\nNo research findings are currently available for citation.';
   }
 
   if (context.conversationFocus) {
     prompt += `\n\nCurrent conversation focus: ${context.conversationFocus}`;
   }
 
+  prompt += '\n\nImportant: You are NOT providing medical advice. Encourage users to consult with healthcare professionals for medical decisions. However, you CAN help interpret research findings and explain medical concepts.';
+
   return prompt;
 }
 
 function extractCitations(
   content: string,
-  findings: any[]
+  findings: any[],
+  citationMap?: Map<string, number> | Record<string, number>
 ): Array<{
-  findingId: string;
+  findingId: string | null;
   citationNumber: number;
   citationText: string;
+  source?: any;
   highlightStart: number;
   highlightEnd: number;
+  isPlaceholder?: boolean;
 }> {
   const citations: Array<any> = [];
   const citationPattern = /\[(\d+)\]/g;
   const seenCitations = new Set<number>();
   let match;
 
-  // Extract all citation numbers from the content first
+  // Convert citationMap to Map if it's a plain object
+  const mapAsMap = citationMap instanceof Map
+    ? citationMap
+    : citationMap
+      ? new Map(Object.entries(citationMap))
+      : null;
+
+  // Create reverse map: citation number -> finding ID
+  const reverseMap = new Map<number, string>();
+  if (mapAsMap) {
+    for (const [findingId, citationNum] of mapAsMap.entries()) {
+      reverseMap.set(citationNum, findingId);
+    }
+  }
+
+  // Extract all citation numbers from the content first for logging
   const allCitationNumbers: number[] = [];
   while ((match = citationPattern.exec(content)) !== null) {
     allCitationNumbers.push(parseInt(match[1]));
@@ -457,7 +521,9 @@ function extractCitations(
   console.log(`🔍 [extractCitations] Found citation numbers in content:`, {
     citationNumbers: [...new Set(allCitationNumbers)].sort((a, b) => a - b),
     findingsCount: findings.length,
-    findingIds: findings.slice(0, 5).map(f => f.id) // Show first 5 IDs for debugging
+    hasMap: !!mapAsMap,
+    mapSize: mapAsMap?.size || 0,
+    reversMapEntries: reverseMap.size
   });
 
   // Reset pattern for actual extraction
@@ -470,49 +536,60 @@ function extractCitations(
     if (seenCitations.has(citationNum)) continue;
     seenCitations.add(citationNum);
 
-    // The citation number directly corresponds to the 1-based index in the findings array
-    const arrayIndex = citationNum - 1;
+    let finding = null;
+    let findingId = null;
 
-    // Check if this citation number corresponds to a valid finding
-    if (arrayIndex >= 0 && arrayIndex < findings.length) {
-      const finding = findings[arrayIndex];
+    if (reverseMap.has(citationNum)) {
+      // Use the citation map to find the correct finding
+      findingId = reverseMap.get(citationNum)!;
+      finding = findings.find(f => f.id === findingId);
 
+      console.log(`🗺️ [extractCitations] Using citation map: [${citationNum}] => ${findingId.substring(0, 8)}...`);
+    } else if (!mapAsMap) {
+      // Fallback to array index if no map exists (backward compatibility)
+      const arrayIndex = citationNum - 1;
+      if (arrayIndex >= 0 && arrayIndex < findings.length) {
+        finding = findings[arrayIndex];
+        findingId = finding.id;
+        console.log(`⚠️ [extractCitations] No map available, using array index fallback: [${citationNum}] => index ${arrayIndex}`);
+      }
+    }
+
+    if (finding && findingId) {
       // Ensure source is an object, not a string
       const sourceObj = typeof finding.source === 'string'
         ? { name: finding.source, type: 'unknown', displayName: finding.source }
         : (finding.source || { name: 'Unknown Source', type: 'unknown', displayName: 'Unknown Source' });
 
       citations.push({
-        findingId: finding.id,
-        citationNumber: citationNum, // Use the actual citation number from the text
+        findingId: findingId,
+        citationNumber: citationNum,
         citationText: finding.title || finding.content?.substring(0, 100) || 'Research Finding',
-        source: sourceObj, // Include the full source object
+        source: sourceObj,
         highlightStart: match.index,
         highlightEnd: match.index + match[0].length
       });
 
-      console.log(`✅ [extractCitations] Citation [${citationNum}] mapped to finding ${finding.id} (${finding.title?.substring(0, 30)}...) with source: ${sourceObj.displayName || sourceObj.name}`);
+      console.log(`✅ [extractCitations] Citation [${citationNum}] successfully mapped to finding ${findingId} (${finding.title?.substring(0, 30)}...)`);
     } else {
-      // Still create a citation entry but mark it as unavailable
-      // This allows the frontend to show it as a citation (not plain text) but handle it gracefully
-      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] exceeds available findings (requested index ${arrayIndex}, but only ${findings.length} findings available)`);
+      // Create a placeholder citation for unmapped citations
+      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] not found in citation map or findings`);
 
-      // Create a placeholder citation that frontend can recognize as invalid
       citations.push({
-        findingId: null, // Signal that finding is not available
+        findingId: null,
         citationNumber: citationNum,
         citationText: `Citation ${citationNum} (reference not available)`,
         source: { name: 'Reference Not Available', type: 'unavailable', displayName: 'Reference Not Available' },
         highlightStart: match.index,
         highlightEnd: match.index + match[0].length,
-        isPlaceholder: true // Flag for frontend
+        isPlaceholder: true
       });
 
-      console.log(`📝 [extractCitations] Created placeholder for citation [${citationNum}] that exceeds available findings`);
+      console.log(`📝 [extractCitations] Created placeholder for unmapped citation [${citationNum}]`);
     }
   }
 
-  console.log(`📚 [extractCitations] Final result: Extracted ${citations.length} valid citations from ${seenCitations.size} unique citation numbers`);
+  console.log(`📚 [extractCitations] Final result: Extracted ${citations.length} citations (${citations.filter(c => !c.isPlaceholder).length} valid, ${citations.filter(c => c.isPlaceholder).length} placeholders)`);
   return citations;
 }
 

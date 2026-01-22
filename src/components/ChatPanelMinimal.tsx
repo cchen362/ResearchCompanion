@@ -22,6 +22,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [citationMap, setCitationMap] = useState<Record<string, number>>({});
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -322,6 +323,11 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         expandedTopics: [],
         recentInteractions: [],
         userPreferences: {},
+        citationMap: citationMap, // Include existing citation map for stable numbering
+        previousMessages: messages.slice(-10).map(m => ({ // Include recent messages for context
+          role: m.role,
+          content: m.content
+        }))
       };
 
       // First add the user message to the local state
@@ -381,6 +387,12 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       });
 
       setMessages(prev => [...prev, aiMessage]);
+
+      // Update citation map if returned by backend
+      if (response.data.citationMap) {
+        setCitationMap(response.data.citationMap);
+        console.log('🗺️ [ChatPanel] Updated citation map:', response.data.citationMap);
+      }
 
       // Set suggested questions if available
       if (response.data.suggestedQuestions && response.data.suggestedQuestions.length > 0) {
