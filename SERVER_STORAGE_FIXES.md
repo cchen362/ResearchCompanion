@@ -747,6 +747,63 @@ if (reverseMap.has(citationNum)) {
 
 **Deployment:** January 21, 2026
 
+## Issue 18: Production Login CORS Failure - Uncommitted Code & Service Worker (FIXED)
+**Problem:** After initial deployment attempt, users still couldn't login. Frontend at `https://cl.zyroi.com` was STILL trying to connect to `http://localhost:3001`, even though we had "fixed" the code.
+
+**Root Cause:** The fixes were made but NEVER COMMITTED to git! Docker builds from the git repository, not the working directory. The server was running a Docker image built from old commit 93b9007 which still had `localhost:3001`.
+
+**Investigation Findings:**
+- Browser was loading `index-VRyG5v_o.js` (old build hash)
+- Local dist had `index-D4kHR_Bu.js` (new build hash with fix)
+- Git status showed `src/config/storage.config.ts` as modified (uncommitted)
+- Docker was building from git commit, not working directory changes
+
+**Complete Fix:**
+1. **Committed the fixes to git** (commit 2535692)
+   - `src/config/storage.config.ts` - Changed fallback from `'http://localhost:3001'` to `'/api'`
+   - `src/services/auth.service.ts` - Updated to use centralized API client
+   - `backend/src/index.ts` - Removed insecure HTTP from CORS
+   - `backend/src/db/database.ts` - Fixed SSL detection
+2. **Pushed to remote repository**
+3. **Pulled latest code on server**
+4. **Built fresh Docker image with `--no-cache`** to avoid stale layers
+5. **Discovered and fixed ANOTHER hardcoded localhost:3001 in `public/sw.js` line 198** (commit 26baa1b)
+   - Service worker was making API calls to `'http://localhost:3001/api/run-agent'`
+   - Changed to relative path `'/api/run-agent'`
+6. **Final deployment with image `medical-companion-pwa:final-fix`** (container ID: 552a82691f86)
+
+**Deployment:** January 22, 2026 at 15:27 UTC
+
+**Test Results:**
+- ✅ Registration API working: `curl -X POST https://cl.zyroi.com/api/auth/register` returns JWT token
+- ✅ Login API working: `curl -X POST https://cl.zyroi.com/api/auth/login` returns JWT token
+- ✅ No more CORS errors - API correctly proxied through `/api`
+- ✅ Backend connected to PostgreSQL successfully
+```bash
+# On server
+git pull origin fix/digest-findings-race-condition
+docker build --no-cache -t medical-companion-pwa:api-fix .
+docker stop [old-container] && docker rm [old-container]
+docker run -d --name medical-pwa \
+  --network medical-pwa_medcompanion-network \
+  -p 6767:6767 \
+  -e DATABASE_URL="postgresql://meduser:[actual-password]@medcompanion-postgres:5432/medcompanion?sslmode=disable" \
+  [other-env-vars] \
+  medical-companion-pwa:api-fix
+```
+
+**Container ID:** 9d9c8bba7128
+
+**Critical Lessons Learned:**
+1. **Docker builds from git, NOT working directory** - Always commit before building Docker images
+2. **Use `--no-cache` for critical fixes** - Prevents Docker from using stale cached layers
+3. **File hash changes indicate new builds** - Different hashes = different code versions
+4. **Check git status before deployment** - Uncommitted changes won't deploy
+5. **Network names must match exactly** - Container and database must be on same Docker network
+6. **Verify actual passwords in running containers** - Don't assume default passwords are used
+7. **Service workers can have hardcoded URLs too** - Check ALL files, not just TypeScript/React
+8. **Search beyond obvious files** - public/sw.js had localhost:3001 not found initially
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -763,7 +820,8 @@ if (reverseMap.has(citationNum)) {
 12. ✅ Fix segmentation fault issue with Alpine Linux (COMPLETED Jan 20, 2026)
 13. ✅ Fix complete chat persistence failure (COMPLETED Jan 20, 2026 at 16:00 UTC)
 14. ✅ Fix citation rendering with Docker cache issue (COMPLETED Jan 20, 2026 at 21:50 UTC)
-15. Monitor and verify all chat features work correctly
-16. Consider implementing proper streaming with fetch + ReadableStream API
-17. Add maximize/fullscreen mode for chat
+15. ✅ Fix production login CORS failure - uncommitted code & service worker (COMPLETED Jan 22, 2026 at 15:27 UTC)
+16. Monitor and verify all chat features work correctly
+17. Consider implementing proper streaming with fetch + ReadableStream API
+18. Add maximize/fullscreen mode for chat
 18. Implement message search functionality
