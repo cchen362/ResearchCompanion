@@ -382,7 +382,15 @@ router.post('/suggestions', async (req: Request, res: Response) => {
  */
 function createCitationMapping(findings: any[], existingMap?: Map<string, number>): Map<string, number> {
   const citationMap = new Map<string, number>(existingMap);
-  let nextCitationNumber = existingMap ? Math.max(...Array.from(existingMap.values())) + 1 : 1;
+  let nextCitationNumber = 1;
+
+  // Calculate next citation number if there's an existing map with values
+  if (existingMap && existingMap.size > 0) {
+    const values = Array.from(existingMap.values());
+    if (values.length > 0) {
+      nextCitationNumber = Math.max(...values) + 1;
+    }
+  }
 
   // Assign citation numbers to new findings not yet in the map
   for (const finding of findings) {
