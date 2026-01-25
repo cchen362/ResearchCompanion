@@ -17,7 +17,7 @@ RUN rm -f .env .env.local .env.production.local
 
 # Set Vite environment variables for build
 ENV VITE_USE_SERVER_STORAGE=true
-ENV VITE_API_URL=/api
+ENV VITE_API_BASE_URL=/api
 
 # Build frontend
 RUN npm run build
