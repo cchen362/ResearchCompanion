@@ -42,7 +42,7 @@ const AGENT_CONFIGS = {
 };
 
 // API endpoints (these would be configured from environment)
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Main agent execution function
 export async function runAgent(agent: Agent, topic: Topic): Promise<ResearchFinding[]> {

@@ -804,6 +804,100 @@ docker run -d --name medical-pwa \
 7. **Service workers can have hardcoded URLs too** - Check ALL files, not just TypeScript/React
 8. **Search beyond obvious files** - public/sw.js had localhost:3001 not found initially
 
+## Issue 19: Production Environment Variable Mismatch (FIXED - January 25, 2026)
+
+**Problem:** After previous deployments, users still couldn't login at cl.zyroi.com. Browser console showed attempts to connect to `http://localhost:3001/auth/login` instead of using the `/api` proxy.
+
+**Investigation:**
+1. Container had crashed and exited (restarted successfully)
+2. Environment variable name mismatch discovered across multiple files
+3. `.env.production` file was overriding Docker build environment variables
+
+**Root Causes:**
+1. **Container crash** - Docker container had exited 16 minutes before investigation
+2. **Variable name mismatch** - Code was looking for `VITE_API_BASE_URL` but multiple places defined `VITE_API_URL`
+3. **Hidden override** - `.env.production` file (gitignored but used in build) had wrong variable name
+
+**Files with Mismatched Variable Names:**
+- `src/services/api.ts` - Used `VITE_API_URL` (fixed to `VITE_API_BASE_URL`)
+- `src/config/storage.config.ts` - Used `VITE_API_URL` (fixed to `VITE_API_BASE_URL`)
+- `Dockerfile` - Set `ENV VITE_API_URL=/api` (fixed to `VITE_API_BASE_URL`)
+- `.env.production` - Had `VITE_API_URL=/api` (fixed to `VITE_API_BASE_URL`)
+- `.env` - Had `VITE_API_URL=http://localhost:3001` (fixed for consistency)
+
+**Fix Applied:**
+1. Standardized all environment variable references to use `VITE_API_BASE_URL`
+2. Added `.env.production` to git (with force add) to ensure Docker builds use correct variables
+3. Rebuilt Docker image with `--no-cache` flag multiple times
+4. Added `--restart=always` policy to prevent future downtime from crashes
+
+**Deployment:**
+```bash
+# Final successful deployment
+docker run -d --name medical-companion \
+  --restart=always \
+  --network medical-pwa_medcompanion-network \
+  -p 6767:6767 -p 3001:3001 \
+  [environment variables] \
+  medical-companion-pwa:production-fix
+```
+
+**Container Status:**
+- Image: `medical-companion-pwa:production-fix`
+- Container ID: `286f92d28fee`
+- Auto-restart: Enabled
+- API: Working at https://cl.zyroi.com/api/auth/login
+
+**Lessons Learned:**
+1. **Check ALL environment variable locations** - Including `.env.production` files
+2. **Container monitoring is critical** - Containers can crash silently
+3. **Variable name consistency** - A single mismatch can break production
+4. **Always use --restart=always** - Prevents downtime from unexpected exits
+5. **Force add production env files** - Even if gitignored, they're needed for builds
+
+## Issue 20: Local Development Login Failure - Environment Variable Mismatch (FIXED - January 26, 2026)
+
+**Problem:** Local development login failed with `ERR_CONNECTION_REFUSED` when trying to connect to `http://localhost:3001/auth/login`. This persisted for days after server migration work.
+
+**Investigation:**
+- Error: `POST http://localhost:3001/auth/login net::ERR_CONNECTION_REFUSED`
+- Last working commit: `3baecbf`
+- Recent commits had renamed environment variable from `VITE_API_URL` to `VITE_API_BASE_URL`
+
+**Root Cause:** The `.env.local` file (used for local development) was not updated when the environment variable was renamed from `VITE_API_URL` to `VITE_API_BASE_URL` in commits 80e4329 through 8a0f228.
+
+**What Happened:**
+1. **Commit 80e4329**: Renamed `VITE_API_URL` → `VITE_API_BASE_URL` in `src/services/api.ts`
+2. **Subsequent commits**: Updated Dockerfile, storage.config.ts, and .env.production
+3. **Missed file**: `.env.local` still had `VITE_API_URL=http://localhost:3001`
+4. **Result**: Frontend looked for `VITE_API_BASE_URL` (undefined), fell back to `/api`, tried `localhost:5173/api` instead of `localhost:3001/api`
+
+**Files Updated:**
+- `.env.local` - Changed `VITE_API_URL` to `VITE_API_BASE_URL` (line 2)
+- `src/services/agentService.ts` - Fixed lingering `VITE_API_URL` reference (line 45)
+
+**Fix Applied:**
+```bash
+# .env.local (line 2)
+# Before: VITE_API_URL=http://localhost:3001
+# After:  VITE_API_BASE_URL=http://localhost:3001
+```
+
+**Deployment:** Local development only - no production deployment needed
+
+**Verification:**
+- ✅ Backend running on port 3001
+- ✅ Frontend running on port 5176
+- ✅ API calls now correctly go to `http://localhost:3001/api/*`
+- ✅ Login functionality restored
+
+**Lessons Learned:**
+1. **`.env.local` is not tracked in git** - Easy to miss during environment variable renames
+2. **Check ALL environment files** - `.env`, `.env.local`, `.env.production`, `.env.docker`, etc.
+3. **Incomplete migrations cause confusing errors** - Variable undefined → fallback → wrong endpoint
+4. **Test locally after environment variable changes** - Would have caught this immediately
+5. **Use grep to find all occurrences** - `grep -r "VITE_API_URL" .` would have found the missed references
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -821,7 +915,8 @@ docker run -d --name medical-pwa \
 13. ✅ Fix complete chat persistence failure (COMPLETED Jan 20, 2026 at 16:00 UTC)
 14. ✅ Fix citation rendering with Docker cache issue (COMPLETED Jan 20, 2026 at 21:50 UTC)
 15. ✅ Fix production login CORS failure - uncommitted code & service worker (COMPLETED Jan 22, 2026 at 15:27 UTC)
-16. Monitor and verify all chat features work correctly
+16. ✅ Fix environment variable mismatch causing localhost:3001 in production (COMPLETED Jan 25, 2026 at 18:50 UTC)
+17. Monitor and verify all chat features work correctly
 17. Consider implementing proper streaming with fetch + ReadableStream API
 18. Add maximize/fullscreen mode for chat
 18. Implement message search functionality
