@@ -136,12 +136,51 @@ ChatPanel → useChatStore → chatService → EventSource → useChatStore (CIR
 
 **Solution:** Use configured API client with interceptors
 
+### Issue 21: Production Login Fails - Browser Cache Issues (FIXED)
+**Problem:** Production site at https://cl.zyroi.com was trying to connect to `http://localhost:3001/auth/login` instead of using `/api` proxy, causing CORS errors. Multiple deployment attempts failed to fix the issue.
+
+**Root Cause:** Nginx was caching JavaScript files for 30 days with `Cache-Control: public, immutable`. The `immutable` directive prevented browsers from checking for updates, serving old cached files even after deployments.
+
+**Investigation:**
+1. Found environment variable mismatch (VITE_API_URL vs VITE_API_BASE_URL)
+2. Fixed environment variables and rebuilt multiple times
+3. Issue persisted because browsers were serving cached JavaScript
+4. Discovered nginx.conf had aggressive caching: `expires 30d` + `immutable` for .js files
+
+**Fix:**
+1. Updated nginx.conf to cache JavaScript for only 1 hour with revalidation:
+   ```nginx
+   location ~* \.(js|css)$ {
+       expires 1h;
+       add_header Cache-Control "public, must-revalidate";
+   }
+   ```
+2. Bumped service worker version to `v6-fix` to force cache clearing
+3. Modified service worker to not cache .js files at all
+4. Created deployment script with cache clearing steps
+
+**Files Modified:**
+- `nginx.conf` - Changed JS/CSS cache from 30d immutable to 1h with revalidation
+- `public/sw.js` - Bumped version to v6-fix, excluded .js from caching
+- `deploy-cache-fix.sh` - New deployment script with cache clearing
+
+**Deployment:** January 26, 2026
+- Deploy with `deploy-cache-fix.sh` script
+- Users need to clear browser cache or wait 1 hour for auto-refresh
+
+**Lessons:**
+- Never use `immutable` cache directive for frequently changing files
+- JavaScript bundles should have short cache TTLs with revalidation
+- Service worker version bumps force cache refresh
+- "Works in incognito but not regular browser" = cache issue
+
 ### Current Implementation Status
 - ✅ Chat loads and displays messages
 - ✅ Streaming responses work
 - ✅ Citations render and are clickable
 - ✅ Message persistence works
 - ✅ No circular dependencies
+- ✅ Fixed browser caching preventing updates
 - ✅ Authentication works
 
 ---

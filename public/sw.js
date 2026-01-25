@@ -1,6 +1,6 @@
 // Service Worker for Medical Research Companion PWA
 // IMPORTANT: Keep CACHE_NAME version in sync with DB_VERSION in src/utils/db/database.ts
-const CACHE_NAME = 'med-companion-v5';
+const CACHE_NAME = 'med-companion-v6-fix';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -60,8 +60,12 @@ self.addEventListener('fetch', (event) => {
           // Clone the response
           const responseToCache = response.clone();
 
-          // Don't cache API calls
-          if (!event.request.url.includes('/api/')) {
+          // Don't cache API calls or JavaScript files
+          const shouldCache = !event.request.url.includes('/api/') &&
+                            !event.request.url.endsWith('.js') &&
+                            !event.request.url.endsWith('.mjs');
+
+          if (shouldCache) {
             caches.open(CACHE_NAME)
               .then((cache) => {
                 cache.put(event.request, responseToCache);

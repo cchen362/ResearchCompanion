@@ -1,11 +1,28 @@
 # Production Deployment - January 22, 2026
 
 ## Deployment Details
+
+### Initial Deployment
 - **Time**: 09:12 UTC
 - **Server**: 100.94.82.35:6767
 - **Commit**: 94a7c45
 - **Branch**: fix/digest-findings-race-condition
+- **Container**: 9b922756af99
 - **Status**: ✅ Successfully deployed
+
+### Update Deployment - 504 Timeout Fix
+- **Time**: 09:50 UTC
+- **Container**: c00940364598
+- **Status**: ✅ Successfully deployed
+- **Critical Fix**: Reduced digest generation from 100→10 findings to prevent Cloudflare 504 timeouts
+
+### Final Deployment - Database Connection Fix
+- **Time**: 10:03 UTC
+- **Container**: 738cd506837c
+- **Status**: ✅ Successfully deployed
+- **Critical Fix**: Fixed database connection for authentication
+- **Network**: medical-pwa_medcompanion-network
+- **Database**: PostgreSQL connected successfully
 
 ## Fixes Deployed
 
@@ -26,10 +43,12 @@
 - Component automatically triggers processing for pending digests
 - Auto-queues digest when agent findings exist without digest
 
-### 4. Digest Generation Optimization
-- Reduced finding count from 100 to 50 to prevent timeouts
-- Added automatic retry with 20 findings on 504 error
-- Better error handling for gateway timeouts
+### 4. Digest Generation Optimization (UPDATED)
+- **CRITICAL**: Reduced finding count from 100 to **10 findings** to prevent Cloudflare 504 timeout
+- Anthropic API timeout reduced from 60s to 30s
+- Added automatic retry with 5 findings on first 504 error
+- Added final retry with 2 findings if still timing out
+- Backend includes timeout detection with minimal fallback response
 - Made `processQueue()` public for immediate triggering
 
 ### 5. Comprehensive Error Handling
@@ -49,10 +68,13 @@
 
 ## Container Status
 ```
-Container ID: 9b922756af99
+Container ID: 738cd506837c
 Status: Running (healthy)
 Backend: Connected to PostgreSQL ✅
 Port: 6767 (nginx) / 3001 (backend API)
+Image: medical-companion-pwa:fixed
+Network: medical-pwa_medcompanion-network
+Database: postgresql://meduser@medcompanion-postgres:5432/medcompanion
 ```
 
 ## Testing Instructions
@@ -76,9 +98,11 @@ Port: 6767 (nginx) / 3001 (backend API)
 
 ## Known Considerations
 
-- Digest generation limited to 50 findings (20 on retry) to prevent timeouts
+- **IMPORTANT**: Digest generation limited to **10 findings** (5 on first retry, 2 on final retry) to prevent Cloudflare 504 timeouts
+- Anthropic API timeout set to 30 seconds (reduced from 60s)
 - Queue processes every 5 seconds but can be triggered immediately
 - All cascade deletions handled by PostgreSQL foreign key constraints
+- Cloudflare has a 100-second timeout limit that cannot be changed
 
 ## Next Steps
 
