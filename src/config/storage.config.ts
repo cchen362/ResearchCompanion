@@ -9,7 +9,7 @@
 export const USE_SERVER_STORAGE = import.meta.env.VITE_USE_SERVER_STORAGE === 'true' || false;
 
 // API base URL - Use relative path to leverage nginx proxy in production
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Storage configuration
 export const storageConfig = {
