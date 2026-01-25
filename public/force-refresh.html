@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Refresh - Medical Companion</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Force Refresh Tool</h1>
+
+        <div class="status info">
+            <strong>Cache Issue Detected</strong><br>
+            Your browser is using outdated cached files. This tool will clear everything and get the latest version.
+        </div>
+
+        <div id="status-log" class="log"></div>
+
+        <h3>Quick Fix Options:</h3>
+
+        <button onclick="clearEverything()">
+            🧹 Clear Everything & Reload
+        </button>
+
+        <button onclick="clearCachesOnly()">
+            📦 Clear Caches Only
+        </button>
+
+        <button onclick="clearIndexedDB()">
+            💾 Clear Database Only
+        </button>
+
+        <h3>Manual Instructions:</h3>
+        <ol>
+            <li><strong>Quick Try:</strong> Press <code>Ctrl+Shift+F5</code> (Windows/Linux) or <code>Cmd+Shift+R</code> (Mac)</li>
+            <li><strong>Chrome DevTools:</strong>
+                <ul>
+                    <li>Open DevTools (F12)</li>
+                    <li>Right-click the Refresh button</li>
+                    <li>Select "Empty Cache and Hard Reload"</li>
+                </ul>
+            </li>
+            <li><strong>Nuclear Option:</strong> Try Incognito/Private mode</li>
+        </ol>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const log = (message, type = 'info') => {
+            const logDiv = document.getElementById('status-log');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'success' ? 'green' : type === 'error' ? 'red' : 'blue';
+            logDiv.innerHTML += `<div style="color: ${color}">[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        async function clearIndexedDB() {
+            log('Starting IndexedDB cleanup...');
+            try {
+                const databases = await indexedDB.databases();
+                for (const db of databases) {
+                    log(`Deleting database: ${db.name}`);
+                    await indexedDB.deleteDatabase(db.name);
+                }
+                log('✅ All IndexedDB databases cleared', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ Error clearing IndexedDB: ${error.message}`, 'error');
+                // Fallback method
+                try {
+                    await indexedDB.deleteDatabase('MedCompanionDB');
+                    await indexedDB.deleteDatabase('MedicalCompanionDB');
+                    log('✅ Fallback cleanup successful', 'success');
+                    return true;
+                } catch (fallbackError) {
+                    log(`❌ Fallback failed: ${fallbackError.message}`, 'error');
+                    return false;
+                }
+            }
+        }
+
+        async function clearCaches() {
+            log('Starting cache cleanup...');
+
+            // Clear service worker caches
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    for (const name of cacheNames) {
+                        log(`Deleting cache: ${name}`);
+                        await caches.delete(name);
+                    }
+                    log('✅ All caches cleared', 'success');
+                } catch (error) {
+                    log(`❌ Error clearing caches: ${error.message}`, 'error');
+                }
+            }
+
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                        log('✅ Service worker unregistered', 'success');
+                    }
+                } catch (error) {
+                    log(`⚠️ Service worker error: ${error.message}`, 'error');
+                }
+            }
+
+            return true;
+        }
+
+        async function clearStorage() {
+            log('Clearing local storage...');
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                log('✅ Storage cleared', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ Error clearing storage: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function clearCachesOnly() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = '⏳ Clearing...';
+
+            await clearCaches();
+
+            log('🔄 Reloading in 2 seconds...', 'success');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+
+        async function clearEverything() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = '⏳ Clearing Everything...';
+
+            const results = await Promise.all([
+                clearIndexedDB(),
+                clearCaches(),
+                clearStorage()
+            ]);
+
+            if (results.every(r => r)) {
+                log('✅ COMPLETE CLEANUP SUCCESSFUL!', 'success');
+                document.getElementById('result').innerHTML =
+                    '<div class="status success">✅ All caches and data cleared successfully! Redirecting to home page in 3 seconds...</div>';
+
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            } else {
+                log('⚠️ Partial cleanup completed', 'error');
+                document.getElementById('result').innerHTML =
+                    '<div class="status error">⚠️ Some items could not be cleared. Try using Chrome DevTools Application tab to clear site data manually.</div>';
+            }
+        }
+
+        // Auto-detect issues
+        window.addEventListener('load', () => {
+            // Check if we're still trying to use localhost
+            if (window.location.hostname !== 'localhost' && document.documentElement.innerHTML.includes('localhost:3001')) {
+                log('⚠️ Detected localhost:3001 references in production!', 'error');
+                log('This indicates outdated JavaScript is cached', 'error');
+            }
+
+            // Try to detect IndexedDB issues
+            const testDB = indexedDB.open('test', 1);
+            testDB.onsuccess = () => {
+                testDB.result.close();
+                indexedDB.deleteDatabase('test');
+                log('✅ IndexedDB is accessible', 'success');
+            };
+            testDB.onerror = () => {
+                log('❌ IndexedDB access issues detected', 'error');
+            };
+        });
+    </script>
+</body>
+</html>
