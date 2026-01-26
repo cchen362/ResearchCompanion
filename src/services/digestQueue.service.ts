@@ -577,19 +577,17 @@ export class DigestQueueService {
     // Update progress: Generating
     await this.updateProgress(queueItem.id, 'generating', 50, 'Generating intelligent digest...');
 
-    // Implement retry logic with exponential backoff - but with MUCH fewer findings
+    // Implement retry logic with exponential backoff
     let lastError: Error | null = null;
-    const maxRetries = 2; // Reduce retries to avoid long waits
+    const maxRetries = 2; // Reasonable retry count with 120s timeout
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // API call with drastically reduced findings to prevent timeout
-        // Start with only 10 findings, then 5 on retry
-        const findingLimit = attempt === 1 ? 10 : 5;
-        console.log(`[DigestQueue] Attempt ${attempt}: Sending ${findingLimit} findings to avoid timeout`);
+        // Send ALL findings - backend now has 120s timeout and smart formatting
+        console.log(`[DigestQueue] Attempt ${attempt}: Sending ALL ${findings.length} findings`);
 
         const response = await longOperationApi.post('/generate-digest', {
-          findings: findings.slice(0, findingLimit), // DRASTICALLY reduced to avoid Cloudflare timeout
+          findings: findings, // Send ALL findings - no artificial limits
           topic,
           timeframe
         });
