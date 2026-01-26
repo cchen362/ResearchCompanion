@@ -32,7 +32,7 @@ export class TimelineModel {
 
     const query = `
       INSERT INTO timeline_events (
-        id, user_id, topic_id, type, title,
+        id, user_id, topic_id, event_type, title,
         event_date, data, metadata, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
@@ -232,7 +232,7 @@ export class TimelineModel {
   static async getByType(userId: string, type: string): Promise<TimelineEventDB[]> {
     const query = `
       SELECT * FROM timeline_events
-      WHERE user_id = $1 AND type = $2
+      WHERE user_id = $1 AND event_type = $2
       ORDER BY event_date DESC, created_at DESC
     `;
 
@@ -253,7 +253,7 @@ export class TimelineModel {
       id: row.id,
       user_id: row.user_id,
       topic_id: row.topic_id,
-      type: row.type,
+      type: row.event_type,  // Read from event_type column
       title: row.title,
       description: row.description,
       event_date: row.event_date,

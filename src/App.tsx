@@ -49,21 +49,20 @@ function App() {
         // Load topics
         await refreshTopics();
 
-        // Register service worker
-        try {
-          await registerServiceWorker();
-
-          // Listen for PWA install prompt
-          listenForInstallPrompt();
-
-          // Schedule agent checks every hour - but don't fail if it times out
-          scheduleAgentCheck(60).catch(err => {
-            console.warn('Agent scheduling failed (non-critical):', err);
-          });
-        } catch (swError) {
-          console.warn('Service worker registration failed (non-critical):', swError);
-          // Continue without service worker - app still works
-        }
+        // Service worker disabled - server-first architecture
+        // Per CLAUDE.md: No offline support, service worker removed
+        // try {
+        //   await registerServiceWorker();
+        //   // Listen for PWA install prompt
+        //   listenForInstallPrompt();
+        //   // Schedule agent checks every hour - but don't fail if it times out
+        //   scheduleAgentCheck(60).catch(err => {
+        //     console.warn('Agent scheduling failed (non-critical):', err);
+        //   });
+        // } catch (swError) {
+        //   console.warn('Service worker registration failed (non-critical):', swError);
+        //   // Continue without service worker - app still works
+        // }
       } catch (err) {
         console.error('Failed to initialize app:', err);
         setError('Failed to initialize the application. Please refresh the page.');

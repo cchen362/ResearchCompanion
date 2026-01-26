@@ -66,16 +66,17 @@ function MainApp() {
         // Load topics
         await refreshTopics();
 
-        // Register service worker
-        try {
-          await registerServiceWorker();
-          listenForInstallPrompt();
-          scheduleAgentCheck(60).catch(err => {
-            console.warn('Agent scheduling failed (non-critical):', err);
-          });
-        } catch (swError) {
-          console.warn('Service worker registration failed (non-critical):', swError);
-        }
+        // Service worker disabled - server-first architecture
+        // Per CLAUDE.md: No offline support, service worker removed
+        // try {
+        //   await registerServiceWorker();
+        //   listenForInstallPrompt();
+        //   scheduleAgentCheck(60).catch(err => {
+        //     console.warn('Agent scheduling failed (non-critical):', err);
+        //   });
+        // } catch (swError) {
+        //   console.warn('Service worker registration failed (non-critical):', swError);
+        // }
       } catch (err) {
         console.error('Failed to initialize app:', err);
         setError('Failed to initialize the application. Please refresh the page.');
