@@ -60,9 +60,13 @@ app.set('timeout', 300000); // 5 minutes in milliseconds
 const allowedOrigins = [
   'http://localhost:6767',
   'http://localhost:3000',
-  'http://localhost:5173',
-  'https://cl.zyroi.com' // Production domain (HTTPS only for security)
+  'http://localhost:5173'
 ];
+
+// Add production URL from environment if configured
+if (process.env.PRODUCTION_URL) {
+  allowedOrigins.push(process.env.PRODUCTION_URL);
+}
 
 app.use(cors({
   origin: (origin, callback) => {

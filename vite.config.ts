@@ -1,13 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+// Removed VitePWA to eliminate service worker and precaching errors
+// import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
+    // Service Worker removed to fix precaching errors
+    // App still installable via manifest.webmanifest
+    // All features require network anyway, so offline mode not needed
+    /* VitePWA({
       registerType: 'autoUpdate', // Changed from 'prompt' to auto-update service worker
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
@@ -64,7 +68,7 @@ export default defineConfig({
         enabled: true,
         type: 'module'
       }
-    })
+    }) */
   ],
   resolve: {
     alias: {

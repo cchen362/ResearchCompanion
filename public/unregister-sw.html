@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Service Worker - Medical Companion</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f9fafb;
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .status-box {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .log-entry {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4F46E5;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .button {
+            background: #4F46E5;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background: #4338CA;
+        }
+        .button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Service Worker Cleanup Utility</h1>
+
+    <div class="status-box">
+        <h2>Status</h2>
+        <div id="status">
+            <div class="spinner"></div>
+            <p style="text-align: center;">Initializing cleanup process...</p>
+        </div>
+    </div>
+
+    <div class="status-box">
+        <h2>Cleanup Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <button id="returnBtn" class="button" disabled>Return to App</button>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+        const returnBtn = document.getElementById('returnBtn');
+        let hasErrors = false;
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logDiv.appendChild(entry);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function clearAllServiceWorkers() {
+            try {
+                // Check if service workers are supported
+                if (!('serviceWorker' in navigator)) {
+                    log('Service workers not supported in this browser', 'warning');
+                    return;
+                }
+
+                log('Starting service worker cleanup...', 'info');
+
+                // Get all service worker registrations
+                const registrations = await navigator.serviceWorker.getRegistrations();
+
+                if (registrations.length === 0) {
+                    log('No service workers found to remove', 'success');
+                } else {
+                    log(`Found ${registrations.length} service worker(s)`, 'info');
+
+                    // Unregister each service worker
+                    for (const registration of registrations) {
+                        try {
+                            const scope = registration.scope;
+                            log(`Unregistering service worker at: ${scope}`, 'info');
+
+                            const success = await registration.unregister();
+                            if (success) {
+                                log(`✅ Successfully removed service worker at: ${scope}`, 'success');
+                            } else {
+                                log(`⚠️ Failed to remove service worker at: ${scope}`, 'warning');
+                            }
+                        } catch (err) {
+                            log(`❌ Error removing service worker: ${err.message}`, 'error');
+                            hasErrors = true;
+                        }
+                    }
+                }
+
+                // Clear all caches
+                log('Clearing all caches...', 'info');
+                const cacheNames = await caches.keys();
+
+                if (cacheNames.length === 0) {
+                    log('No caches found to clear', 'info');
+                } else {
+                    log(`Found ${cacheNames.length} cache(s)`, 'info');
+
+                    for (const cacheName of cacheNames) {
+                        try {
+                            await caches.delete(cacheName);
+                            log(`✅ Deleted cache: ${cacheName}`, 'success');
+                        } catch (err) {
+                            log(`❌ Error deleting cache ${cacheName}: ${err.message}`, 'error');
+                            hasErrors = true;
+                        }
+                    }
+                }
+
+                // Clear IndexedDB (workbox caches)
+                log('Clearing IndexedDB workbox caches...', 'info');
+                const databases = await indexedDB.databases();
+
+                for (const db of databases) {
+                    if (db.name && db.name.includes('workbox')) {
+                        try {
+                            indexedDB.deleteDatabase(db.name);
+                            log(`✅ Deleted workbox database: ${db.name}`, 'success');
+                        } catch (err) {
+                            log(`⚠️ Could not delete ${db.name}: ${err.message}`, 'warning');
+                        }
+                    }
+                }
+
+                // Final status
+                if (hasErrors) {
+                    statusDiv.innerHTML = `
+                        <div class="log-entry warning">
+                            ⚠️ Cleanup completed with some warnings. The app should still work correctly.
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="log-entry success">
+                            ✅ All service workers and caches successfully cleared!
+                        </div>
+                    `;
+                }
+
+                log('Cleanup process complete!', 'success');
+                log('You can now return to the app', 'info');
+
+            } catch (error) {
+                log(`❌ Unexpected error during cleanup: ${error.message}`, 'error');
+                statusDiv.innerHTML = `
+                    <div class="log-entry error">
+                        ❌ Error during cleanup: ${error.message}
+                    </div>
+                `;
+            } finally {
+                // Enable return button
+                returnBtn.disabled = false;
+            }
+        }
+
+        // Return button handler
+        returnBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Start cleanup automatically
+        clearAllServiceWorkers();
+    </script>
+</body>
+</html>
