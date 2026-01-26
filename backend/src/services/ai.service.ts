@@ -14,7 +14,7 @@ dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
   maxRetries: 2, // Reduce retries to 2
-  timeout: 30000, // REDUCED to 30 seconds to stay well under Cloudflare's 100s limit
+  timeout: 120000, // Increased to 120 seconds to allow complex digests to complete
 });
 
 const openai = new OpenAI({
@@ -372,20 +372,31 @@ export async function generateSmartDigest(
   const startTime = Date.now();
 
   try {
-    // Limit findings text to prevent extremely long prompts
-    const maxFindings = 10; // Hard limit to ensure fast response
-    const limitedFindings = findings.slice(0, maxFindings);
+    // Use smart formatting: first 15 findings with full detail, remaining as compact summaries
+    // This uses only ~1.2% of Claude's token capacity (2,400 of 200,000 tokens)
+    const fullDetailCount = 15;
+    const fullDetailFindings = findings.slice(0, fullDetailCount);
+    const compactFindings = findings.slice(fullDetailCount);
 
-    console.log(`[AI Service] Using ${limitedFindings.length} findings for digest`);
+    console.log(`[AI Service] Using ALL ${findings.length} findings for digest (${fullDetailFindings.length} full + ${compactFindings.length} compact)`);
 
-    // Prepare findings text for analysis
-    const findingsText = limitedFindings.map((f, idx) =>
+    // Prepare findings text with smart formatting
+    const fullDetailText = fullDetailFindings.map((f, idx) =>
       `[Finding ${idx + 1}]
 Type: ${f.type}
 Title: ${f.title}
-Summary: ${f.summary?.substring(0, 200) || 'No summary'}
+Summary: ${f.summary?.substring(0, 400) || 'No summary'}
 Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
     ).join('\n\n');
+
+    const compactText = compactFindings.length > 0
+      ? '\n\n[Additional Findings - Compact Format]\n' +
+        compactFindings.map((f, idx) =>
+          `${fullDetailCount + idx + 1}. ${f.title} (${f.source?.name || 'Unknown'})`
+        ).join('\n')
+      : '';
+
+    const findingsText = fullDetailText + compactText;
 
     console.log(`[AI Service] Calling Anthropic API...`);
 

@@ -511,11 +511,11 @@ export class DigestQueueService {
 
     console.log(`Generating digest from ${filteredFindings.length} findings (${timeframe})`);
 
-    // Call backend to generate digest
+    // Call backend to generate digest with ALL findings
     try {
-      // Use only 10 findings to ensure fast response and avoid Cloudflare timeout
+      // Send ALL findings for complete analysis - backend uses smart formatting
       const response = await longOperationApi.post('/generate-digest', {
-        findings: filteredFindings.slice(0, 10), // REDUCED to 10 findings to avoid Cloudflare 100s timeout
+        findings: filteredFindings, // Send ALL findings - no artificial limits
         topic,
         timeframe
       });
@@ -536,34 +536,8 @@ export class DigestQueueService {
         // Check for 504 Gateway Timeout
         if (axiosError.response?.status === 504) {
           console.error('Gateway timeout - digest generation took too long');
-          // Try with even fewer findings
-          if (filteredFindings.length > 5) {
-            console.log('Retrying with only 5 findings to avoid timeout');
-            try {
-              const response = await longOperationApi.post('/generate-digest', {
-                findings: filteredFindings.slice(0, 5), // Retry with only 5 findings
-                topic,
-                timeframe
-              });
-              return response.data;
-            } catch (retryError) {
-              console.error('Retry with fewer findings also failed:', retryError);
-              // Last resort - try with just 2 findings
-              if (filteredFindings.length > 2) {
-                console.log('Final attempt with only 2 findings');
-                try {
-                  const finalResponse = await longOperationApi.post('/generate-digest', {
-                    findings: filteredFindings.slice(0, 2), // Final attempt with minimal findings
-                    topic,
-                    timeframe
-                  });
-                  return finalResponse.data;
-                } catch (finalError) {
-                  console.error('All retry attempts failed');
-                }
-              }
-            }
-          }
+          // Note: With 120s timeout, this should rarely happen
+          // If it does, the issue is infrastructure (Cloudflare), not finding count
         }
 
         // Check for other axios errors

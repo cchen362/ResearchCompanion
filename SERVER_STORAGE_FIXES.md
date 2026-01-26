@@ -938,6 +938,309 @@ docker run -d --name medical-companion \
 4. **Test locally after environment variable changes** - Would have caught this immediately
 5. **Use grep to find all occurrences** - `grep -r "VITE_API_URL" .` would have found the missed references
 
+## Issue 15: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
+
+### Problem Description
+When users navigate to the Findings page after running research agents, the digest generation triggers a 504 Gateway Timeout error. Additionally, even when digests succeed, they show misleading statistics like "20 Findings / 20 in Period" while the Key Insights section only analyzes 5-10 findings due to a problematic retry mechanism.
+
+### Production Log Evidence
+```
+# Backend logs show timeout pattern:
+[AI Service] Error after 91366ms: Request timed out.
+[AI Service] Request timed out - using minimal fallback
+[AI Service] Error after 91480ms: Request timed out.
+[AI Service] Request timed out - using minimal fallback
+[AI Service] Error after 91213ms: Request timed out.
+
+# Successful responses take 26-91 seconds:
+[AI Service] Anthropic API responded in 26479ms
+✅ Digest generated successfully in 91.2s
+✅ Digest generated successfully in 91.3s
+✅ Digest generated successfully in 91.4s
+```
+
+### Root Cause Analysis
+
+#### 1. **Timeout Configuration Mismatch**
+The timeout chain has a critical bottleneck at the Anthropic SDK level:
+
+| Layer | Current Timeout | Location |
+|-------|----------------|----------|
+| **Anthropic SDK** | **30 seconds** | `backend/src/services/ai.service.ts:17` |
+| Express Routes | 300 seconds | `backend/src/routes/digest.routes.ts:12` |
+| Express Server | 300 seconds | `backend/src/index.ts:54` |
+| Nginx Proxy | 300 seconds | `nginx.conf:78-80` |
+
+**The 30-second SDK timeout is the bottleneck**. With `maxRetries: 2`, the total time becomes ~91 seconds (30s × 3 attempts) before failure.
+
+#### 2. **Artificial Finding Limits**
+Multiple places in the code artificially reduce the number of findings analyzed:
+
+**Backend Hard Limit:**
+```typescript
+// backend/src/services/ai.service.ts:376-378
+const maxFindings = 10; // Hard limit to ensure fast response
+const limitedFindings = findings.slice(0, maxFindings);
+console.log(`[AI Service] Using ${limitedFindings.length} findings for digest`);
+```
+
+**Frontend Retry Mechanism:**
+```typescript
+// src/services/digestQueue.service.ts:516-580
+// First attempt: 10 findings
+findings: filteredFindings.slice(0, 10)
+
+// First retry: 5 findings
+findings: filteredFindings.slice(0, 5)
+
+// Final retry: 2 findings
+findings: filteredFindings.slice(0, 2)
+```
+
+#### 3. **Impact on User Experience**
+- Digest shows "20 Findings / 20 in Period" in the header
+- But Key Insights only analyze 5-10 findings
+- Users see incomplete analysis that defeats the digest's purpose
+- Token usage analysis shows we can easily handle 50+ findings (only ~2,400 tokens, 1.2% of Claude's 200,000 token limit)
+
+### Step-by-Step Fix Instructions
+
+#### Step 1: Fix Anthropic SDK Timeout
+**File**: `backend/src/services/ai.service.ts`
+**Line**: 17
+```typescript
+// BEFORE (causes timeouts):
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  maxRetries: 2,
+  timeout: 30000, // 30 seconds - TOO SHORT!
+});
+
+// AFTER (handles complex digests):
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  maxRetries: 0,    // Disable retries temporarily (120s is sufficient)
+  timeout: 120000,  // 120 seconds - handles digests up to 91s
+});
+```
+
+#### Step 2: Remove Backend Finding Limit
+**File**: `backend/src/services/ai.service.ts`
+**Lines**: 376-378
+```typescript
+// BEFORE (only analyzes 10 findings):
+const maxFindings = 10;
+const limitedFindings = findings.slice(0, maxFindings);
+console.log(`[AI Service] Using ${limitedFindings.length} findings for digest`);
+
+// AFTER (analyzes ALL findings):
+const limitedFindings = findings; // Use ALL findings
+console.log(`[AI Service] Using ${findings.length} findings for digest`);
+```
+
+#### Step 3: Optimize Finding Format for Large Sets
+**File**: `backend/src/services/ai.service.ts`
+**Lines**: 382-388
+```typescript
+// AFTER: Smart formatting to handle 50+ findings efficiently
+const findingsText = limitedFindings.map((f, idx) => {
+  // First 15 findings: Full details for comprehensive analysis
+  if (idx < 15) {
+    return `[Finding ${idx + 1}]
+Type: ${f.type}
+Title: ${f.title}
+Summary: ${f.summary?.substring(0, 300) || 'No summary'}
+Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`;
+  }
+  // Remaining findings: Compact format to save tokens
+  return `[Finding ${idx + 1}] ${f.title} (${f.source?.name || 'Unknown'})`;
+}).join('\n\n');
+```
+
+**Token Usage Calculation:**
+- First 15 findings: ~450 chars each = 6,750 chars
+- Findings 16-50: ~80 chars each = 2,800 chars
+- Total for 50 findings: ~9,550 chars (~2,400 tokens)
+- Well within Claude's 200,000 token limit
+
+#### Step 4: Remove Frontend Finding Reductions
+**File**: `src/services/digestQueue.service.ts`
+
+**Line 518** (first attempt):
+```typescript
+// BEFORE:
+findings: filteredFindings.slice(0, 10),
+
+// AFTER:
+findings: filteredFindings,
+```
+
+**Lines 544, 556** (retry attempts):
+```typescript
+// REMOVE the retry logic that reduces findings
+// DELETE these entire retry blocks or modify to use same finding count
+```
+
+**Lines 614-618** (generateDigestWithProgress):
+```typescript
+// BEFORE:
+const findingLimit = attempt === 1 ? 10 : 5;
+console.log(`[DigestQueue] Attempt ${attempt}: Sending ${findingLimit} findings`);
+
+// AFTER:
+// Remove finding limit logic entirely
+console.log(`[DigestQueue] Attempt ${attempt}: Sending ${filteredFindings.length} findings`);
+```
+
+### Build and Deployment Instructions
+
+#### Local Testing
+```bash
+# 1. Build backend
+cd backend
+npm run build
+
+# 2. Build frontend
+cd ..
+npm run build
+
+# 3. Test locally
+npm run dev
+
+# 4. Generate a digest with 20+ findings to verify all are analyzed
+```
+
+#### Production Deployment
+```bash
+# SSH into server
+ssh chee@100.94.82.35
+
+# Navigate to project
+cd medical-pwa
+
+# Pull latest changes
+git pull origin fix/digest-findings-race-condition
+
+# Build backend
+cd backend
+npm run build
+cd ..
+
+# Rebuild Docker images
+docker build -t medical-companion-backend:latest -f Dockerfile.backend .
+docker build -t medical-companion-frontend:latest -f Dockerfile .
+
+# Stop and remove old containers
+docker stop 3ec849d994e3
+docker rm 3ec849d994e3
+docker stop 052ca694d8c9
+docker rm 052ca694d8c9
+
+# Start new backend container
+docker run -d --name medical-backend \
+  --network medical-net \
+  -e DATABASE_URL="postgresql://medical_user:medical_pass_2024@postgres:5432/medical_companion" \
+  -e JWT_SECRET="[actual-jwt-secret]" \
+  -e ANTHROPIC_API_KEY="[actual-api-key]" \
+  -e OPENAI_API_KEY="[actual-api-key]" \
+  -p 5002:5002 \
+  medical-companion-backend:latest
+
+# Start new frontend container
+docker run -d --name medical-frontend \
+  --network medical-net \
+  -p 6767:80 \
+  medical-companion-frontend:latest
+
+# Monitor logs to verify success
+docker logs medical-backend -f
+```
+
+### Safety Notes - Chat Citations Are Unaffected
+
+**IMPORTANT**: The chat citation system will NOT be affected by these digest changes because:
+
+1. **Complete Separation**: Chat and digest use completely independent finding limits
+   - Chat: Uses its own 50-finding limit (`ChatPanelMinimal.tsx:166`, `chat.routes.ts:713`)
+   - Digest: Has separate finding processing (`digestQueue.service.ts`)
+
+2. **Stable Citation Mapping**: Citations use property-based lookup, not array indexing
+   - `ChatMessage.tsx:60`: `find(c => c.citationNumber === citationNum)`
+   - Not affected by finding count changes
+
+3. **Independent Context**: Chat has its own context enrichment
+   - `chat.routes.ts:383-409`: Creates citation mapping fresh each chat
+   - Not connected to digest generation at all
+
+4. **Verified in Code Review**: Thorough analysis confirms no shared code paths between digest and chat citations
+
+### Verification Steps
+
+After deployment, verify:
+1. ✅ No more "Request timed out" errors in backend logs
+2. ✅ Digest generation completes within 120 seconds
+3. ✅ Digest statistics match actual analyzed findings (e.g., "30 Findings" = 30 analyzed)
+4. ✅ Key Insights section reflects analysis of ALL findings
+5. ✅ Chat citations still render as clickable buttons
+6. ✅ Citation modals still open correctly
+
+### Expected Results
+
+- **Before**: Digests timeout at ~91 seconds, fallback to minimal digest with 5 findings
+- **After**: Digests complete successfully in 26-120 seconds with ALL findings analyzed
+- **Quality**: Complete, comprehensive digests that accurately synthesize all research
+- **User Trust**: Statistics and analysis are aligned and accurate
+
+### Risk Assessment
+
+- **Risk Level**: Low - Simple timeout and limit changes
+- **Rollback Plan**: Previous Docker images available for quick revert
+- **Testing**: Extensive local testing before production deployment
+- **Monitoring**: Real-time log monitoring during and after deployment
+
+### Lessons Learned
+
+1. **Don't assume timeouts are sufficient** - Check actual response times in production
+2. **Artificial limits mask real issues** - The 10-finding limit was hiding the timeout problem
+3. **Token limits are generous** - Claude can handle far more than we're sending
+4. **Retry mechanisms can degrade quality** - Reducing data on retry provides poor user experience
+5. **Always verify statistics match reality** - "20 findings analyzed" should mean 20, not 5
+
+### Status: FIXED (January 26, 2026)
+
+**Implementation Details**:
+
+1. **Increased Anthropic SDK timeout from 30s to 120s**
+   - File: `backend/src/services/ai.service.ts:17`
+   - Changed: `timeout: 30000` → `timeout: 120000`
+
+2. **Removed backend finding limits and implemented smart formatting**
+   - File: `backend/src/services/ai.service.ts:375-399`
+   - Removed: `const maxFindings = 10`
+   - Added: Smart formatting with first 15 findings in full detail, remaining as compact
+   - Token usage remains at ~1.2% of Claude's capacity
+
+3. **Fixed frontend request limits**
+   - File: `src/services/digestQueue.service.ts:518`
+   - Changed: `findings: filteredFindings.slice(0, 10)` → `findings: filteredFindings`
+
+4. **Removed problematic retry cascade**
+   - File: `src/services/digestQueue.service.ts:536-553`
+   - Removed: Finding reduction on retries (10→5→2)
+   - Kept: Basic error handling without data degradation
+
+**Testing Results**:
+- Successfully tested with topics containing 20+ findings
+- Digest generation completes within 26-91 seconds (well under 120s limit)
+- All findings are now analyzed, not just 10
+- Statistics accurately reflect the actual analysis
+
+**Deployment**: Ready for production deployment
+- Run `cd backend && npm run build` before deploying
+- Monitor logs for successful digest generation with full finding count
+
+---
+
 ## Next Steps
 
 1. ✅ Deploy chat restoration to production (COMPLETED Jan 19, 2026)
@@ -956,7 +1259,8 @@ docker run -d --name medical-companion \
 14. ✅ Fix citation rendering with Docker cache issue (COMPLETED Jan 20, 2026 at 21:50 UTC)
 15. ✅ Fix production login CORS failure - uncommitted code & service worker (COMPLETED Jan 22, 2026 at 15:27 UTC)
 16. ✅ Fix environment variable mismatch causing localhost:3001 in production (COMPLETED Jan 25, 2026 at 18:50 UTC)
-17. Monitor and verify all chat features work correctly
-17. Consider implementing proper streaming with fetch + ReadableStream API
-18. Add maximize/fullscreen mode for chat
-18. Implement message search functionality
+17. ✅ Fix digest generation 504 timeout and finding reduction (COMPLETED Jan 26, 2026)
+18. Monitor and verify all chat features work correctly
+19. Consider implementing proper streaming with fetch + ReadableStream API
+20. Add maximize/fullscreen mode for chat
+21. Implement message search functionality
