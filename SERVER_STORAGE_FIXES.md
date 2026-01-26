@@ -1235,9 +1235,12 @@ After deployment, verify:
 - All findings are now analyzed, not just 10
 - Statistics accurately reflect the actual analysis
 
-**Deployment**: Ready for production deployment
-- Run `cd backend && npm run build` before deploying
-- Monitor logs for successful digest generation with full finding count
+**Deployment**: Successfully deployed to production (January 26, 2026 at 03:58 UTC)
+- Pushed changes to origin: `e1ff6b8`
+- Rebuilt Docker containers with `--no-cache`
+- Container running on `100.94.82.35:6767`
+- Backend logs confirm successful startup
+- Ready for production testing with 20+ findings
 
 ---
 
