@@ -30,8 +30,23 @@ router.post('/transcribe', authenticate, async (req, res) => {
     // Transcribe audio using Whisper
     const transcript = await transcribeAudio(audioBuffer, mimeType || 'audio/webm');
 
-    // Generate summary using Claude
-    const summary = await summarizeTranscription(transcript);
+    // Generate summary using Claude (with error transparency)
+    let summary = '';
+    let summaryError = null;
+    try {
+      summary = await summarizeTranscription(transcript);
+    } catch (error: any) {
+      console.error('Failed to generate AI summary:', error.message);
+      summaryError = error.message;
+
+      // Be transparent about the error
+      if (error.message.includes('credit balance')) {
+        summary = `## ⚠️ Summary Generation Failed\n\n**Error:** Anthropic API credits have been depleted. Please add credits to continue using AI summaries.\n\n## Original Transcript\n${transcript}\n\n## Next Steps\n- Add credits at https://console.anthropic.com\n- Review the transcript above\n\n## Important Mentions\n- Transcript preserved but not summarized\n\n## Overall Sentiment\nunavailable`;
+      } else {
+        summary = `## ⚠️ Summary Generation Failed\n\n**Error:** ${error.message}\n\n## Original Transcript\n${transcript}\n\n## Next Steps\n- Review the transcript above\n- Check API configuration\n\n## Important Mentions\n- Transcript preserved but not summarized\n\n## Overall Sentiment\nunavailable`;
+      }
+      console.log('Returning transcript with error message due to AI service failure');
+    }
 
     // Helper function to strip markdown formatting
     const stripMarkdown = (text: string): string => {
