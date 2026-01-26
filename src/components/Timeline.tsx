@@ -402,7 +402,7 @@ export default function Timeline() {
                             <p className="text-sm text-gray-600 line-clamp-3">
                               {typeof event.data?.summary === 'string'
                                 ? event.data.summary
-                                : event.data?.summary?.visitSummary || event.data?.transcript?.substring(0, 200) || 'Voice recording processed'}
+                                : event.data?.summary?.visitSummary || 'Voice recording processed'}
                             </p>
 
                             {/* Show condensed action items if they exist */}
