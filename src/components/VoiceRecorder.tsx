@@ -3,7 +3,8 @@ import { transcribeAudio } from '@/services/api';
 import { createTimelineEvent, getTimelineForTopic } from '@/utils/db/timeline';
 import { getAllTopics } from '@/utils/db/topics';
 import { TranscriptionSummary } from './TranscriptionSummary';
-import { ChevronDown, ChevronRight, Mic, MicOff, Clock, Calendar, FileText, Eye } from 'lucide-react';
+import { ChevronDown, ChevronRight, Mic, MicOff, Clock, Calendar, FileText, Eye, Settings, Info } from 'lucide-react';
+import { audioCompressionService, type RecordingType, type RecordingPreset } from '@/services/audioCompression.service';
 import type { Topic, VoiceTranscriptionResult, TimelineEvent } from '@/types';
 
 interface VoiceRecorderProps {
@@ -28,6 +29,12 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
   const [expandedRecordings, setExpandedRecordings] = useState<Set<string>>(new Set());
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+
+  // Audio compression settings
+  const [recordingType, setRecordingType] = useState<RecordingType>('consultation');
+  const [showSettings, setShowSettings] = useState(false);
+  const [estimatedFileSize, setEstimatedFileSize] = useState(0);
+  const [actualFileSize, setActualFileSize] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -84,7 +91,13 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
   useEffect(() => {
     if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          const newTime = prev + 1;
+          // Update estimated file size every second
+          const estimatedSize = audioCompressionService.estimateFileSize(newTime, recordingType);
+          setEstimatedFileSize(estimatedSize);
+          return newTime;
+        });
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -97,7 +110,7 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
         clearInterval(timerRef.current);
       }
     };
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, recordingType]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -108,13 +121,43 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
   const startRecording = async () => {
     try {
       setError('');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Get optimized compression settings
+      const compressionSettings = audioCompressionService.getOptimalSettings(recordingType);
+
+      // Check codec support
+      const codecSupport = audioCompressionService.checkCodecSupport();
+      if (!codecSupport.webm && !codecSupport.mp4) {
+        setError('Your browser does not support required audio recording formats.');
+        return;
+      }
+
+      // Get microphone with optimized constraints
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: compressionSettings.sampleRate
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints
+      });
       streamRef.current = stream;
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm'
-      });
+      // Create MediaRecorder with compression settings
+      const recorderOptions: MediaRecorderOptions = {
+        mimeType: compressionSettings.mimeType
+      };
 
+      // Add bitrate if supported (Chrome, Edge)
+      if (compressionSettings.audioBitsPerSecond) {
+        recorderOptions.audioBitsPerSecond = compressionSettings.audioBitsPerSecond;
+      }
+
+      console.log('Starting recording with settings:', recorderOptions);
+
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -125,13 +168,19 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: compressionSettings.mimeType });
         setAudioBlob(blob);
+
+        // Calculate actual file size
+        const actualSizeMB = blob.size / (1024 * 1024);
+        setActualFileSize(actualSizeMB);
+        console.log(`Recording complete. Size: ${actualSizeMB.toFixed(2)}MB (estimated: ${estimatedFileSize.toFixed(2)}MB)`);
       };
 
       mediaRecorder.start(200); // Capture in 200ms chunks
       setIsRecording(true);
       setRecordingTime(0);
+      setEstimatedFileSize(0);
     } catch (err) {
       console.error('Error accessing microphone:', err);
       setError('Unable to access microphone. Please check permissions.');
@@ -257,24 +306,113 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Voice Recording</h2>
 
-      {/* Topic Selector */}
+      {/* Topic Selector and Recording Settings */}
       {!isRecording && !audioBlob && (
-        <div className="mb-6">
-          <label htmlFor="recording-topic" className="block text-sm font-medium text-gray-700 mb-2">
-            Select Topic for Recording
-          </label>
-          <select
-            id="recording-topic"
-            value={selectedTopicId}
-            onChange={(e) => setSelectedTopicId(e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
-          >
-            {topics.map(topic => (
-              <option key={topic.id} value={topic.id}>
-                {topic.name} - {topic.diseaseProfile.name}
-              </option>
-            ))}
-          </select>
+        <div className="space-y-6 mb-6">
+          {/* Topic Selection */}
+          <div>
+            <label htmlFor="recording-topic" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Topic for Recording
+            </label>
+            <select
+              id="recording-topic"
+              value={selectedTopicId}
+              onChange={(e) => setSelectedTopicId(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+            >
+              {topics.map(topic => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.name} - {topic.diseaseProfile.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Recording Type Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Recording Type
+              </label>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700"
+              >
+                <Settings className="w-4 h-4" />
+                Advanced Settings
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(['consultation', 'note'] as RecordingType[]).map((type) => {
+                const preset = audioCompressionService.getPreset(type);
+                const quality = audioCompressionService.getQualityIndicator(
+                  preset.config.audioBitsPerSecond || 32000
+                );
+                const isSelected = recordingType === type;
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setRecordingType(type)}
+                    className={`relative p-4 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    {isSelected && (
+                      <span className="absolute top-2 right-2">
+                        <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    )}
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900">{preset.name}</div>
+                      <div className="text-xs text-gray-500 mt-1">{preset.description}</div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-gray-600">
+                          Max {preset.maxDuration} min
+                        </span>
+                        <span className="text-xs text-gray-400">•</span>
+                        <span className={`text-xs ${quality.color}`}>
+                          {quality.label}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Target size: ~{preset.targetFileSize}MB
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {showSettings && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Advanced Settings</h4>
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Audio is compressed using Opus codec for optimal size</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Mono recording at {recordingType === 'consultation' ? '16kHz' : '24kHz'} sample rate</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Bitrate: {audioCompressionService.getPreset(recordingType).config.audioBitsPerSecond?.toLocaleString()} bps</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-gray-400" />
+                    <span>30-minute recording will be approximately {audioCompressionService.estimateFileSize(1800, recordingType).toFixed(1)}MB</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -308,6 +446,28 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
               </span>
             </div>
 
+            {/* File Size Indicator */}
+            <div className="bg-gray-50 rounded-lg px-4 py-2">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-1">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <span className="text-gray-600">Estimated size:</span>
+                  <span className="font-medium text-gray-900">
+                    {audioCompressionService.formatFileSize(estimatedFileSize)}
+                  </span>
+                </div>
+                {estimatedFileSize > 20 && (
+                  <div className="flex items-center gap-1 text-amber-600">
+                    <Info className="w-4 h-4" />
+                    <span className="text-xs">Approaching size limit</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                Using {recordingType === 'consultation' ? 'consultation' : 'high quality'} compression
+              </div>
+            </div>
+
             <div className="flex space-x-4">
               {!isPaused ? (
                 <button
@@ -339,7 +499,25 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
           <div className="w-full space-y-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-2">Recording complete!</p>
-              <p className="text-lg font-semibold">Duration: {formatTime(recordingTime)}</p>
+              <div className="space-y-2">
+                <p className="text-lg font-semibold">Duration: {formatTime(recordingTime)}</p>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-gray-600">
+                    Actual size: <span className="font-medium text-gray-900">
+                      {audioCompressionService.formatFileSize(actualFileSize)}
+                    </span>
+                  </span>
+                  <span className="text-gray-500">
+                    (Estimated was {audioCompressionService.formatFileSize(estimatedFileSize)})
+                  </span>
+                </div>
+                {actualFileSize > 25 && (
+                  <div className="bg-amber-50 text-amber-800 text-sm p-2 rounded-md flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    <span>File exceeds 25MB limit. Consider using consultation mode for long recordings.</span>
+                  </div>
+                )}
+              </div>
 
               <audio controls className="w-full mt-4">
                 <source src={URL.createObjectURL(audioBlob)} type="audio/webm" />
