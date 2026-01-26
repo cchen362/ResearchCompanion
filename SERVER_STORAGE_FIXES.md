@@ -1092,7 +1092,69 @@ workbox-3896e580.js:1 bad-precaching-response :: [{"url":"https://cl.zyroi.com/a
    - Clear browser caches
 3. **Use `--no-cache` when rebuilding Docker** to ensure old files are completely removed
 
-## Issue 17: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
+## Issue 17: CORS Login Error After Deployment (FIXED - January 26, 2026)
+
+### Problem Description
+After deploying the timeline fixes, users couldn't log in due to CORS errors: "Not allowed by CORS"
+
+### Root Cause
+The `CORS_ALLOWED_ORIGINS` environment variable wasn't being passed to the Docker container, causing the backend to reject requests from the production domain.
+
+### Fix Applied
+**File Modified:**
+- `docker-compose.yml`: Added CORS environment variables to the medical-companion service
+
+### Deployment
+- Deployed to production: January 26, 2026
+- Login functionality restored immediately
+
+## Issue 18: Timeline Event Creation - Data Column Does Not Exist (FIXED - January 26, 2026)
+
+### Problem Description
+Voice recordings were successfully transcribed but failed to save to the database with error: `column "data" of relation "timeline_events" does not exist`
+
+### Root Cause
+Database schema mismatch - the `timeline_events` table doesn't have a `data` column. The schema has:
+- `description` (TEXT)
+- `metadata` (JSONB)
+- `attachments` (JSONB)
+
+But the model was trying to INSERT into a non-existent `data` column.
+
+### Fix Applied
+**File Modified:**
+- `backend/src/models/timeline.model.ts`:
+  - Lines 33-69: Modified to store transcript in `description` field and other data in `metadata`
+  - Lines 268-299: Updated `parseTimelineEvent` to reconstruct `data` object from metadata for backward compatibility
+
+### Implementation Details
+```typescript
+// Now stores data like this:
+// transcript → description field
+// {summary, duration, recordedAt} → metadata field
+
+// On retrieval, reconstructs the original data structure
+```
+
+### Deployment
+- Committed to branch: `fix/digest-findings-race-condition`
+- Deployed to production: January 26, 2026 at 14:57 GMT
+- Docker containers rebuilt with `--no-cache`
+
+### Result
+✅ Voice recordings now persist correctly to PostgreSQL
+✅ Transcripts are saved in the description field
+✅ Metadata (summary, duration, recordedAt) properly stored in metadata field
+✅ Data survives browser cache clearing
+✅ Full server-side persistence achieved
+
+### Lessons Learned
+1. **Always verify database schema before modifying models** - Check actual column names in init.sql
+2. **Map data appropriately to existing columns** - Don't assume column names, verify them
+3. **Test the full flow** - From recording → transcription → database storage → retrieval
+4. **Docker environment variables** - Always pass required env vars in docker-compose.yml
+
+## Issue 19: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
 
 ### Problem Description
 When users navigate to the Findings page after running research agents, the digest generation triggers a 504 Gateway Timeout error. Additionally, even when digests succeed, they show misleading statistics like "20 Findings / 20 in Period" while the Key Insights section only analyzes 5-10 findings due to a problematic retry mechanism.
