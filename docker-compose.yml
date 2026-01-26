@@ -48,6 +48,9 @@ services:
       PUBMED_API_KEY: ${PUBMED_API_KEY}
       ENABLE_REAL_MEDICAL_SEARCH: "true"
       ENABLE_WEB_SEARCH: "true"
+      # CORS Configuration
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://cl.zyroi.com,http://100.94.82.35:6767,http://localhost:6767}
+      PRODUCTION_URL: ${PRODUCTION_URL:-https://cl.zyroi.com}
 
     volumes:
       # Persist data
