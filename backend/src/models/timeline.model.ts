@@ -30,10 +30,27 @@ export class TimelineModel {
     const id = uuidv4();
     const now = new Date();
 
+    // If data object is provided, extract transcript for description and merge rest with metadata
+    let description = null;
+    let mergedMetadata = metadata || {};
+
+    if (data) {
+      // Extract transcript if it exists for the description field
+      if (data.transcript) {
+        description = data.transcript;
+        // Store other data fields in metadata
+        const { transcript, ...otherData } = data;
+        mergedMetadata = { ...mergedMetadata, ...otherData };
+      } else {
+        // If no transcript, store all data in metadata
+        mergedMetadata = { ...mergedMetadata, ...data };
+      }
+    }
+
     const query = `
       INSERT INTO timeline_events (
         id, user_id, topic_id, event_type, title,
-        event_date, data, metadata, created_at, updated_at
+        event_date, description, metadata, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
@@ -45,8 +62,8 @@ export class TimelineModel {
       type,
       title,
       now,
-      data ? JSON.stringify(data) : null,
-      metadata ? JSON.stringify(metadata) : null,
+      description,
+      JSON.stringify(mergedMetadata),
       now,
       now
     ];
@@ -249,6 +266,23 @@ export class TimelineModel {
    * Parse database row to TimelineEventDB
    */
   private static parseTimelineEvent(row: any): TimelineEventDB {
+    // Parse metadata which may contain the data fields
+    const parsedMetadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+
+    // Extract data-related fields from metadata if they exist
+    let data = null;
+    if (parsedMetadata) {
+      // If metadata contains summary, duration, recordedAt, etc., reconstruct the data object
+      if (parsedMetadata.summary || parsedMetadata.duration !== undefined || parsedMetadata.recordedAt) {
+        data = {
+          transcript: row.description, // transcript was stored in description
+          summary: parsedMetadata.summary,
+          duration: parsedMetadata.duration,
+          recordedAt: parsedMetadata.recordedAt
+        };
+      }
+    }
+
     return {
       id: row.id,
       user_id: row.user_id,
@@ -257,8 +291,8 @@ export class TimelineModel {
       title: row.title,
       description: row.description,
       event_date: row.event_date,
-      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
-      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+      data: data,  // Reconstructed from metadata
+      metadata: parsedMetadata,
       created_at: row.created_at,
       updated_at: row.updated_at
     };

@@ -1047,7 +1047,52 @@ The app is now officially **server-first** with no offline support claims. This 
 
 The app remains installable via manifest but operates as a network-required application.
 
-## Issue 16: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
+## Issue 16: Timeline Event Creation 500 Error & Service Worker Issues (FIXED - January 26, 2026)
+
+### Problem Description
+1. **Timeline Event Creation Failed**: Voice recording transcription worked but failed to save to server with 500 error
+2. **Service Worker Error Returned**: Despite removal attempts, service worker was still causing "bad-precaching-response" errors
+
+### Error Messages
+```
+POST https://cl.zyroi.com/api/timeline 500 (Internal Server Error)
+Response data: {success: false, error: 'Failed to create timeline event'}
+
+workbox-3896e580.js:1 bad-precaching-response :: [{"url":"https://cl.zyroi.com/assets/index-C07k1S-m.js","status":404}]
+```
+
+### Root Cause
+1. **Database Column Mismatch**: The database schema used `event_type` column but the model was inserting `type`
+2. **Service Worker Not Fully Removed**: The `public/sw.js` file still existed and registration code was still active
+
+### Fix Applied
+**Files Modified:**
+1. `backend/src/models/timeline.model.ts`:
+   - Line 35: Changed `type` to `event_type` in INSERT query
+   - Line 235: Changed `type` to `event_type` in WHERE clause
+   - Line 256: Changed to read from `row.event_type` instead of `row.type`
+
+2. `public/sw.js`: **DELETED** - Removed the service worker file completely
+
+3. `src/App.tsx` (lines 52-65): Commented out service worker registration code
+
+4. `src/AppWithAuth.tsx` (lines 69-79): Commented out service worker registration code
+
+### Deployment
+- Committed to branch: `fix/digest-findings-race-condition`
+- Deployed to production: January 26, 2026 at 14:02 GMT
+- Docker containers rebuilt without cache
+- Site confirmed operational at https://cl.zyroi.com
+
+### Lessons Learned
+1. **Always verify database schema matches model queries** - Column name mismatches cause immediate 500 errors
+2. **Service worker removal requires multiple steps**:
+   - Delete the `sw.js` file
+   - Remove/disable registration code
+   - Clear browser caches
+3. **Use `--no-cache` when rebuilding Docker** to ensure old files are completely removed
+
+## Issue 17: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
 
 ### Problem Description
 When users navigate to the Findings page after running research agents, the digest generation triggers a 504 Gateway Timeout error. Additionally, even when digests succeed, they show misleading statistics like "20 Findings / 20 in Period" while the Key Insights section only analyzes 5-10 findings due to a problematic retry mechanism.
