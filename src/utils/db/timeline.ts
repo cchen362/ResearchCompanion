@@ -1,9 +1,14 @@
 import { getDB } from './database';
 import type { TimelineEvent } from '@/types';
 import { generateId } from './topics';
+import { timelineAPIService } from '@/services/timeline.api.service';
+
+// Check if we should use server storage
+const USE_SERVER_STORAGE = import.meta.env.VITE_USE_SERVER_STORAGE === 'true';
 
 /**
  * Create a new timeline event
+ * Uses dual storage strategy: server + local IndexedDB
  */
 export async function createTimelineEvent(
   topicId: string,
@@ -12,6 +17,30 @@ export async function createTimelineEvent(
   data: any,
   metadata?: any
 ): Promise<TimelineEvent> {
+  // If server storage is enabled, save to server first
+  if (USE_SERVER_STORAGE) {
+    try {
+      // Save to server
+      const serverEvent = await timelineAPIService.createEvent(
+        topicId,
+        type,
+        title,
+        data,
+        metadata
+      );
+
+      // Also save to IndexedDB for offline access
+      const db = await getDB();
+      await db.put('timeline', serverEvent);
+
+      return serverEvent;
+    } catch (error) {
+      console.error('Failed to save timeline event to server:', error);
+      // Fall through to local-only storage
+    }
+  }
+
+  // Local-only storage (fallback or when server storage disabled)
   const db = await getDB();
 
   const event: TimelineEvent = {
@@ -32,8 +61,29 @@ export async function createTimelineEvent(
 
 /**
  * Get all timeline events for a topic
+ * Fetches from server if available, falls back to local IndexedDB
  */
 export async function getTimelineForTopic(topicId: string): Promise<TimelineEvent[]> {
+  // Try to fetch from server first if enabled
+  if (USE_SERVER_STORAGE) {
+    try {
+      const serverEvents = await timelineAPIService.getEventsByTopic(topicId);
+
+      // Update local cache with server data
+      const db = await getDB();
+      for (const event of serverEvents) {
+        await db.put('timeline', event);
+      }
+
+      // Sort by timestamp, newest first
+      return serverEvents.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error('Failed to fetch timeline from server:', error);
+      // Fall through to local storage
+    }
+  }
+
+  // Fetch from local IndexedDB (fallback or when server storage disabled)
   const db = await getDB();
   const events = await db.getAllFromIndex('timeline', 'by-topic', topicId);
 

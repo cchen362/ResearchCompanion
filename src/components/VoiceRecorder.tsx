@@ -222,28 +222,44 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
     setError('');
 
     try {
-      // Send audio to backend for transcription and summarization
-      const result = await transcribeAudio(audioBlob);
+      // Prepare title for recording
+      const title = `Doctor Visit - ${new Date().toLocaleDateString()}`;
+
+      // Send audio to backend for transcription, summarization, and server storage
+      const result = await transcribeAudio(audioBlob, {
+        topicId: selectedTopicId,
+        title,
+        duration: recordingTime,
+        metadata: {
+          recordingType,
+          estimatedFileSize,
+          actualFileSize,
+          processedAt: Date.now()
+        }
+      });
 
       setTranscript(result.transcript);
       setSummary(result.summary);
 
-      // Save to timeline
-      const event = await createTimelineEvent(
-        selectedTopicId,
-        'voice_note',
-        `Doctor Visit - ${new Date().toLocaleDateString()}`,
-        {
-          transcript: result.transcript,
-          summary: result.summary,
-          duration: recordingTime,
-          recordedAt: Date.now()
-        },
-        {
-          // Optional metadata
-          processedAt: Date.now()
-        }
-      );
+      // If server didn't save (no timelineEventId), create locally
+      if (!result.timelineEventId) {
+        // Save to timeline locally
+        const event = await createTimelineEvent(
+          selectedTopicId,
+          'voice_note',
+          title,
+          {
+            transcript: result.transcript,
+            summary: result.summary,
+            duration: recordingTime,
+            recordedAt: Date.now()
+          },
+          {
+            recordingType,
+            processedAt: Date.now()
+          }
+        );
+      }
 
       // Mark as saved successfully
       setSavedSuccessfully(true);

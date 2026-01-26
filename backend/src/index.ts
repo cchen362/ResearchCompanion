@@ -18,6 +18,9 @@ import agentsRoutes from './routes/agents.routes.js';
 import digestsCrudRoutes from './routes/digests.crud.routes.js';
 import conversationsRoutes from './routes/conversations.routes.js';
 import chatsRoutes from './routes/chats.routes.js';
+// Voice recording and timeline routes
+import timelineRoutes from './routes/timeline.routes.js';
+import audioRoutes from './routes/audio.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
@@ -108,6 +111,9 @@ app.use('/api', authenticate, agentsRoutes);
 app.use('/api', authenticate, digestsCrudRoutes);
 app.use('/api', authenticate, conversationsRoutes);
 app.use('/api', authenticate, chatsRoutes);
+// Voice recording and timeline routes
+app.use('/api', authenticate, timelineRoutes);
+app.use('/api', authenticate, audioRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

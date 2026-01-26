@@ -158,8 +158,17 @@ export async function summarizeResultsLong(
 
 /**
  * Transcribe audio and generate summary
+ * Now also supports server storage of timeline and audio
  */
-export async function transcribeAudio(audioBlob: Blob): Promise<VoiceTranscriptionResult> {
+export async function transcribeAudio(
+  audioBlob: Blob,
+  options?: {
+    topicId?: string;
+    title?: string;
+    duration?: number;
+    metadata?: any;
+  }
+): Promise<VoiceTranscriptionResult> {
   // Convert blob to base64
   const reader = new FileReader();
   const base64Promise = new Promise<string>((resolve, reject) => {
@@ -177,7 +186,11 @@ export async function transcribeAudio(audioBlob: Blob): Promise<VoiceTranscripti
 
   const response = await api.post('/transcribe', {
     audio,
-    mimeType: audioBlob.type
+    mimeType: audioBlob.type,
+    topicId: options?.topicId,
+    title: options?.title,
+    duration: options?.duration,
+    metadata: options?.metadata
   });
 
   return response.data;

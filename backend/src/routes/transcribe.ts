@@ -1,15 +1,20 @@
 import { Router } from 'express';
 import { transcribeAudio, summarizeTranscription } from '../services/ai.service.js';
+import { TimelineModel } from '../models/timeline.model.js';
+import { AudioModel } from '../models/audio.model.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
 /**
  * Transcribe audio and generate summary
+ * Now also saves to database for persistence
  */
-router.post('/transcribe', async (req, res) => {
+router.post('/transcribe', authenticate, async (req, res) => {
   try {
     console.log('Transcribe request received');
-    const { audio, mimeType } = req.body;
+    const userId = req.user!.id;
+    const { audio, mimeType, topicId, title, duration, metadata } = req.body;
 
     if (!audio) {
       console.log('Error: No audio data in request');
@@ -169,9 +174,57 @@ router.post('/transcribe', async (req, res) => {
     structuredSummary.nextSteps = structuredSummary.nextSteps.map(step => stripMarkdown(step));
     structuredSummary.importantMentions = structuredSummary.importantMentions.map(mention => stripMarkdown(mention));
 
+    // Save to database if topicId is provided
+    let timelineEventId: string | undefined;
+    let audioRecordingId: string | undefined;
+
+    if (topicId) {
+      try {
+        // Create timeline event
+        const timelineEvent = await TimelineModel.create(
+          userId,
+          topicId,
+          'voice_note',
+          title || `Doctor Visit - ${new Date().toLocaleDateString()}`,
+          {
+            transcript,
+            summary: structuredSummary,
+            duration: duration || 0,
+            recordedAt: Date.now()
+          },
+          metadata
+        );
+        timelineEventId = timelineEvent.id;
+        console.log(`Created timeline event: ${timelineEventId}`);
+
+        // Save audio recording metadata (and optionally the audio data)
+        const audioRecording = await AudioModel.create(userId, {
+          timelineEventId,
+          topicId,
+          fileName: `recording_${Date.now()}.webm`,
+          fileSize: audioBuffer.length,
+          duration: duration || 0,
+          mimeType: mimeType || 'audio/webm',
+          audioBlob: audioBuffer,  // Store the actual audio data
+          transcription: transcript,
+          metadata: {
+            ...metadata,
+            summary: structuredSummary
+          }
+        });
+        audioRecordingId = audioRecording.id;
+        console.log(`Created audio recording: ${audioRecordingId}`);
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+        // Continue even if database save fails - don't break the user experience
+      }
+    }
+
     res.json({
       transcript,
-      summary: structuredSummary
+      summary: structuredSummary,
+      timelineEventId,  // Include IDs so frontend knows it was saved
+      audioRecordingId
     });
   } catch (error) {
     console.error('Error in transcribe:', error);
