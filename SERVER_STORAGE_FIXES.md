@@ -938,7 +938,116 @@ docker run -d --name medical-companion \
 4. **Test locally after environment variable changes** - Would have caught this immediately
 5. **Use grep to find all occurrences** - `grep -r "VITE_API_URL" .` would have found the missed references
 
-## Issue 15: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
+## Issue 15: Service Worker Precaching Error & CORS Domain Issue (FIXED - January 26, 2026)
+
+### Problem Description
+After deployment, the app showed persistent service worker errors in the console:
+```
+workbox-3896e580.js:1 Uncaught (in promise) bad-precaching-response:
+bad-precaching-response :: [{"url":"https://cl.zyroi.com/assets/index-C07k1S-m.js","status":404}]
+```
+
+Additionally, after removing the service worker, login failed with CORS errors:
+```
+POST https://cl.zyroi.com/api/auth/login 500 (Internal Server Error)
+Response data: {error: 'Internal server error', message: 'Not allowed by CORS'}
+```
+
+### Root Cause
+1. **Service Worker Issue**: Workbox was caching old asset hashes that no longer existed after new builds
+2. **CORS Issue**: When removing hardcoded domain from backend, the production domain wasn't properly configured in environment variables
+
+### Solution Implemented
+
+#### Part 1: Remove Service Worker (Aligned with Server-First Architecture)
+Since the app requires network for ALL core functionality (research agents, AI services, authentication), the service worker was providing no value and only causing errors.
+
+**Changes Made:**
+1. **Disabled VitePWA Plugin** (`vite.config.ts`):
+   - Commented out entire VitePWA plugin configuration
+   - App still installable via manifest.webmanifest
+
+2. **Created Unregister Utility** (`public/unregister-sw.html`):
+   - Helps users clear existing service workers
+   - Also clears IndexedDB workbox caches
+   - Provides visual feedback and automatic redirect
+
+3. **Removed Service Worker Files**:
+   - Deleted `public/sw.js`
+   - Build no longer generates workbox files
+
+#### Part 2: Fix CORS Configuration
+**Changes Made:**
+1. **Updated Backend** (`backend/src/index.ts`):
+   ```typescript
+   // Use environment variable instead of hardcoded domain
+   if (process.env.PRODUCTION_URL) {
+     allowedOrigins.push(process.env.PRODUCTION_URL);
+   }
+   ```
+
+2. **Added Environment Variables** (`.env`):
+   ```
+   CORS_ALLOWED_ORIGINS=https://cl.zyroi.com,http://100.94.82.35:6767,http://localhost:6767
+   PRODUCTION_URL=https://cl.zyroi.com
+   ```
+
+3. **Updated Docker Compose** (`docker-compose.prod.yml`):
+   ```yaml
+   environment:
+     - PRODUCTION_URL=https://cl.zyroi.com
+     - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+   ```
+
+### Files Modified
+- `vite.config.ts` - Disabled VitePWA plugin
+- `public/unregister-sw.html` - Created new utility page
+- `backend/src/index.ts` - Use environment variable for CORS
+- `docker-compose.prod.yml` - Pass PRODUCTION_URL to container
+- `.env` - Added CORS configuration
+
+### Deployment Steps (January 26, 2026)
+```bash
+# On production server (100.94.82.35)
+cd medical-pwa
+git pull origin fix/digest-findings-race-condition
+docker-compose -f docker-compose.prod.yml build --no-cache
+docker-compose -f docker-compose.prod.yml up -d
+
+# Remove old SW files from container
+docker exec medical-companion-app rm -f /usr/share/nginx/html/sw.js /usr/share/nginx/html/registerSW.js /usr/share/nginx/html/workbox-*.js
+
+# Fix environment variables
+echo 'CORS_ALLOWED_ORIGINS=https://cl.zyroi.com,http://100.94.82.35:6767,http://localhost:6767' >> .env
+echo 'PRODUCTION_URL=https://cl.zyroi.com' >> .env
+
+# Update docker-compose.prod.yml and restart
+docker-compose -f docker-compose.prod.yml up -d medical-companion
+```
+
+### User Action Required
+Users experiencing the service worker error need to:
+1. Visit `/unregister-sw.html` once
+2. Wait for automatic redirect
+3. The error will be permanently resolved
+
+### Lessons Learned
+1. **Service Workers are Complex**: They have separate caches (IndexedDB) that persist even after clearing browser cache
+2. **Offline Mode Not Always Needed**: For apps requiring network for all core features, SW adds complexity without value
+3. **Environment Variables Need Care**: When using Docker, ensure variables are properly passed through all layers
+4. **CORS Configuration is Critical**: Always test from actual domain after deployment
+5. **Simpler is Better**: Removing unnecessary complexity (SW) made the app more maintainable
+
+### Architecture Decision
+The app is now officially **server-first** with no offline support claims. This aligns with reality since:
+- Research agents require internet (PubMed, Clinical Trials, Web APIs)
+- AI services require backend API calls
+- Authentication requires server verification
+- All data persistence goes through PostgreSQL
+
+The app remains installable via manifest but operates as a network-required application.
+
+## Issue 16: Digest Generation 504 Gateway Timeout with Finding Reduction (PENDING FIX - January 26, 2026)
 
 ### Problem Description
 When users navigate to the Findings page after running research agents, the digest generation triggers a 504 Gateway Timeout error. Additionally, even when digests succeed, they show misleading statistics like "20 Findings / 20 in Period" while the Key Insights section only analyzes 5-10 findings due to a problematic retry mechanism.

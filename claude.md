@@ -1276,7 +1276,65 @@ Create a minimal component with ZERO static imports, then gradually add features
 6. **Services and stores are risky**: They often reference each other
 7. **Test in production build**: Always run `npm run build && npm run preview`
 
+## Service Worker Removal & Architecture Clarification (January 26, 2026)
+
+### Decision: Server-First Architecture (No Offline Support)
+
+After thorough analysis, the Medical Companion PWA is officially a **server-first application** with no offline capabilities. The service worker has been permanently removed.
+
+### Why This Decision Was Made
+
+**Reality Check - What Actually Requires Network (100% of core features):**
+- ✅ Research agents (PubMed, Clinical Trials, Web APIs)
+- ✅ AI services (Claude for digests, chat responses)
+- ✅ Voice transcription (OpenAI Whisper)
+- ✅ User authentication (JWT verification)
+- ✅ Data persistence (PostgreSQL backend)
+
+**What the App Can Do Offline: NOTHING MEANINGFUL**
+
+### Architecture Implications
+
+1. **No Service Worker**:
+   - Removed VitePWA plugin from vite.config.ts
+   - No workbox precaching
+   - No offline fallbacks
+
+2. **Still Installable**:
+   - Kept manifest.webmanifest
+   - Users can "Add to Home Screen" on mobile
+   - Functions as a bookmark with app icon
+
+3. **Simplified Codebase**:
+   - No complex caching strategies
+   - No sync mechanisms
+   - No version conflicts
+
+4. **CORS Configuration**:
+   - Production domain configured via environment variables
+   - Backend accepts requests from configured origins
+   - No hardcoded domains in code
+
+### User Impact
+
+- **No change in functionality** - App always required network anyway
+- **Cleaner console** - No more service worker errors
+- **Faster updates** - No cache invalidation issues
+- **Honest expectations** - No false offline promises
+
+### Environment Configuration
+
+```bash
+# Required environment variables for production
+PRODUCTION_URL=https://cl.zyroi.com
+CORS_ALLOWED_ORIGINS=https://cl.zyroi.com,http://100.94.82.35:6767,http://localhost:6767
+```
+
+### Deployment Notes
+
+Users with existing service workers need to visit `/unregister-sw.html` once to clear old workers.
+
 ---
 
-*Last Updated: January 19, 2026*
+*Last Updated: January 26, 2026*
 *Maintained by: Development Team*
