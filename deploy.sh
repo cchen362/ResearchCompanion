@@ -1,143 +1,197 @@
 #!/bin/bash
 
-# Medical Companion PWA Deployment Script
-# For deployment on Debian server with Docker
+# Medical Companion PWA - Production Deployment Script
+# Usage: ./deploy.sh [--skip-backup] [--no-cache]
 
-set -e
+set -e  # Exit on error
 
-echo "🚀 Medical Companion PWA Deployment Script"
-echo "=========================================="
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker is not installed. Please install Docker first."
-    echo "Run: curl -fsSL https://get.docker.com | sh"
-    exit 1
-fi
+# Configuration
+SERVER_USER="chee"
+SERVER_HOST="100.94.82.35"
+APP_DIR="/home/chee/medical-pwa"
+SKIP_BACKUP=false
+NO_CACHE=false
+BRANCH="fix/digest-findings-race-condition"
 
-# Check if docker-compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ docker-compose is not installed. Please install docker-compose first."
-    echo "Run: sudo apt-get install docker-compose"
-    exit 1
-fi
-
-# Check if .env file exists
-if [ ! -f .env ]; then
-    echo "⚠️  .env file not found. Creating from template..."
-
-    if [ -f .env.docker ]; then
-        cp .env.docker .env
-        echo "✅ Created .env from .env.docker"
-        echo ""
-        echo "⚠️  IMPORTANT: Edit .env file and add your API keys before continuing!"
-        echo "Required keys:"
-        echo "  - ANTHROPIC_API_KEY"
-        echo "  - OPENAI_API_KEY"
-        echo "  - BRAVE_API_KEY"
-        echo "  - JWT_SECRET (change the default!)"
-        echo ""
-        read -p "Have you updated the .env file with your keys? (y/n) " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Please update .env and run this script again."
-            exit 1
-        fi
-    else
-        echo "❌ .env.docker template not found. Please create .env file manually."
-        exit 1
-    fi
-fi
-
-# Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
-
-# Validate required environment variables
-if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "your_anthropic_api_key_here" ]; then
-    echo "❌ ANTHROPIC_API_KEY not set in .env file"
-    exit 1
-fi
-
-if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "your_openai_api_key_here" ]; then
-    echo "❌ OPENAI_API_KEY not set in .env file"
-    exit 1
-fi
-
-if [ -z "$BRAVE_API_KEY" ] || [ "$BRAVE_API_KEY" = "your_brave_api_key_here" ]; then
-    echo "❌ BRAVE_API_KEY not set in .env file"
-    exit 1
-fi
-
-if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your-super-secret-jwt-key-change-this-in-production-make-it-long-and-random" ]; then
-    echo "⚠️  WARNING: Using default JWT_SECRET. This is insecure!"
-    read -p "Continue with default JWT_SECRET? (not recommended) (y/n) " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Please update JWT_SECRET in .env file."
-        exit 1
-    fi
-fi
-
-echo "✅ Environment variables validated"
-echo ""
-
-# Build or rebuild option
-echo "Select deployment option:"
-echo "1) Fresh deployment (build from scratch)"
-echo "2) Update deployment (pull changes and rebuild)"
-echo "3) Restart only (no rebuild)"
-read -p "Enter choice (1-3): " choice
-
-case $choice in
-    1)
-        echo "🔨 Building fresh deployment..."
-        docker-compose down -v 2>/dev/null || true
-        docker-compose build --no-cache
-        docker-compose up -d
-        ;;
-    2)
-        echo "🔄 Updating deployment..."
-        docker-compose down
-        git pull origin main 2>/dev/null || echo "Not a git repository, skipping pull"
-        docker-compose build
-        docker-compose up -d
-        ;;
-    3)
-        echo "🔄 Restarting services..."
-        docker-compose restart
-        ;;
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --skip-backup)
+      SKIP_BACKUP=true
+      shift
+      ;;
+    --no-cache)
+      NO_CACHE=true
+      shift
+      ;;
+    --branch)
+      BRANCH="$2"
+      shift 2
+      ;;
     *)
-        echo "Invalid choice. Exiting."
-        exit 1
-        ;;
-esac
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--skip-backup] [--no-cache] [--branch branch-name]"
+      exit 1
+      ;;
+  esac
+done
 
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${GREEN}Medical Companion PWA Deployment${NC}"
+echo -e "${GREEN}=======================================${NC}"
+echo "Server: ${SERVER_USER}@${SERVER_HOST}"
+echo "Branch: ${BRANCH}"
 echo ""
-echo "⏳ Waiting for services to start..."
+
+# Function to run commands on server
+run_remote() {
+  ssh "${SERVER_USER}@${SERVER_HOST}" "$@"
+}
+
+# Step 1: Check connectivity
+echo -e "\n${YELLOW}[1/10] Checking server connectivity...${NC}"
+if run_remote "echo 'Connected successfully'"; then
+  echo -e "${GREEN}✅ Server connection established${NC}"
+else
+  echo -e "${RED}❌ Failed to connect to server${NC}"
+  exit 1
+fi
+
+# Step 2: Backup current state (optional)
+if [ "$SKIP_BACKUP" = false ]; then
+  echo -e "\n${YELLOW}[2/10] Creating backup...${NC}"
+  BACKUP_NAME="backup_$(date +%Y%m%d_%H%M%S)"
+
+  run_remote "cd ${APP_DIR} && mkdir -p backups/${BACKUP_NAME}"
+
+  # Backup docker state
+  run_remote "cd ${APP_DIR} && docker-compose ps > backups/${BACKUP_NAME}/container_status.txt 2>&1 || true"
+
+  # Backup database
+  run_remote "cd ${APP_DIR} && docker-compose exec -T postgres pg_dump -U postgres medical_companion > backups/${BACKUP_NAME}/database.sql 2>&1 || echo 'Database backup skipped'"
+
+  echo -e "${GREEN}✅ Backup created: ${BACKUP_NAME}${NC}"
+else
+  echo -e "\n${YELLOW}[2/10] Skipping backup (--skip-backup flag)${NC}"
+fi
+
+# Step 3: Pull latest code
+echo -e "\n${YELLOW}[3/10] Pulling latest code...${NC}"
+run_remote "cd ${APP_DIR} && git fetch origin"
+run_remote "cd ${APP_DIR} && git checkout ${BRANCH}"
+run_remote "cd ${APP_DIR} && git pull origin ${BRANCH}"
+CURRENT_COMMIT=$(run_remote "cd ${APP_DIR} && git rev-parse --short HEAD")
+echo -e "${GREEN}✅ Code updated to commit: ${CURRENT_COMMIT}${NC}"
+
+# Step 4: Stop containers
+echo -e "\n${YELLOW}[4/10] Stopping containers...${NC}"
+run_remote "cd ${APP_DIR} && docker-compose down"
+echo -e "${GREEN}✅ Containers stopped${NC}"
+
+# Step 5: Clean old images
+echo -e "\n${YELLOW}[5/10] Cleaning old images...${NC}"
+run_remote "cd ${APP_DIR} && docker-compose rm -f"
+run_remote "cd ${APP_DIR} && docker rmi medical-pwa_medical-companion 2>/dev/null || true"
+run_remote "cd ${APP_DIR} && docker image prune -f"
+echo -e "${GREEN}✅ Old images removed${NC}"
+
+# Step 6: Set build metadata
+echo -e "\n${YELLOW}[6/10] Setting build metadata...${NC}"
+BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+run_remote "cd ${APP_DIR} && export BUILD_TIME='${BUILD_TIME}' && export GIT_COMMIT='${CURRENT_COMMIT}'"
+
+# Step 7: Rebuild containers
+echo -e "\n${YELLOW}[7/10] Rebuilding containers...${NC}"
+if [ "$NO_CACHE" = true ]; then
+  echo "Building with --no-cache flag..."
+  run_remote "cd ${APP_DIR} && BUILD_TIME='${BUILD_TIME}' GIT_COMMIT='${CURRENT_COMMIT}' docker-compose build --no-cache"
+else
+  run_remote "cd ${APP_DIR} && BUILD_TIME='${BUILD_TIME}' GIT_COMMIT='${CURRENT_COMMIT}' docker-compose build"
+fi
+echo -e "${GREEN}✅ Containers rebuilt${NC}"
+
+# Step 8: Start containers
+echo -e "\n${YELLOW}[8/10] Starting containers...${NC}"
+run_remote "cd ${APP_DIR} && docker-compose up -d"
+echo -e "${GREEN}✅ Containers started${NC}"
+
+# Step 9: Wait for health checks
+echo -e "\n${YELLOW}[9/10] Waiting for containers to be healthy...${NC}"
 sleep 10
 
-# Check if services are running
-if docker-compose ps | grep -q "Up"; then
-    echo "✅ Services are running!"
-    echo ""
-    echo "🎉 Deployment successful!"
-    echo ""
-    echo "Access your Medical Companion PWA at:"
-    echo "  http://your-server-ip:6767"
-    echo ""
-    echo "First time setup:"
-    echo "1. Navigate to http://your-server-ip:6767"
-    echo "2. Click 'Create Account' to register"
-    echo "3. Use the same login for multiple family members"
-    echo ""
-    echo "Useful commands:"
-    echo "  docker-compose logs -f          # View logs"
-    echo "  docker-compose ps               # Check status"
-    echo "  docker-compose down             # Stop services"
-    echo "  docker-compose restart          # Restart services"
-    echo "  docker exec -it medical-companion /bin/sh  # Shell access"
+MAX_WAIT=60
+ELAPSED=0
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+  UNHEALTHY=$(run_remote "cd ${APP_DIR} && docker-compose ps | grep -i 'unhealthy' || true")
+  if [ -z "$UNHEALTHY" ]; then
+    echo -e "${GREEN}✅ All containers healthy${NC}"
+    break
+  fi
+  echo "Waiting for containers to become healthy... ($ELAPSED/$MAX_WAIT seconds)"
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
+done
+
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+  echo -e "${YELLOW}⚠️  Warning: Some containers may not be healthy${NC}"
+  run_remote "cd ${APP_DIR} && docker-compose ps"
+fi
+
+# Step 10: Verify deployment
+echo -e "\n${YELLOW}[10/10] Verifying deployment...${NC}"
+
+# Check backend health
+HEALTH_CHECK=$(run_remote "curl -s http://localhost:3001/api/health 2>/dev/null || echo 'FAILED'")
+if [[ $HEALTH_CHECK == *"healthy"* ]]; then
+  echo -e "${GREEN}✅ Backend health check passed${NC}"
 else
-    echo "❌ Services failed to start. Check logs with:"
-    echo "  docker-compose logs"
-    exit 1
+  echo -e "${RED}❌ Backend health check failed${NC}"
+  echo "Response: $HEALTH_CHECK"
+fi
+
+# Check version endpoint
+VERSION_CHECK=$(run_remote "curl -s http://localhost:3001/api/version 2>/dev/null || echo 'FAILED'")
+if [[ $VERSION_CHECK == *"gitCommit"* ]]; then
+  echo -e "${GREEN}✅ Version endpoint working${NC}"
+  echo "Version info: $VERSION_CHECK"
+else
+  echo -e "${YELLOW}⚠️  Version endpoint not responding${NC}"
+fi
+
+# Check frontend bundle
+BUNDLE_HASH=$(run_remote "curl -s http://localhost:6767/ 2>/dev/null | grep -o 'index-[a-zA-Z0-9]*.js' | head -1 || echo 'NOT_FOUND'")
+if [ "$BUNDLE_HASH" != "NOT_FOUND" ]; then
+  echo -e "${GREEN}✅ Frontend bundle: $BUNDLE_HASH${NC}"
+else
+  echo -e "${RED}❌ Frontend bundle not found${NC}"
+fi
+
+# Display summary
+echo -e "\n${GREEN}=======================================${NC}"
+echo -e "${GREEN}Deployment Summary${NC}"
+echo -e "${GREEN}=======================================${NC}"
+echo -e "Commit:  ${CURRENT_COMMIT}"
+echo -e "Time:    $(date)"
+echo -e "Bundle:  ${BUNDLE_HASH}"
+echo -e "Branch:  ${BRANCH}"
+echo -e "${GREEN}=======================================${NC}"
+
+# Final status
+if [[ $HEALTH_CHECK == *"healthy"* ]] && [ "$BUNDLE_HASH" != "NOT_FOUND" ]; then
+  echo -e "\n${GREEN}🎉 Deployment completed successfully!${NC}"
+  echo -e "\nNext steps:"
+  echo -e "1. Test the application at https://cl.zyroi.com"
+  echo -e "2. Monitor logs: ssh ${SERVER_USER}@${SERVER_HOST} 'cd ${APP_DIR} && docker-compose logs -f'"
+  echo -e "3. Check health: curl https://cl.zyroi.com/api/health"
+  exit 0
+else
+  echo -e "\n${RED}⚠️  Deployment completed with warnings${NC}"
+  echo -e "Please check the logs for more details"
+  exit 1
 fi
