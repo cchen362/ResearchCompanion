@@ -59,13 +59,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         console.log('[ChatPanelMinimal] All stores loaded successfully');
 
         // CRITICAL FIX: Wait for store hydration before loading chats
-        const chatStore = chatStoreModule.useChatStore.getState();
+        let chatStore = chatStoreModule.useChatStore.getState();
         console.log('[ChatPanelMinimal] Waiting for store hydration...');
         await chatStore.waitForHydration();
         console.log('[ChatPanelMinimal] Store hydrated, loading chats...');
 
         // Now load initial data
         await chatStore.loadChats(topicId);
+
+        // CRITICAL: Get fresh state after async operation
+        chatStore = chatStoreModule.useChatStore.getState();
 
         // CRITICAL FIX: Check for existing chat before creating new one
         console.log('[ChatPanelMinimal] Checking for existing chat:', {
@@ -116,6 +119,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             console.log('[ChatPanelMinimal] No existing chat found, creating new one for topic:', topicId);
             await chatStore.createChat(topicId);
           }
+          // Get fresh state after creating/setting chat
+          chatStore = chatStoreModule.useChatStore.getState();
         } else {
           console.log('[ChatPanelMinimal] Using active chat:', chatStore.activeChat.id);
         }
@@ -128,8 +133,9 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             // Load messages from API/cache
             await chatStore.loadMessages(chatStore.activeChatId);
 
-            // Get the loaded messages
-            const loadedMessages = chatStoreModule.useChatStore.getState().messages.get(chatStore.activeChatId) || [];
+            // Get fresh state and then the loaded messages
+            const freshState = chatStoreModule.useChatStore.getState();
+            const loadedMessages = freshState.messages.get(freshState.activeChatId) || [];
             console.log('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
 
             // Set messages regardless of count (even if 0, it's valid)
