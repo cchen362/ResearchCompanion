@@ -14,10 +14,13 @@ interface ChatStore {
   isStreaming: boolean;
   streamingMessage: Partial<ChatMessage> | null;
   context: ChatContext;
+  isHydrated: boolean; // Track hydration state
+  hydrationPromise: Promise<void> | null; // Promise that resolves when hydrated
 
   // Actions - Chat Management
   loadChats: (topicId?: string) => Promise<void>;
   createChat: (topicId: string, initialMessage?: string) => Promise<FindingsChat>;
+  getChatByTopicId: (topicId: string) => FindingsChat | undefined;
   setActiveChat: (chatId: string) => Promise<void>;
   updateChat: (chatId: string, updates: Partial<FindingsChat>) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
@@ -44,6 +47,9 @@ interface ChatStore {
   // Actions - Citations
   addCitation: (messageId: string, citation: SourceCitation) => Promise<void>;
   removeCitation: (messageId: string, citationId: string) => Promise<void>;
+
+  // Actions - Hydration
+  waitForHydration: () => Promise<void>;
 }
 
 const initialContext: ChatContext = {
@@ -66,6 +72,8 @@ export const useChatStore = create<ChatStore>()(
         isStreaming: false,
         streamingMessage: null,
         context: initialContext,
+        isHydrated: false,
+        hydrationPromise: null,
 
         // Chat Management
         loadChats: async (topicId?: string) => {
@@ -603,6 +611,46 @@ export const useChatStore = create<ChatStore>()(
             );
             await get().updateMessage(activeChatId, messageId, { citations });
           }
+        },
+
+        // Hydration Management
+        waitForHydration: async () => {
+          const state = get();
+
+          // If already hydrated, return immediately
+          if (state.isHydrated) {
+            console.log('✅ [chatStore] Already hydrated');
+            return;
+          }
+
+          // If hydration promise exists, wait for it
+          if (state.hydrationPromise) {
+            console.log('⏳ [chatStore] Waiting for existing hydration...');
+            return state.hydrationPromise;
+          }
+
+          // Create new hydration promise
+          console.log('🔄 [chatStore] Creating hydration promise...');
+          const promise = new Promise<void>((resolve) => {
+            const checkHydration = setInterval(() => {
+              if (get().isHydrated) {
+                clearInterval(checkHydration);
+                console.log('✅ [chatStore] Hydration complete!');
+                resolve();
+              }
+            }, 50);
+
+            // Timeout after 3 seconds
+            setTimeout(() => {
+              clearInterval(checkHydration);
+              console.warn('⚠️ [chatStore] Hydration timeout - proceeding anyway');
+              set({ isHydrated: true });
+              resolve();
+            }, 3000);
+          });
+
+          set({ hydrationPromise: promise });
+          return promise;
         }
       }),
       {
@@ -667,21 +715,31 @@ export const useChatStore = create<ChatStore>()(
           context: state.context,
           messages: state.messages      // Persist messages Map
         }),
-        onRehydrateStorage: () => (state) => {
-          console.log('🔄 [chatStore] Rehydrated from localStorage:', {
-            chatsCount: state?.chats?.length || 0,
-            hasActiveChat: !!state?.activeChat,
-            activeChatId: state?.activeChatId,
-            hasContext: !!state?.context,
-            messageCount: state?.messages ? state.messages.size : 0,
-            messagesForActiveChat: state?.messages && state?.activeChatId ?
-              (state.messages.get(state.activeChatId)?.length || 0) : 0
-          });
+        onRehydrateStorage: () => (state, error) => {
+          if (error) {
+            console.error('❌ [chatStore] Rehydration error:', error);
+            // Set hydrated to true even on error to prevent infinite waiting
+            useChatStore.setState({ isHydrated: true });
+          } else {
+            console.log('🔄 [chatStore] Rehydrated from localStorage:', {
+              chatsCount: state?.chats?.length || 0,
+              hasActiveChat: !!state?.activeChat,
+              activeChatId: state?.activeChatId,
+              hasContext: !!state?.context,
+              messageCount: state?.messages ? state.messages.size : 0,
+              messagesForActiveChat: state?.messages && state?.activeChatId ?
+                (state.messages.get(state.activeChatId)?.length || 0) : 0
+            });
 
-          // If we have a persisted activeChatId, load messages for it
-          if (state?.activeChatId && !state?.messages?.has(state.activeChatId)) {
-            console.log('📨 [chatStore] Auto-loading messages for persisted chat:', state.activeChatId);
-            // Messages will be loaded by ChatPanelMinimal
+            // If we have a persisted activeChatId, load messages for it
+            if (state?.activeChatId && !state?.messages?.has(state.activeChatId)) {
+              console.log('📨 [chatStore] Auto-loading messages for persisted chat:', state.activeChatId);
+              // Messages will be loaded by ChatPanelMinimal
+            }
+
+            // Mark as hydrated - this is the crucial fix!
+            console.log('✅ [chatStore] Setting isHydrated to true');
+            useChatStore.setState({ isHydrated: true });
           }
         }
       }

@@ -58,8 +58,13 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         console.log('[ChatPanelMinimal] All stores loaded successfully');
 
-        // Now load initial data
+        // CRITICAL FIX: Wait for store hydration before loading chats
         const chatStore = chatStoreModule.useChatStore.getState();
+        console.log('[ChatPanelMinimal] Waiting for store hydration...');
+        await chatStore.waitForHydration();
+        console.log('[ChatPanelMinimal] Store hydrated, loading chats...');
+
+        // Now load initial data
         await chatStore.loadChats(topicId);
 
         // CRITICAL FIX: Check for existing chat before creating new one
