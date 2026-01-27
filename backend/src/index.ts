@@ -21,6 +21,7 @@ import chatsRoutes from './routes/chats.routes.js';
 // Voice recording and timeline routes
 import timelineRoutes from './routes/timeline.routes.js';
 import audioRoutes from './routes/audio.routes.js';
+import versionRoutes from './routes/version.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
@@ -101,6 +102,9 @@ app.get('/api/health', (req, res) => {
 
 // Auth routes (no authentication required)
 app.use('/api/auth', authRoutes);
+
+// Version endpoint (no authentication required)
+app.use('/api', versionRoutes);
 
 // Protected routes (authentication required)
 app.use('/api', authenticate, searchRoutes);

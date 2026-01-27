@@ -13,6 +13,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanelLazy';
 import { AnalyticsView } from './components/AnalyticsView';
 import { DebugPanel } from './components/DebugPanel';
+import { UpdateNotification } from './components/UpdateNotification';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
 import type { Topic } from './types';
@@ -139,6 +140,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Update notification banner */}
+      <UpdateNotification />
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
