@@ -271,8 +271,22 @@ export class TimelineModel {
 
     // Extract data-related fields from metadata if they exist
     let data = null;
-    if (parsedMetadata) {
-      // If metadata contains summary, duration, recordedAt, etc., reconstruct the data object
+
+    // ALWAYS reconstruct data object for voice_note type
+    if (row.event_type === 'voice_note') {
+      data = {
+        transcript: row.description || '',
+        summary: parsedMetadata?.summary || {
+          visitSummary: 'Processing...',
+          nextSteps: [],
+          importantMentions: [],
+          sentiment: 'neutral'
+        },
+        duration: parsedMetadata?.duration || 0,
+        recordedAt: parsedMetadata?.recordedAt || Date.now()
+      };
+    } else if (parsedMetadata) {
+      // For non-voice notes, use existing logic
       if (parsedMetadata.summary || parsedMetadata.duration !== undefined || parsedMetadata.recordedAt) {
         data = {
           transcript: row.description, // transcript was stored in description
