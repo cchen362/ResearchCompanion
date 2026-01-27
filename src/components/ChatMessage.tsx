@@ -70,8 +70,8 @@ export function ChatMessage({
           if (citation.isPlaceholder || !citation.findingId) {
             return `<button data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded cursor-not-allowed opacity-75" title="Reference not available - citation exceeds available findings" disabled>[${num}]</button>`;
           }
-          // Regular citation with valid finding
-          return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded transition-all cursor-pointer hover:shadow-sm" title="Click to view finding">[${num}]</button>`;
+          // Regular citation with valid finding - enhanced with smooth underline animation
+          return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded hover:underline transition-all duration-150 cursor-pointer hover:scale-105 hover:shadow-sm" title="${citation.citationText?.slice(0, 150) || 'Click to view finding'}...">[${num}]</button>`;
         }
         return `<span class="text-muted-foreground">[${num}]</span>`;
       }).join('');
@@ -224,11 +224,11 @@ export function ChatMessage({
   const isLongMessage = message.content.length > 500;
 
   return (
-    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className} animate-fadeIn`}>
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className} animate-slide-up-fade`}>
       <div className={`flex gap-3 max-w-full md:max-w-[85%] lg:max-w-3xl ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Avatar */}
         <div className={`flex-shrink-0 ${message.role === 'system' ? 'hidden' : ''}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${
             message.role === 'user'
               ? 'bg-primary/10 text-primary'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
@@ -238,7 +238,7 @@ export function ChatMessage({
         </div>
 
         {/* Message Card */}
-        <Card className={`flex-1 p-4 transition-all hover:shadow-md ${messageStyles[message.role]}`}>
+        <Card className={`flex-1 p-4 transition-all duration-200 hover:shadow-lg ${messageStyles[message.role]}`}>
           {/* Header */}
           <div className="flex items-center gap-2 mb-2">
             <span className="font-medium capitalize text-sm">{message.role}</span>

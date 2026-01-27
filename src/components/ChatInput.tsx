@@ -196,10 +196,14 @@ export function ChatInput({
     <div className={`bg-background ${className}`}>
       {/* Typing indicator */}
       {showTypingIndicator && (
-        <div className="px-4 py-2 border-b">
+        <div className="px-4 py-2 border-b bg-gradient-to-r from-transparent via-gray-50/50 to-transparent dark:via-gray-800/50">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>AI is typing...</span>
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="animate-float-in">AI is thinking...</span>
           </div>
         </div>
       )}
@@ -313,14 +317,14 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={disabled || isRecording}
-              className="w-full px-4 py-3 text-base bg-background border-2 border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 transition-colors"
+              className="w-full px-4 py-3 text-base bg-background border-2 border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
               rows={1}
               style={{ minHeight: '48px' }}
             />
-            {message.length > 0 && (
-              <span className={`absolute bottom-2 right-2 text-xs ${
+            {message.length > maxLength * 0.8 && (
+              <span className={`absolute bottom-2 right-2 text-xs transition-opacity duration-200 ${
                 message.length > maxLength * 0.9 ? 'text-destructive' : 'text-muted-foreground'
-              }`}>
+              } animate-float-in`}>
                 {message.length}/{maxLength}
               </span>
             )}
@@ -332,11 +336,12 @@ export function ChatInput({
             disabled={disabled || (!message.trim() && attachments.length === 0)}
             size="icon"
             title="Send message (Enter)"
+            className="transition-all duration-200 hover:scale-105 active:scale-95"
           >
             {disabled && showTypingIndicator ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 transition-transform duration-150" />
             )}
           </Button>
         </div>

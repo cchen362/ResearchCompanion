@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
 import { FindingDetailModal } from './FindingDetailModal';
+import { SuggestedQuestions } from './chat/SuggestedQuestions';
 import { useToast } from './ui/use-toast';
 
 interface ChatPanelProps {
@@ -629,26 +630,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         )}
       </div>
 
-      {/* Suggested Questions */}
-      {suggestedQuestions.length > 0 && (
-        <div className="p-4 border-t bg-gray-50">
-          <p className="text-sm text-gray-600 mb-2">Suggested questions:</p>
-          <div className="flex flex-wrap gap-2">
-            {suggestedQuestions.map((question, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  handleSendMessage(question);
-                  setSuggestedQuestions([]);
-                }}
-                className="text-sm px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-full hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-              >
-                {question}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Suggested Questions - Elegant floating design */}
+      <SuggestedQuestions
+        questions={suggestedQuestions}
+        onQuestionClick={(question) => {
+          handleSendMessage(question);
+          setSuggestedQuestions([]);
+        }}
+        className="border-t bg-gradient-to-b from-gray-50/50 to-white dark:from-gray-900/50 dark:to-gray-900"
+        autoHideDelay={15000} // 15 seconds
+      />
 
       {/* Input */}
       <div className="border-t">
