@@ -1781,10 +1781,32 @@ Modified Timeline.tsx to only show the description for NON-voice_note events:
 
 ---
 
-## Issue 45: Past Chats Not Loading After Login Without Refresh
+## Issue 45: Past Chats Not Loading After Login Without Refresh (FULLY RESOLVED)
 
 **See full documentation:** [ISSUE_45_CHAT_HYDRATION_FIX.md](./ISSUE_45_CHAT_HYDRATION_FIX.md)
 
-**Status:** FIXED - January 27, 2026
+**Status:** FIXED & VERIFIED - January 27, 2026, 11:15 AM PST
 
-**Summary:** Race condition between Zustand persist rehydration and chat loading. Fixed by adding hydration state tracking and waiting for store rehydration before loading chats.
+**Initial Problem:** After login, chats wouldn't load without browser refresh despite backend returning data correctly.
+
+**Root Cause:** Stale state references in ChatPanelMinimal.tsx - component was using outdated Zustand store snapshots after async operations.
+
+**Solution:** Get fresh state references after async operations (loadChats, createChat, setActiveChat) instead of reusing initial getState() snapshot.
+
+**Key Fix:**
+```typescript
+// Before: Stale reference
+const chatStore = getState();
+await chatStore.loadChats(); // Updates store
+// chatStore.activeChatId is still null!
+
+// After: Fresh reference
+let chatStore = getState();
+await chatStore.loadChats();
+chatStore = getState(); // Get updated state!
+// chatStore.activeChatId now has correct value
+```
+
+**Deployment:** Two deployments - first added hydration tracking (partial fix), second fixed stale references (complete fix).
+
+**Lesson:** Zustand's getState() returns a snapshot, not a live reference. Always refresh after state-modifying operations.
