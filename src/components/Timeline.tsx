@@ -354,7 +354,8 @@ export default function Timeline() {
                         )}
                       </div>
 
-                      {event.description && (
+                      {/* Only show description for non-voice_note events to avoid redundant transcript display */}
+                      {event.type !== 'voice_note' && event.description && (
                         <p className="text-gray-700 mb-2">{event.description}</p>
                       )}
 
