@@ -15,9 +15,9 @@ COPY . ./
 # Remove any local .env files to ensure we use Docker ENV variables only
 RUN rm -f .env .env.local .env.production.local
 
-# Set Vite environment variables for build
-ENV VITE_USE_SERVER_STORAGE=true
-ENV VITE_API_BASE_URL=/api
+# Create .env.production with correct values to avoid path conversion issues
+RUN echo "VITE_USE_SERVER_STORAGE=true" > .env.production && \
+    echo "VITE_API_BASE_URL=/api" >> .env.production
 
 # Build frontend
 RUN npm run build

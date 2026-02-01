@@ -830,7 +830,22 @@ To fix the issues, users MUST clear their browser cache:
 - ✅ Timeframe changes load correct cached digest
 - ✅ Browser clear → login → digest persists from server
 - ✅ Parallel loading improves initial page load speed
-   - Preserves existing mappings and only assigns new numbers to new findings
+
+**Deployment:** Deployed to production via proper git-based rebuild (February 1, 2026):
+```bash
+# Push changes from local
+git add -A && git commit -m "Fix digest loading"
+git push origin fix/digest-findings-race-condition
+
+# On production server
+ssh chee@100.94.82.35
+cd medical-pwa
+git pull
+docker-compose down
+docker-compose up -d --build
+```
+
+**IMPORTANT**: Do NOT use `scp` to copy dist files - always rebuild from git to ensure TypeScript compilation
 
 2. **Updated `buildSystemPrompt` function**:
    - Creates/updates citation map before building prompt
