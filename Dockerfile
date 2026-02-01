@@ -12,8 +12,9 @@ RUN npm ci
 # Copy frontend source
 COPY . ./
 
-# Remove any local .env files to ensure we use Docker ENV variables only
-RUN rm -f .env .env.local .env.production.local
+# Remove ALL .env files to ensure we use Docker ENV variables only
+# This prevents any path conversion issues from file-based env vars
+RUN rm -f .env .env.* .env.production .env.local .env.production.local
 
 # Build frontend with environment variables directly
 # This avoids any file-based path conversion issues
