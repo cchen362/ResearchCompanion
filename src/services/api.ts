@@ -2,7 +2,10 @@ import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import type { VoiceTranscriptionResult } from '@/types';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Fix for Git Bash path conversion issue - ensure we always get '/api' not Windows paths
+const API_URL = import.meta.env.VITE_API_BASE_URL?.startsWith('C:')
+  ? '/api'  // Fallback if Git Bash converted the path
+  : (import.meta.env.VITE_API_BASE_URL || '/api');
 
 // Standard timeout for regular operations
 const STANDARD_TIMEOUT = 60000; // 60 seconds
