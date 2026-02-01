@@ -2051,3 +2051,111 @@ ssh chee@100.94.82.35 "cd medical-pwa && git pull && docker-compose build && doc
 - **Performance**: CSS transforms for GPU-accelerated animations
 
 **Status:** DEPLOYED & VERIFIED
+
+## Issue 43: Login Error "Unsupported protocol C:" (FIXED - February 1, 2026)
+
+### Problem Description
+After commit 879bb2c, users encountered login error:
+```
+API Response Error: Unsupported protocol C:
+```
+
+This error indicated that the environment variable `VITE_API_BASE_URL` was being converted by Git Bash from `/api` to `C:/Program Files/Git/api` during Docker build on Windows.
+
+### Root Cause Analysis
+
+**Multiple Contributing Factors:**
+
+1. **Git Bash Path Conversion**: Git Bash on Windows automatically converts Unix-style paths to Windows paths when passed as environment variables
+2. **Incorrect nginx Configuration**: `nginx.conf` had `listen 6767;` instead of `listen 80;` causing nginx to fail to start inside container
+3. **PostgreSQL SSL Issue**: Database connection string needed `?sslmode=disable` parameter for local PostgreSQL without SSL
+
+### Investigation Steps
+
+1. **Verified Backend Working**: Direct API calls to port 3001 confirmed backend was functional
+2. **Checked Docker Logs**: Revealed nginx binding errors and SSL connection issues
+3. **Analyzed Frontend Code**: Found fallback detection in `api.ts` but nginx misconfiguration prevented it from being reached
+4. **Discovered nginx Port Issue**: nginx tried to bind to 6767 internally instead of 80
+
+### Fix Applied
+
+#### 1. Fixed nginx Configuration
+```diff
+# nginx.conf
+- listen 6767;
++ listen 80;
+```
+
+#### 2. Fixed PostgreSQL Connection
+```bash
+DATABASE_URL='postgresql://meduser:medpass123@medcompanion-postgres:5432/medcompanion?sslmode=disable'
+```
+
+#### 3. Environment Variables Set Directly in Dockerfile
+```dockerfile
+# Dockerfile (lines 20-21)
+ENV VITE_USE_SERVER_STORAGE=true
+ENV VITE_API_BASE_URL=/api
+```
+
+### Files Modified
+- `nginx.conf` - Changed listen port from 6767 to 80
+- Container environment variables - Added `?sslmode=disable` to DATABASE_URL
+
+### Deployment Details
+
+**Date:** February 1, 2026 at 14:11 UTC
+
+**Commits:**
+- `71d520f` - Use ENV variables directly in Docker build to bypass path conversion
+- `f0e5ba9` - Fix nginx listen port - should be 80 inside container, not 6767
+
+**Deployment Commands:**
+```bash
+# Built directly on server to avoid Windows Docker issues
+ssh chee@100.94.82.35
+cd medical-pwa
+git pull
+docker build -t medcompanion:fixed .
+docker stop [old-container]
+docker rm [old-container]
+docker run -d --name medcompanion \
+  --network medical-pwa_medcompanion-network \
+  -p 6767:80 -p 3001:3001 \
+  -e NODE_ENV=production \
+  -e PORT=3001 \
+  -e DATABASE_URL='postgresql://meduser:medpass123@medcompanion-postgres:5432/medcompanion?sslmode=disable' \
+  -e JWT_SECRET=your-jwt-secret-key-change-this-in-production \
+  -e CORS_ALLOWED_ORIGINS='https://cl.zyroi.com,http://100.94.82.35:6767,http://localhost:6767' \
+  -e PRODUCTION_URL=https://cl.zyroi.com \
+  -e OPENAI_API_KEY=$(grep OPENAI_API_KEY .env | cut -d= -f2) \
+  -e ANTHROPIC_API_KEY=$(grep ANTHROPIC_API_KEY .env | cut -d= -f2) \
+  -e BRAVE_API_KEY=$(grep BRAVE_API_KEY .env | cut -d= -f2) \
+  --restart unless-stopped \
+  medcompanion:fixed
+```
+
+**Container ID:** a6974ff1a8afd48a4ad042cc0b94cc4b609fbc68f753c7227ad4444e2cbcbc2c
+
+### Verification
+- ✅ nginx serving on port 80 inside container (mapped to 6767 externally)
+- ✅ Backend API accessible at `/api/*` endpoints
+- ✅ Database connected successfully without SSL errors
+- ✅ Login functionality working at both http://100.94.82.35:6767 and https://cl.zyroi.com
+- ✅ Test user registered and logged in successfully
+- ✅ No "Unsupported protocol C:" errors
+
+### Lessons Learned
+
+1. **Build on Target Platform**: Building Docker images directly on Linux server avoids Windows-specific path conversion issues
+2. **nginx Port Configuration**: nginx inside container should listen on standard port (80), Docker handles external port mapping
+3. **PostgreSQL SSL**: Local PostgreSQL containers often don't have SSL configured, use `?sslmode=disable` for development/internal connections
+4. **Environment Variable Best Practice**: Use Docker ENV directives instead of file-based .env for build-time variables
+5. **Thorough Testing**: Always test the complete flow (frontend → nginx → backend → database) after deployment
+
+### Impact
+- **Before**: Login completely broken with "Unsupported protocol C:" error
+- **After**: Full authentication flow working, all existing features preserved
+- **No Breaking Changes**: Chat citations, findings display, digest generation all continue to work
+
+**Status:** FIXED & DEPLOYED

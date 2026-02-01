@@ -9,7 +9,11 @@
 export const USE_SERVER_STORAGE = import.meta.env.VITE_USE_SERVER_STORAGE === 'true' || false;
 
 // API base URL - Use relative path to leverage nginx proxy in production
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Check for Git Bash path conversion (C:/Program Files/Git/api) and fallback to /api
+const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = (envApiUrl && envApiUrl.startsWith('C:'))
+  ? '/api'  // Fallback if Git Bash converted the path
+  : (envApiUrl || '/api');
 
 // Storage configuration
 export const storageConfig = {

@@ -42,7 +42,11 @@ const AGENT_CONFIGS = {
 };
 
 // API endpoints (these would be configured from environment)
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+// Check for Git Bash path conversion (C:/Program Files/Git/api) and fallback to /api
+const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = (envApiUrl && envApiUrl.startsWith('C:'))
+  ? '/api'  // Fallback if Git Bash converted the path
+  : (envApiUrl || '/api');
 
 // Main agent execution function
 export async function runAgent(agent: Agent, topic: Topic): Promise<ResearchFinding[]> {

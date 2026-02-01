@@ -16,10 +16,15 @@ COPY . ./
 # This prevents any path conversion issues from file-based env vars
 RUN rm -f .env .env.* .env.production .env.local .env.production.local
 
-# Build frontend with environment variables directly
-# This avoids any file-based path conversion issues
-ENV VITE_USE_SERVER_STORAGE=true
-ENV VITE_API_BASE_URL=/api
+# Build frontend with environment variables using ARG+ENV pattern
+# ARG prevents Git Bash path conversion that happens with direct ENV
+ARG VITE_USE_SERVER_STORAGE_ARG=true
+ARG VITE_API_BASE_URL_ARG=/api
+
+# Set ENV from ARG (prevents Git Bash conversion)
+ENV VITE_USE_SERVER_STORAGE=${VITE_USE_SERVER_STORAGE_ARG}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL_ARG}
+
 RUN npm run build
 
 # Stage 2: Build backend - Using standard node image to avoid segfault with bcrypt
