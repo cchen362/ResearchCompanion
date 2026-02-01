@@ -847,6 +847,25 @@ docker-compose up -d --build
 
 **IMPORTANT**: Do NOT use `scp` to copy dist files - always rebuild from git to ensure TypeScript compilation
 
+### Issue 20: Git Bash Path Conversion Breaking Login (FIXED - February 1, 2026)
+**Problem:** Login failed with "Unsupported protocol C:" error. API calls were trying to use `C:/Program Files/Git/api` instead of `/api`.
+
+**Root Cause:** During Docker build, the environment variable `VITE_API_BASE_URL=/api` was being converted by Git Bash to Windows path `C:/Program Files/Git/api`. This is a known Git Bash behavior where paths starting with `/` get converted to Windows paths.
+
+**Fix Applied:** Added runtime detection and fallback in `src/services/api.ts`:
+```typescript
+const API_URL = import.meta.env.VITE_API_BASE_URL?.startsWith('C:')
+  ? '/api'  // Fallback if Git Bash converted the path
+  : (import.meta.env.VITE_API_BASE_URL || '/api');
+```
+
+**Deployment Steps:**
+1. Force rebuild without cache: `docker-compose build --no-cache`
+2. Restart containers: `docker-compose up -d`
+3. Verify fix is applied
+
+**Key Lesson:** Git Bash on Windows can convert Unix paths to Windows paths during build processes. Always add defensive checks for path conversions when building Docker images that might be built on Windows systems.
+
 2. **Updated `buildSystemPrompt` function**:
    - Creates/updates citation map before building prompt
    - Explicitly lists findings with their assigned citation numbers

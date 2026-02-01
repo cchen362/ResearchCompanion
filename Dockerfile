@@ -15,9 +15,12 @@ COPY . ./
 # Remove any local .env files to ensure we use Docker ENV variables only
 RUN rm -f .env .env.local .env.production.local
 
-# Create .env.production with correct values to avoid path conversion issues
-RUN echo "VITE_USE_SERVER_STORAGE=true" > .env.production && \
-    echo "VITE_API_BASE_URL=/api" >> .env.production
+# Create .env.production with correct values
+# Using heredoc with escaped slash to prevent Git Bash path conversion
+RUN cat > .env.production << 'EOF'
+VITE_USE_SERVER_STORAGE=true
+VITE_API_BASE_URL=/api
+EOF
 
 # Build frontend
 RUN npm run build
