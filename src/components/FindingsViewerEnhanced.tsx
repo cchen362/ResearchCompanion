@@ -61,6 +61,31 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     }
   }, [selectedTopicId]);
 
+  // Listen for digest completion events
+  useEffect(() => {
+    const handleDigestCompleted = (event: CustomEvent) => {
+      console.log('[DIGEST EVENT] Digest completed event received:', event.detail);
+
+      // If the completed digest is for our current topic, update the UI
+      if (event.detail?.topicId === selectedTopicId) {
+        const completedDigest = event.detail.digest;
+        if (completedDigest) {
+          setDigest(completedDigest);
+          setGeneratingDigest(false);
+          console.log('[DIGEST EVENT] Updated UI with completed digest');
+        }
+      }
+    };
+
+    // Listen for the digest-completed event
+    window.addEventListener('digest-completed' as any, handleDigestCompleted);
+
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('digest-completed' as any, handleDigestCompleted);
+    };
+  }, [selectedTopicId]);
+
   const loadTopics = async () => {
     try {
       const allTopics = await topicsService.getTopics();
@@ -77,18 +102,47 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     try {
       setLoading(true);
 
-      // Load topic
-      const topic = await topicsService.getTopic(topicId);
+      // Load topic, findings, and digest in parallel for faster loading
+      const [topic, topicFindings, existingDigest] = await Promise.all([
+        topicsService.getTopic(topicId),
+        findingsService.getFindings(topicId),
+        digestService.getDigest(topicId, digestTimeframe).catch(() => undefined) // Don't fail if digest not found
+      ]);
+
       if (topic) {
         setCurrentTopic(topic);
 
-        // Load findings
-        const topicFindings = await findingsService.getFindings(topicId);
+        // Sort and set findings
         topicFindings.sort((a, b) => b.timestamp - a.timestamp);
         setFindings(topicFindings);
 
-        // Load or generate digest
-        await loadOrGenerateDigest(topicId, topicFindings, topic);
+        // If we got a digest from parallel fetch, use it immediately
+        if (existingDigest) {
+          console.log('[DIGEST PARALLEL] Found digest in parallel fetch:', {
+            id: existingDigest.id,
+            timeframe: existingDigest.timeframe
+          });
+
+          const maxAge = getMaxDigestAge(digestTimeframe);
+          const isRecent = (Date.now() - existingDigest.generatedAt) < maxAge;
+
+          if (isRecent) {
+            console.log('[DIGEST PARALLEL] Using existing digest from parallel load');
+            setDigest(existingDigest);
+          } else {
+            // Digest is too old, generate new one
+            console.log('[DIGEST PARALLEL] Digest from parallel load is too old, generating new');
+            if (topicFindings.length > 0) {
+              await generateNewDigest(topicFindings, topic);
+            }
+          }
+        } else {
+          // No digest found, generate if we have data
+          console.log('[DIGEST PARALLEL] No digest found in parallel load');
+          if (topicFindings.length > 0) {
+            await generateNewDigest(topicFindings, topic);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading topic data:', error);
@@ -109,46 +163,55 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     }
 
     try {
-      console.log('[DIGEST CHECK] Loading existing digests for topic:', topicId);
+      console.log('[DIGEST CHECK] Loading existing digest for topic:', topicId, 'timeframe:', digestTimeframe);
 
-      // Try to load existing digest
-      const digests = await digestService.getDigests(topicId);
-      console.log('[DIGEST CHECK] Found digests:', digests.length);
+      // First, try to fetch the latest digest from the server with the current timeframe
+      // This will use GET /api/digests/latest/:topicId?timeframe=X which is efficient
+      const existingDigest = await digestService.getDigest(topicId, digestTimeframe);
 
-      const recentDigest = digests
-        .filter(d => d.timeframe === digestTimeframe)
-        .sort((a, b) => b.generatedAt - a.generatedAt)[0];
-
-      if (recentDigest) {
-        console.log('[DIGEST CHECK] Most recent digest:', {
-          id: recentDigest.id,
-          timeframe: recentDigest.timeframe,
-          generatedAt: new Date(recentDigest.generatedAt).toISOString(),
-          age: Math.round((Date.now() - recentDigest.generatedAt) / (1000 * 60 * 60)) + ' hours ago'
+      if (existingDigest) {
+        console.log('[DIGEST CHECK] Found existing digest:', {
+          id: existingDigest.id,
+          timeframe: existingDigest.timeframe,
+          generatedAt: new Date(existingDigest.generatedAt).toISOString(),
+          age: Math.round((Date.now() - existingDigest.generatedAt) / (1000 * 60 * 60)) + ' hours ago'
         });
+
+        // Check if this digest matches our desired timeframe
+        // For now, accept any digest since backend doesn't store timeframe yet
+        // TODO: Once backend stores timeframe, filter by it
+        const maxAge = getMaxDigestAge(digestTimeframe);
+        const isRecent = (Date.now() - existingDigest.generatedAt) < maxAge;
+
+        console.log('[DIGEST CHECK] Is recent?', isRecent, {
+          maxAge: Math.round(maxAge / (1000 * 60 * 60)) + ' hours',
+          digestAge: Math.round((Date.now() - existingDigest.generatedAt) / (1000 * 60 * 60)) + ' hours'
+        });
+
+        if (isRecent) {
+          console.log('[DIGEST CHECK] Using existing digest from server, not generating new');
+          setDigest(existingDigest);
+          return; // Exit early - we have what we need
+        } else {
+          console.log('[DIGEST CHECK] Digest too old, will generate new');
+        }
       } else {
-        console.log('[DIGEST CHECK] No digest found for timeframe:', digestTimeframe);
+        console.log('[DIGEST CHECK] No existing digest found on server');
       }
 
-      // Check if digest is recent (less than 24 hours old for daily, 7 days for weekly, etc.)
-      const maxAge = getMaxDigestAge(digestTimeframe);
-      const isRecent = recentDigest && (Date.now() - recentDigest.generatedAt) < maxAge;
+      // Only generate new digest if we don't have a recent one
+      console.log('[DIGEST CHECK] Generating new digest...');
+      await generateNewDigest(topicFindings, topic);
 
-      console.log('[DIGEST CHECK] Is recent?', isRecent, {
-        maxAge: Math.round(maxAge / (1000 * 60 * 60)) + ' hours',
-        digestAge: recentDigest ? Math.round((Date.now() - recentDigest.generatedAt) / (1000 * 60 * 60)) + ' hours' : 'N/A'
-      });
-
-      if (isRecent) {
-        console.log('[DIGEST CHECK] Using existing digest, not generating new');
-        setDigest(recentDigest);
-      } else {
-        console.log('[DIGEST CHECK] Digest too old or missing, generating new');
-        // Generate new digest if needed
-        await generateNewDigest(topicFindings, topic);
-      }
     } catch (error) {
       console.error('[DIGEST CHECK] Error loading digest:', error);
+      // If loading fails, try to generate a new one as fallback
+      try {
+        await generateNewDigest(topicFindings, topic);
+      } catch (genError) {
+        console.error('[DIGEST CHECK] Error generating digest:', genError);
+        setDigest(null);
+      }
     }
   };
 
@@ -208,20 +271,46 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
 
       console.log('[DIGEST GEN] Digest queued with ID:', queueId);
 
-      // Wait for digest to be generated
+      // Wait for digest to be generated with timeout protection
+      const startTime = Date.now();
+      const timeout = 30000; // 30 second timeout
+      let intervalId: NodeJS.Timeout;
+
       const checkStatus = async () => {
-        const status = await digestQueueService.getQueueStatus(queueId);
-        if (status?.status === 'completed' && status.digest) {
-          setDigest(status.digest);
-        } else if (status?.status === 'failed') {
-          throw new Error('Failed to generate digest');
-        } else {
-          // Check again in 1 second
-          setTimeout(checkStatus, 1000);
+        try {
+          const status = await digestQueueService.getQueueStatus(queueId);
+
+          if (status?.status === 'completed' && status.digest) {
+            setDigest(status.digest);
+            clearInterval(intervalId);
+            return;
+          } else if (status?.status === 'failed') {
+            clearInterval(intervalId);
+            throw new Error('Failed to generate digest');
+          }
+
+          // Check if timeout exceeded
+          if (Date.now() - startTime > timeout) {
+            clearInterval(intervalId);
+            console.log('[DIGEST GEN] Timeout exceeded, checking server for existing digest');
+
+            // Try one more time to fetch from server
+            const existingDigest = await digestService.getDigest(topicId || '', digestTimeframe);
+            if (existingDigest) {
+              setDigest(existingDigest);
+            } else {
+              throw new Error('Digest generation timed out');
+            }
+          }
+        } catch (error) {
+          clearInterval(intervalId);
+          throw error;
         }
       };
 
-      await checkStatus();
+      // Check status every second
+      intervalId = setInterval(checkStatus, 1000);
+      await checkStatus(); // First check immediately
     } catch (error) {
       console.error('Error generating digest:', error);
       // Fallback: Create a basic digest locally
@@ -501,8 +590,12 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
               <select
                 value={digestTimeframe}
                 onChange={(e) => {
-                  setDigestTimeframe(e.target.value as DigestTimeframe);
-                  loadOrGenerateDigest(selectedTopicId, findings, currentTopic);
+                  const newTimeframe = e.target.value as DigestTimeframe;
+                  setDigestTimeframe(newTimeframe);
+                  // Use callback to ensure we get the latest state
+                  setTimeout(() => {
+                    loadOrGenerateDigest(selectedTopicId, findings, currentTopic);
+                  }, 0);
                 }}
                 className="rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
@@ -588,7 +681,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
               Generate a digest to see AI-powered insights from your research findings.
             </p>
             <Button
-              onClick={handleGenerateDigest}
+              onClick={generateNewDigest}
               disabled={findings.length === 0}
             >
               <RefreshCw className="h-4 w-4 mr-2" />

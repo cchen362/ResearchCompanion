@@ -757,21 +757,79 @@ To fix the issues, users MUST clear their browser cache:
 1. **Synchronized finding limits**: Both frontend and backend now use 50 findings consistently
 
 ### Issue 18: Complete Citation System Overhaul (FIXED - January 22, 2026)
-**Problem:** Despite multiple fixes, citations continued to display as plain text. Investigation revealed that the AI was mentioning citation numbers that didn't match the array indices of findings, causing a fundamental mismatch between what the AI referenced and what the backend could extract.
 
-**Root Cause Analysis:**
-The citation system was fundamentally flawed:
-1. **Unstable citation numbers**: Array-based indexing meant citation numbers changed as findings were added/removed
-2. **AI-backend mismatch**: AI would mention citations like [1,3,5,9,11,15] but backend extracted different numbers
-3. **No persistence**: Citation mappings were not preserved across messages
-4. **Fragile extraction**: Relied on array positions which could shift
+### Issue 19: Digest Loading & Caching Issues (FIXED - February 1, 2026)
+**Problem:** Multiple issues preventing cached digests from loading immediately from server:
+1. Digest shows "Generating..." for 1-2 seconds even when cached digest exists on server
+2. After clearing browser data and logging in, digest regenerates instead of loading from PostgreSQL
+3. Backend calls generate-digest API (70+ seconds) even when deduplication finds existing digest
+4. Missing function reference causing JS error
+5. Stale state in timeframe dropdown changes
 
-**Complete Overhaul Solution:**
-Implemented a stable citation mapping system that assigns permanent citation numbers to findings:
+**Root Causes Identified:**
+1. **Sequential Loading**: Component loaded findings first, THEN checked for digest (not parallel)
+2. **Wrong API Usage**: Used `getDigests()` fetching ALL digests instead of `getLatestDigest()`
+3. **Missing Function**: `handleGenerateDigest` referenced but never defined (should be `generateNewDigest`)
+4. **No Deduplication Handling**: Frontend ignored backend's `deduplicated: true` response
+5. **Missing Timeframe Storage**: Backend didn't store timeframe in metadata for filtering
+6. **Stale Closures**: Timeframe dropdown onChange used stale state from closure
+7. **No Event Listeners**: Component didn't listen for 'digest-completed' events
+8. **No Timeout Protection**: Polling could run forever without timeout
 
-1. **Created `createCitationMapping` function** (`backend/src/routes/chat.routes.ts`):
-   - Assigns stable citation numbers to findings that persist across messages
-   - Returns a Map<findingId, citationNumber> for consistent reference
+**Server Logs Analysis:**
+- Backend deduplication WORKS: Successfully returns existing digest ID
+- But frontend still waits 70+ seconds for "generation" to complete
+- Digest stored WITHOUT timeframe in metadata (NULL values)
+
+**Fixes Applied:**
+
+1. **Fixed Missing Function Reference**:
+   - Changed `handleGenerateDigest` → `generateNewDigest` in FindingsViewerEnhanced.tsx:591
+
+2. **Parallel Loading Implementation**:
+   - Load topic, findings, and digest simultaneously with Promise.all()
+   - Digest displays immediately if cached (<500ms instead of 2-3 seconds)
+
+3. **Fixed API Usage**:
+   - Changed from `getDigests()` to `getDigest()` with timeframe parameter
+   - Now uses efficient GET /api/digests/latest/:topicId?timeframe=X
+
+4. **Fixed Stale State Issues**:
+   - Used setTimeout with functional updates to avoid closure issues
+   - Timeframe changes now load correct digest
+
+5. **Backend Timeframe Storage**:
+   - Store timeframe in metadata during digest creation
+   - Added timeframe query parameter to GET endpoint
+   - Filter digests by type or metadata.timeframe
+
+6. **Event Listener Added**:
+   - Listen for 'digest-completed' events
+   - Proper cleanup on component unmount
+   - Immediate UI update when digest completes
+
+7. **Timeout Protection**:
+   - 30-second timeout for digest generation polling
+   - Fallback to server check if timeout exceeded
+   - Proper interval cleanup
+
+8. **Service Layer Updates**:
+   - digestsAPIService.getLatestDigest() accepts timeframe parameter
+   - digest.service.ts passes timeframe through to API
+
+**Files Modified:**
+- `src/components/FindingsViewerEnhanced.tsx` - 8 major fixes
+- `backend/src/routes/digests.crud.routes.ts` - Timeframe storage and filtering
+- `src/services/digests.api.service.ts` - Added timeframe parameter
+- `src/services/digest.service.ts` - Pass timeframe to API
+
+**Expected Results:**
+- ✅ Digest loads in <500ms after login (from PostgreSQL)
+- ✅ No "Generating..." UI for cached digests
+- ✅ No unnecessary 70-second AI calls when digest exists
+- ✅ Timeframe changes load correct cached digest
+- ✅ Browser clear → login → digest persists from server
+- ✅ Parallel loading improves initial page load speed
    - Preserves existing mappings and only assigns new numbers to new findings
 
 2. **Updated `buildSystemPrompt` function**:

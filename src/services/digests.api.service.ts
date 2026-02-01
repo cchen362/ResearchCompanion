@@ -106,11 +106,13 @@ class DigestsAPIService {
     }
   }
 
-  async getLatestDigest(topicId: string): Promise<SmartDigest | undefined> {
+  async getLatestDigest(topicId: string, timeframe?: string): Promise<SmartDigest | undefined> {
     try {
-      const response = await api.get<DigestResponse>(
-        `${this.baseUrl}/latest/${topicId}`
-      );
+      const url = timeframe
+        ? `${this.baseUrl}/latest/${topicId}?timeframe=${timeframe}`
+        : `${this.baseUrl}/latest/${topicId}`;
+
+      const response = await api.get<DigestResponse>(url);
 
       if (response.data.success) {
         return this.transformToFrontend(response.data.digest);

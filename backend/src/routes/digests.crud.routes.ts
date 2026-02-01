@@ -53,13 +53,28 @@ router.get('/digests/latest/:topicId', async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const { topicId } = req.params;
+    const { timeframe } = req.query; // Get timeframe from query params
 
-    const digest = await DigestModel.getLatestByTopicId(userId, topicId);
+    // Get latest digest, optionally filtered by timeframe
+    let digest;
+    if (timeframe) {
+      // Get all digests for the topic
+      const digests = await DigestModel.getByTopicId(userId, topicId, 10);
+
+      // Filter by timeframe (stored in type field and/or metadata)
+      digest = digests.find(d =>
+        d.type === timeframe ||
+        d.metadata?.timeframe === timeframe
+      );
+    } else {
+      // No timeframe specified, get the latest digest regardless of type
+      digest = await DigestModel.getLatestByTopicId(userId, topicId);
+    }
 
     if (!digest) {
       return res.status(404).json({
         success: false,
-        error: 'No digest found for this topic'
+        error: `No digest found for this topic${timeframe ? ` with timeframe: ${timeframe}` : ''}`
       });
     }
 
@@ -182,7 +197,16 @@ router.post('/digests', async (req, res) => {
       console.log('[DIGEST DEDUP] No recent digest found, creating new one');
     }
 
-    const digest = await DigestModel.create(userId, validation.data);
+    // Ensure timeframe is stored in metadata for filtering
+    const digestData = {
+      ...validation.data,
+      metadata: {
+        ...validation.data.metadata,
+        timeframe: validation.data.type // Store the timeframe in metadata as well
+      }
+    };
+
+    const digest = await DigestModel.create(userId, digestData);
 
     console.log(`[DIGEST CREATE] New digest created with ID: ${digest.id}`);
     console.log(`[DIGEST CREATE] Finding IDs saved: ${digest.finding_ids?.length || 0}`);

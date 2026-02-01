@@ -25,16 +25,20 @@ class DigestService {
     return digests;
   }
 
-  async getDigest(topicId: string): Promise<SmartDigest | undefined> {
+  async getDigest(topicId: string, timeframe?: string): Promise<SmartDigest | undefined> {
     if (this.isUsingAPI) {
-      return await digestsAPIService.getLatestDigest(topicId);
+      return await digestsAPIService.getLatestDigest(topicId, timeframe);
     }
 
     const db = await getDB();
     const tx = db.transaction('digests', 'readonly');
     const store = tx.objectStore('digests');
     const digests = await store.getAll();
-    return digests.find(d => d.topicId === topicId);
+    // Filter by topic and optionally by timeframe
+    return digests.find(d =>
+      d.topicId === topicId &&
+      (!timeframe || d.timeframe === timeframe)
+    );
   }
 
   async getDigestById(id: string): Promise<SmartDigest | undefined> {
