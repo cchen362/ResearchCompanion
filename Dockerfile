@@ -25,7 +25,8 @@ ARG VITE_API_BASE_URL_ARG=/api
 ENV VITE_USE_SERVER_STORAGE=${VITE_USE_SERVER_STORAGE_ARG}
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL_ARG}
 
-RUN npm run build
+# Explicitly set env vars during build to ensure they're used
+RUN VITE_API_BASE_URL=/api VITE_USE_SERVER_STORAGE=true npm run build
 
 # Stage 2: Build backend - Using standard node image to avoid segfault with bcrypt
 FROM node:20 AS backend-builder
