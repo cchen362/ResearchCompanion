@@ -16,8 +16,8 @@ COPY . ./
 RUN rm -f .env .env.local .env.production.local
 
 # Create .env.production with correct values
-# Using shell command to avoid Git Bash path conversion
-RUN sh -c 'echo "VITE_USE_SERVER_STORAGE=true" > .env.production && echo "VITE_API_BASE_URL=/api" >> .env.production'
+# Using printf with escaped slash to prevent Git Bash path conversion
+RUN printf 'VITE_USE_SERVER_STORAGE=true\nVITE_API_BASE_URL=\/api\n' > .env.production
 
 # Build frontend
 RUN npm run build
