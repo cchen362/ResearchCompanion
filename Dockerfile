@@ -15,11 +15,10 @@ COPY . ./
 # Remove any local .env files to ensure we use Docker ENV variables only
 RUN rm -f .env .env.local .env.production.local
 
-# Create .env.production with correct values
-# Using base64 to completely bypass any path conversion issues
-RUN echo "VklURV9VU0VfU0VSVkVSX1NUT1JBR0U9dHJ1ZQpWSVRFX0FQSV9CQVNFX1VSTD0vYXBpCg==" | base64 -d > .env.production
-
-# Build frontend
+# Build frontend with environment variables directly
+# This avoids any file-based path conversion issues
+ENV VITE_USE_SERVER_STORAGE=true
+ENV VITE_API_BASE_URL=/api
 RUN npm run build
 
 # Stage 2: Build backend - Using standard node image to avoid segfault with bcrypt
