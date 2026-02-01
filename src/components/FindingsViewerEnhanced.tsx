@@ -103,29 +103,52 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     topic: Topic | null
   ) => {
     if (!topic || topicFindings.length === 0) {
+      console.log('[DIGEST CHECK] No topic or findings, skipping digest');
       setDigest(null);
       return;
     }
 
     try {
+      console.log('[DIGEST CHECK] Loading existing digests for topic:', topicId);
+
       // Try to load existing digest
       const digests = await digestService.getDigests(topicId);
+      console.log('[DIGEST CHECK] Found digests:', digests.length);
+
       const recentDigest = digests
         .filter(d => d.timeframe === digestTimeframe)
         .sort((a, b) => b.generatedAt - a.generatedAt)[0];
+
+      if (recentDigest) {
+        console.log('[DIGEST CHECK] Most recent digest:', {
+          id: recentDigest.id,
+          timeframe: recentDigest.timeframe,
+          generatedAt: new Date(recentDigest.generatedAt).toISOString(),
+          age: Math.round((Date.now() - recentDigest.generatedAt) / (1000 * 60 * 60)) + ' hours ago'
+        });
+      } else {
+        console.log('[DIGEST CHECK] No digest found for timeframe:', digestTimeframe);
+      }
 
       // Check if digest is recent (less than 24 hours old for daily, 7 days for weekly, etc.)
       const maxAge = getMaxDigestAge(digestTimeframe);
       const isRecent = recentDigest && (Date.now() - recentDigest.generatedAt) < maxAge;
 
+      console.log('[DIGEST CHECK] Is recent?', isRecent, {
+        maxAge: Math.round(maxAge / (1000 * 60 * 60)) + ' hours',
+        digestAge: recentDigest ? Math.round((Date.now() - recentDigest.generatedAt) / (1000 * 60 * 60)) + ' hours' : 'N/A'
+      });
+
       if (isRecent) {
+        console.log('[DIGEST CHECK] Using existing digest, not generating new');
         setDigest(recentDigest);
       } else {
+        console.log('[DIGEST CHECK] Digest too old or missing, generating new');
         // Generate new digest if needed
         await generateNewDigest(topicFindings, topic);
       }
     } catch (error) {
-      console.error('Error loading digest:', error);
+      console.error('[DIGEST CHECK] Error loading digest:', error);
     }
   };
 
@@ -148,21 +171,33 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     topicFindings: ResearchFinding[] = findings,
     topic: Topic | null = currentTopic
   ) => {
-    if (!topic || topicFindings.length === 0) return;
+    if (!topic || topicFindings.length === 0) {
+      console.log('[DIGEST GEN] No topic or findings, skipping generation');
+      return;
+    }
 
     try {
+      console.log('[DIGEST GEN] Starting new digest generation for topic:', topic.name);
       setGeneratingDigest(true);
 
       // Filter findings based on timeframe
       const filteredFindings = filterFindingsByTimeframe(topicFindings, digestTimeframe);
+      console.log('[DIGEST GEN] Filtered findings:', {
+        total: topicFindings.length,
+        filtered: filteredFindings.length,
+        timeframe: digestTimeframe
+      });
 
       if (filteredFindings.length === 0) {
+        console.log('[DIGEST GEN] No findings after filtering, cancelling');
         setDigest(null);
         return;
       }
 
       // Use digestQueueService to generate digest with proper auth
       const findingIds = filteredFindings.map(f => f.id);
+      console.log('[DIGEST GEN] Queueing digest with finding IDs:', findingIds.length);
+
       const queueId = await digestQueueService.queueDigestGeneration(
         topicId || '',
         digestTimeframe,
@@ -170,6 +205,8 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         'high',
         'user'
       );
+
+      console.log('[DIGEST GEN] Digest queued with ID:', queueId);
 
       // Wait for digest to be generated
       const checkStatus = async () => {

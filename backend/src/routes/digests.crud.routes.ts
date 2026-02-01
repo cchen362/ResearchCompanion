@@ -139,7 +139,53 @@ router.post('/digests', async (req, res) => {
       });
     }
 
+    // DEDUPLICATION CHECK: Check if a recent digest already exists
+    if (validation.data.topic_id && validation.data.type) {
+      console.log('[DIGEST DEDUP] Checking for existing digest...');
+
+      // Get digests for this topic created in the last 7 days
+      const recentDigests = await DigestModel.getByTopicId(
+        userId,
+        validation.data.topic_id,
+        10
+      );
+
+      // Check if there's a digest of the same type created within the timeframe
+      const timeThreshold = {
+        'daily': 24 * 60 * 60 * 1000,    // 24 hours
+        'weekly': 7 * 24 * 60 * 60 * 1000, // 7 days
+        'monthly': 30 * 24 * 60 * 60 * 1000, // 30 days
+        'all-time': 7 * 24 * 60 * 60 * 1000  // Default to 7 days for all-time
+      };
+
+      const threshold = timeThreshold[validation.data.type as keyof typeof timeThreshold] || timeThreshold['weekly'];
+      const now = Date.now();
+
+      const existingDigest = recentDigests.find(d => {
+        const digestAge = now - new Date(d.created_at).getTime();
+        return d.type === validation.data.type && digestAge < threshold;
+      });
+
+      if (existingDigest) {
+        console.log('[DIGEST DEDUP] Found existing digest, returning it instead of creating new');
+        console.log(`[DIGEST DEDUP] Existing digest ID: ${existingDigest.id}, created: ${existingDigest.created_at}`);
+
+        // Return the existing digest instead of creating a new one
+        return res.status(200).json({
+          success: true,
+          digest: existingDigest,
+          deduplicated: true,
+          message: `Using existing ${validation.data.type} digest from ${new Date(existingDigest.created_at).toLocaleDateString()}`
+        });
+      }
+
+      console.log('[DIGEST DEDUP] No recent digest found, creating new one');
+    }
+
     const digest = await DigestModel.create(userId, validation.data);
+
+    console.log(`[DIGEST CREATE] New digest created with ID: ${digest.id}`);
+    console.log(`[DIGEST CREATE] Finding IDs saved: ${digest.finding_ids?.length || 0}`);
 
     res.status(201).json({
       success: true,

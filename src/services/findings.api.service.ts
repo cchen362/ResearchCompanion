@@ -50,7 +50,31 @@ class FindingsAPIService {
         displayName: 'Unknown Source',
         url: ''
       },
-      isNew: !apiFinding.is_read,
+      // Consider finding "new" if:
+      // 1. Created in the last 48 hours, OR
+      // 2. Never been read and created in last 7 days
+      isNew: (() => {
+        const createdAt = new Date(apiFinding.created_at).getTime();
+        const hoursSinceCreation = (Date.now() - createdAt) / (1000 * 60 * 60);
+
+        let isNew = false;
+
+        // Always new if created in last 48 hours
+        if (hoursSinceCreation < 48) {
+          isNew = true;
+        }
+        // If unread and less than 7 days old, still consider new
+        else if (!apiFinding.is_read && hoursSinceCreation < 168) {
+          isNew = true;
+        }
+
+        // Log only for findings that might be incorrectly marked
+        if (isNew && hoursSinceCreation > 48) {
+          console.log(`[FINDING NEW STATUS] Finding marked new: ${apiFinding.title?.substring(0, 50)} - Age: ${hoursSinceCreation.toFixed(0)}h, Read: ${apiFinding.is_read}`);
+        }
+
+        return isNew;
+      })(),
       timestamp: new Date(apiFinding.created_at).getTime(),
       extractedEntities: apiFinding.metadata?.extractedEntities,
       ...apiFinding.metadata

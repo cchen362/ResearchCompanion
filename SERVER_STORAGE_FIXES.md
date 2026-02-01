@@ -91,6 +91,74 @@ ChatPanel → useChatStore → chatService → EventSource → useChatStore (CIR
 
 ---
 
+## February 1, 2026 - Digest Generation Loop & Findings System Fixes
+
+### Issue: Digest Generation Loop (FIXED)
+**Problem:** Digests were being regenerated on EVERY page load, creating 7+ digests in 5 days for the same topic.
+
+**Root Causes:**
+1. Empty finding_ids in database - `digest.allFindingIds` wasn't being mapped to backend `finding_ids`
+2. No deduplication check - Backend always created new digest instead of returning existing
+3. Poor "recent" check logic - Frontend regenerated even when recent digest existed
+
+**Production Evidence:**
+- 7 digests created for Acromegaly topic in 5 days (4 on Jan 27 alone!)
+- All digests had `finding_ids = {}` (empty array) in PostgreSQL
+- Each digest regeneration cost 60-70 seconds of API time
+
+**Fixes Applied:**
+
+1. **Fixed empty finding_ids bug:**
+   - `src/services/digests.api.service.ts` - Changed `finding_ids: digest.findingIds || []` to `finding_ids: digest.allFindingIds || []`
+   - Added debug logging to track finding_ids saving
+
+2. **Added digest deduplication:**
+   - `backend/src/routes/digests.crud.routes.ts` - Check for existing digest within timeframe threshold
+   - Returns existing digest instead of creating new if found within: 24h (daily), 7 days (weekly), 30 days (monthly)
+   - Added logging: `[DIGEST DEDUP]` messages for tracking
+
+3. **Enhanced digest check logic:**
+   - `src/components/FindingsViewerEnhanced.tsx` - Added comprehensive debug logging
+   - Logs: `[DIGEST CHECK]` for existing digest evaluation
+   - Logs: `[DIGEST GEN]` for new generation tracking
+
+**Files Modified:**
+- `src/services/digests.api.service.ts` - Fixed allFindingIds mapping
+- `backend/src/routes/digests.crud.routes.ts` - Added deduplication check
+- `src/components/FindingsViewerEnhanced.tsx` - Added debug logging
+- `src/services/digestQueue.service.ts` - Added finding_ids logging
+
+### Issue: All Findings Show as "New" (FIXED)
+**Problem:** All findings show "new" badge regardless of age due to `is_read` boolean logic.
+
+**Root Cause:** No timestamp-based newness tracking, only boolean `is_read` field.
+
+**Fix Applied:**
+- Changed `isNew` logic in `findings.api.service.ts` to be time-based:
+  - Always new if created in last 48 hours
+  - New if unread AND created in last 7 days
+  - Otherwise not new
+- Added debug logging for tracking new status decisions
+
+**Files Modified:**
+- `src/services/findings.api.service.ts` - Time-based isNew logic (lines 56-77)
+
+### Issue: Agent Scheduling Not Enforced (FIXED)
+**Problem:** Agents run on every trigger, `last_run` and `next_run` fields are NULL in database.
+
+**Fix Applied:**
+- Added scheduling check in `agentRunner.ts` before executing agents
+- Enforces minimum 24-hour gap between runs
+- Updates `last_run` and `next_run` timestamps after agent completion
+- Added `[AGENT SCHEDULE]` logging to track decisions
+
+**Files Modified:**
+- `src/services/agentRunner.ts` - Added scheduling enforcement (lines 455-504)
+- `backend/src/routes/agents.routes.ts` - Updated schema to accept last_run/next_run (lines 17-20)
+- `src/services/agents.api.service.ts` - Added last_run/next_run to transform (lines 97-99)
+
+---
+
 ## January 18, 2026 Deployment Issues & Fixes
 
 ### Issue 13: Agent Finding Creation 404 Errors (FIXED)
@@ -1810,3 +1878,84 @@ chatStore = getState(); // Get updated state!
 **Deployment:** Two deployments - first added hydration tracking (partial fix), second fixed stale references (complete fix).
 
 **Lesson:** Zustand's getState() returns a snapshot, not a live reference. Always refresh after state-modifying operations.
+
+---
+
+## Issue 46: Chat Interface UI/UX Improvements - Elegant Suggested Questions (DEPLOYED - January 27, 2026)
+
+**User Request:** Make suggested questions section more subtle and space-efficient, as it was taking up precious real estate in the chat interface.
+
+**Solution Implemented:**
+
+### 1. Created Floating Chip Carousel for Suggested Questions
+**File:** `src/components/chat/SuggestedQuestions.tsx` (NEW)
+- Horizontal scrollable design with navigation arrows
+- Auto-hides after 15 seconds to free up screen space
+- Smooth animations with stagger effect for each chip
+- Glass morphism styling with subtle backdrop blur
+- Sparkles icon with pulse animation for visual appeal
+- Hover effects with slight scale and color changes
+
+### 2. Enhanced ChatMessage Component
+**File:** `src/components/ChatMessage.tsx`
+- Added slide-up fade animation for message entry
+- Enhanced card styling with shadow effects on hover
+- Improved citation buttons with tooltip previews (first 150 chars)
+- Added smooth underline animation on citation hover
+- Smaller, more refined citation button sizing
+
+### 3. Polished ChatInput Component
+**File:** `src/components/ChatInput.tsx`
+- Enhanced focus effects with blue glow (ring-2 ring-blue-500/20)
+- Character counter only appears at 80% of limit (fades in smoothly)
+- Send button animations - scales on hover (105%) and press (95%)
+- Improved typing indicator with three animated dots
+- Gradient background for typing indicator section
+
+### 4. Added New CSS Animations
+**File:** `src/index.css`
+```css
+@keyframes slideUpFade - For smooth message entry
+@keyframes pulse-soft - For gentle pulsing effects
+@keyframes float-in - For floating elements
+.scrollbar-hide - Clean scrolling without visible scrollbars
+```
+
+### Design Philosophy Applied
+- **Minimal & Clean**: Removed excessive visual elements
+- **Subtle Animations**: All transitions smooth and purposeful (150-300ms)
+- **Space Efficiency**: Suggested questions no longer consume fixed space
+- **Consistent Theme**: Blue accent color (#3B82F6) throughout for interactivity
+- **Professional Polish**: Shadows, hover states, and micro-interactions
+
+### Files Modified
+- `src/components/chat/SuggestedQuestions.tsx` - NEW component
+- `src/components/ChatPanelMinimal.tsx` - Integrated new SuggestedQuestions
+- `src/components/ChatMessage.tsx` - Enhanced styling and animations
+- `src/components/ChatInput.tsx` - Focus effects and typing indicator
+- `src/index.css` - New animation keyframes and utilities
+
+### Deployment
+- **Commit:** b265276 - "Enhance chat interface UI/UX with elegant suggested questions design"
+- **Deployed:** January 27, 2026 at 07:58 UTC
+- **Production URL:** 100.94.82.35:6767
+- **Deployment Method:** Docker compose with automated build
+```bash
+ssh chee@100.94.82.35 "cd medical-pwa && git pull && docker-compose build && docker-compose up -d"
+```
+
+### Verification
+- ✅ Container running and healthy
+- ✅ Frontend bundle updated with new components
+- ✅ Suggested questions now float elegantly and auto-hide
+- ✅ Chat functionality remains fully intact
+- ✅ Citations still clickable and functional
+- ✅ All animations working smoothly
+
+### Impact
+- **Before**: Fixed space occupied by basic pill buttons for suggested questions
+- **After**: Elegant floating chips that auto-hide, preserving valuable screen space
+- **User Experience**: More immersive chat interface with professional polish
+- **Performance**: CSS transforms for GPU-accelerated animations
+
+**Status:** DEPLOYED & VERIFIED

@@ -93,7 +93,10 @@ class AgentsAPIService {
       description: agent.description,
       enabled: agent.status !== 'disabled',
       config: config,
-      schedule: agent.config?.updateFrequency || 'daily'
+      schedule: agent.config?.updateFrequency || 'daily',
+      // Include scheduling timestamps if provided
+      last_run: agent.lastRun,
+      next_run: agent.nextRun
     };
   }
 

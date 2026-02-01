@@ -14,7 +14,10 @@ const CreateAgentSchema = z.object({
   schedule: z.string().optional()
 });
 
-const UpdateAgentSchema = CreateAgentSchema.partial();
+const UpdateAgentSchema = CreateAgentSchema.partial().extend({
+  last_run: z.date().optional(),
+  next_run: z.date().optional()
+});
 
 // GET /api/agents - Get all agents for the authenticated user
 router.get('/agents', async (req, res) => {

@@ -71,7 +71,8 @@ class DigestsAPIService {
       breakthroughs: digest.breakthroughs || [],
       knowledge_gaps: digest.knowledgeGaps || [],
       next_steps: digest.recommendations || [],
-      finding_ids: digest.findingIds || [],
+      // FIX: Use allFindingIds from SmartDigest interface
+      finding_ids: digest.allFindingIds || [],
       metadata: {
         laymanSummary: digest.laymanSummary,
         keyTakeaways: digest.keyTakeaways,

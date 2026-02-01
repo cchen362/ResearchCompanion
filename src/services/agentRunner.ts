@@ -452,12 +452,48 @@ export async function runAllResearchAgents(topicId: string): Promise<ResearchFin
   const allFindings: ResearchFinding[] = [];
   const errors: string[] = [];
 
+  // SCHEDULING CHECK: Filter agents that haven't run recently
+  const MIN_HOURS_BETWEEN_RUNS = 24; // Minimum 24 hours between runs
+  const now = Date.now();
+  const runnableAgents = activeAgents.filter(agent => {
+    if (!agent.lastRun) {
+      console.log(`[AGENT SCHEDULE] ${agent.name}: Never run before, will run now`);
+      return true; // Never run before
+    }
+
+    const lastRunTime = new Date(agent.lastRun).getTime();
+    const hoursSinceRun = (now - lastRunTime) / (1000 * 60 * 60);
+
+    if (hoursSinceRun < MIN_HOURS_BETWEEN_RUNS) {
+      console.log(`[AGENT SCHEDULE] ${agent.name}: Skipping - ran ${hoursSinceRun.toFixed(1)} hours ago (min: ${MIN_HOURS_BETWEEN_RUNS}h)`);
+      return false;
+    }
+
+    console.log(`[AGENT SCHEDULE] ${agent.name}: Will run - last ran ${hoursSinceRun.toFixed(1)} hours ago`);
+    return true;
+  });
+
+  if (runnableAgents.length === 0) {
+    console.log('[AGENT SCHEDULE] All agents ran recently, skipping research');
+    return [];
+  }
+
+  console.log(`[AGENT SCHEDULE] Running ${runnableAgents.length} of ${activeAgents.length} agents`);
+
   // Run agents in parallel for better performance
   // Skip per-agent digest generation - we'll trigger once after all complete
-  const agentPromises = activeAgents.map(async (agent) => {
+  const agentPromises = runnableAgents.map(async (agent) => {
     try {
       console.log(`Running agent ${agent.name} (${agent.type})`);
       const findings = await runAgentWithAPI(agent, topic, { skipDigestGeneration: true });
+
+      // Update last run time after successful execution
+      await agentsService.updateAgent(agent.id, {
+        lastRun: new Date(),
+        nextRun: new Date(Date.now() + MIN_HOURS_BETWEEN_RUNS * 60 * 60 * 1000)
+      });
+      console.log(`[AGENT SCHEDULE] Updated ${agent.name} last_run timestamp`);
+
       return findings;
     } catch (error) {
       const errorMsg = `Agent ${agent.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;

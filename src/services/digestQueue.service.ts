@@ -261,11 +261,13 @@ export class DigestQueueService {
       await this.updateProgress(item.id, 'validating', 90, 'Validating and saving digest...');
 
       // Save the digest using service (respects storage config)
+      console.log('[DIGEST SAVE] Saving digest with finding_ids:', digest.allFindingIds?.length || 0);
+      console.log('[DIGEST SAVE] First 3 finding IDs:', digest.allFindingIds?.slice(0, 3));
       await digestService.saveDigest(digest);
 
       // Skip marking findings as read here to avoid unnecessary API calls
       // Findings will be marked as read when user actually views them
-      console.log(`Generated digest with ${digest.allFindingIds.length} findings`);
+      console.log(`[DIGEST SAVE] Successfully saved digest with ${digest.allFindingIds?.length || 0} findings`);
 
       // Update queue item as completed
       item.status = 'completed';
