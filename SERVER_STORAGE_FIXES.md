@@ -847,24 +847,83 @@ docker-compose up -d --build
 
 **IMPORTANT**: Do NOT use `scp` to copy dist files - always rebuild from git to ensure TypeScript compilation
 
-### Issue 20: Git Bash Path Conversion Breaking Login (FIXED - February 1, 2026)
+### Issue 20: Git Bash Path Conversion Breaking Login (FULLY FIXED - February 1, 2026)
 **Problem:** Login failed with "Unsupported protocol C:" error. API calls were trying to use `C:/Program Files/Git/api` instead of `/api`.
 
-**Root Cause:** During Docker build, the environment variable `VITE_API_BASE_URL=/api` was being converted by Git Bash to Windows path `C:/Program Files/Git/api`. This is a known Git Bash behavior where paths starting with `/` get converted to Windows paths.
+**Root Cause - The Complete Story:**
+This was NOT actually Git Bash path conversion during Docker build. The real issues were:
 
-**Fix Applied:** Added runtime detection and fallback in `src/services/api.ts`:
+1. **Corrupted dist folder on local machine**: A previously built dist folder with Windows paths was present locally
+2. **Modified index.html**: The index.html on the server had been modified to include built asset references
+3. **Old assets folder**: Server had an assets folder with old JavaScript files containing Windows paths
+4. **Incomplete .dockerignore**: Server's .dockerignore only had `.env*`, not excluding dist/assets folders
+
+**The Chain of Problems:**
+1. Local dist folder was built on Windows with Git Bash (contained `C:/Program Files/Git/api`)
+2. This dist folder was being copied into Docker build (not excluded by .dockerignore on server)
+3. Modified index.html tried to reference old asset files
+4. Even when rebuilding on Linux, contaminated files were included
+
+**Fix Applied (Multi-Step):**
+
+1. **Added fallback protection to all files using VITE_API_BASE_URL:**
 ```typescript
-const API_URL = import.meta.env.VITE_API_BASE_URL?.startsWith('C:')
+// src/config/storage.config.ts, src/services/agentService.ts
+const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = (envApiUrl && envApiUrl.startsWith('C:'))
   ? '/api'  // Fallback if Git Bash converted the path
-  : (import.meta.env.VITE_API_BASE_URL || '/api');
+  : (envApiUrl || '/api');
 ```
 
-**Deployment Steps:**
-1. Force rebuild without cache: `docker-compose build --no-cache`
-2. Restart containers: `docker-compose up -d`
-3. Verify fix is applied
+2. **Fixed Dockerfile to use ARG+ENV pattern and explicit env vars:**
+```dockerfile
+ARG VITE_API_BASE_URL_ARG=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL_ARG}
+RUN VITE_API_BASE_URL=/api VITE_USE_SERVER_STORAGE=true npm run build
+```
 
-**Key Lesson:** Git Bash on Windows can convert Unix paths to Windows paths during build processes. Always add defensive checks for path conversions when building Docker images that might be built on Windows systems.
+3. **Fixed .dockerignore on server to properly exclude build artifacts:**
+```
+dist
+*/dist
+assets/
+```
+
+4. **Cleaned up server contamination:**
+- Restored original index.html: `git checkout -- index.html`
+- Removed old assets folder: `rm -rf assets/`
+- Removed old dist folder: `rm -rf dist/`
+
+5. **Rebuilt on Linux server to ensure clean build:**
+```bash
+ssh chee@100.94.82.35
+cd /home/chee/medical-pwa
+docker-compose build --no-cache medical-companion
+docker-compose up -d
+```
+
+**Files Modified:**
+- `Dockerfile` - ARG+ENV pattern, explicit env vars in RUN command
+- `src/config/storage.config.ts` - Added fallback protection
+- `src/services/agentService.ts` - Added fallback protection
+- `.dockerignore` - Added dist and assets exclusions (on server)
+- `nginx.conf` - Fixed listen port from 80 to 6767
+
+**Verification:**
+```bash
+# Check production bundle has correct API URL
+docker exec medical-companion sh -c 'grep -o "VITE_API_BASE_URL:[^,]*" /usr/share/nginx/html/assets/index-*.js'
+# Should output: VITE_API_BASE_URL:"/api" (NOT "C:/Program Files/Git/api")
+```
+
+**Deployment:** February 1, 2026 at 16:25 UTC - Successfully deployed to 100.94.82.35:6767
+
+**Key Lessons:**
+1. **Always check for contaminated build artifacts** - Old dist/assets folders can persist
+2. **Verify .dockerignore is complete** - Must exclude ALL build outputs
+3. **Never modify source files with built content** - index.html should stay as source
+4. **Build on Linux when possible** - Avoids Windows path issues entirely
+5. **The error message was misleading** - "Unsupported protocol C:" made us think of Git Bash during build, but real issue was contaminated files being included
 
 2. **Updated `buildSystemPrompt` function**:
    - Creates/updates citation map before building prompt
