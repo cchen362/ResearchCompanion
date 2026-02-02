@@ -9,15 +9,18 @@ WORKDIR /app/frontend
 COPY package*.json ./
 RUN npm ci
 
-# Cache bust to force rebuild when code changes
-ARG CACHE_BUST=1
-
 # Copy frontend source
+# IMPORTANT: Update timestamp to force rebuild: 2026-02-03-1200
 COPY . ./
 
 # Remove ALL .env files to ensure we use Docker ENV variables only
 # This prevents any path conversion issues from file-based env vars
 RUN rm -f .env .env.* .env.production .env.local .env.production.local
+
+# Verify our digest loading fix is present in the source
+RUN grep -q "digestLoading" src/components/FindingsViewerEnhanced.tsx && \
+    echo "✓ Digest loading state fix detected in source" || \
+    (echo "✗ ERROR: Digest loading fix NOT found!" && exit 1)
 
 # Build frontend with environment variables using ARG+ENV pattern
 # ARG prevents Git Bash path conversion that happens with direct ENV
