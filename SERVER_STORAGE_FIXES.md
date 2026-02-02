@@ -184,7 +184,7 @@ Set `VITE_USE_SERVER_STORAGE=true` in `.env` to enable server storage mode.
 **Files Modified:**
 - `src/components/AgentRunner.tsx` - Preserve complete source object with spread operator
 
-### Issue 17: Digest Not Loading from Cache on Page Load (FIXED)
+### Issue 17: Digest Not Loading from Cache on Page Load (IN PROGRESS)
 **Problem:** Even with cached digests in PostgreSQL, the UI showed "Generate Digest" button initially, then loaded the cached digest after findings completed loading.
 
 **Root Cause:** Race condition - `loadTopicData()` fetches findings and digest in parallel but doesn't set a loading state for the digest, causing the UI to show "Generate Digest" before the cached digest arrives.
@@ -198,7 +198,26 @@ Set `VITE_USE_SERVER_STORAGE=true` in `.env` to enable server storage mode.
 **Files Modified:**
 - `src/components/FindingsViewerEnhanced.tsx` - Added digestLoading state and proper loading UI
 
-**Deployment Date:** February 2, 2026
+**Status Update (February 3, 2026):**
+- Fix implemented in code but not reaching production due to Docker layer caching
+- Docker's COPY command was using cached layers despite code changes
+- ARG CACHE_BUST didn't work as expected
+- Solution: Force complete rebuild with `docker-compose build --no-cache`
+
+**Deployment Issues Encountered:**
+1. Docker multi-stage builds aggressively cache COPY operations
+2. Even with changed files, Docker may reuse cached layers
+3. ARG CACHE_BUST only works if placed BEFORE the COPY command
+4. Vite build output can have same hash even with source changes
+
+**Solution Applied:**
+1. Added verification step in Dockerfile to check for fix presence
+2. Created deploy-clean.sh script for forced rebuilds
+3. Modified Dockerfile with timestamp comments to invalidate cache
+4. Will use `--no-cache` flag for this deployment
+
+**Original Deployment Date:** February 2, 2026
+**Actual Fix Deployment:** Pending (February 3, 2026)
 
 ### Issue 18: Agent Digest Generation Race Condition (FIXED)
 **Problem:** Digest generated with only 10 findings when 20 were actually present, due to agents and digest generation running in parallel.
@@ -326,6 +345,9 @@ When making changes, test these critical paths:
 9. **Coordinate parallel operations** - Agents must complete before digest generation
 10. **Break circular dependencies** - Use dynamic imports when needed
 11. **Add proper loading states** - Users need immediate feedback during async operations
+12. **Docker caching can hide changes** - Use `--no-cache` when changes aren't appearing in production
+13. **Verify fixes in build process** - Add grep/test commands in Dockerfile to ensure changes are present
+14. **Multi-stage builds cache aggressively** - COPY commands may use cached layers even with file changes
 
 ---
 
