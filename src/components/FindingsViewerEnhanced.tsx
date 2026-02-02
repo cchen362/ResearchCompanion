@@ -38,6 +38,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
   const [digest, setDigest] = useState<SmartDigest | null>(null);
   const [loading, setLoading] = useState(true);
   const [generatingDigest, setGeneratingDigest] = useState(false);
+  const [digestLoading, setDigestLoading] = useState(false);
 
   // UI state
   const [viewMode, setViewMode] = useState<'digest' | 'list'>('digest');
@@ -57,6 +58,8 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
   // Load findings and digest when topic changes
   useEffect(() => {
     if (selectedTopicId) {
+      setDigest(null); // Clear previous digest
+      setDigestLoading(true); // Start loading immediately
       loadTopicData(selectedTopicId);
     }
   }, [selectedTopicId]);
@@ -101,6 +104,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
   const loadTopicData = async (topicId: string) => {
     try {
       setLoading(true);
+      setDigestLoading(true); // Start digest loading
 
       // Load topic, findings, and digest in parallel for faster loading
       const [topic, topicFindings, existingDigest] = await Promise.all([
@@ -158,6 +162,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
       console.error('Error loading topic data:', error);
     } finally {
       setLoading(false);
+      setDigestLoading(false); // Stop digest loading
     }
   };
 
@@ -169,6 +174,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
     if (!topic || topicFindings.length === 0) {
       console.log('[DIGEST CHECK] No topic or findings, skipping digest');
       setDigest(null);
+      setDigestLoading(false); // Stop loading if no data
       return;
     }
 
@@ -194,6 +200,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         if (existingDigest.cacheMetadata?.isCached || existingDigest.cacheMetadata?.deduplicated) {
           console.log('[DIGEST CHECK] Using cached/deduplicated digest from server');
           setDigest(existingDigest);
+          setDigestLoading(false); // Stop loading
           return; // Exit early - we have what we need
         }
 
@@ -209,6 +216,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         if (isRecent) {
           console.log('[DIGEST CHECK] Using existing digest from server, not generating new');
           setDigest(existingDigest);
+          setDigestLoading(false); // Stop loading
           return; // Exit early - we have what we need
         } else {
           console.log('[DIGEST CHECK] Digest too old, will generate new');
@@ -229,7 +237,11 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
       } catch (genError) {
         console.error('[DIGEST CHECK] Error generating digest:', genError);
         setDigest(null);
+        setDigestLoading(false); // Stop loading on error
       }
+    } finally {
+      // Ensure loading state is cleared if not already done
+      setDigestLoading(false);
     }
   };
 
@@ -610,6 +622,8 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
                 onChange={(e) => {
                   const newTimeframe = e.target.value as DigestTimeframe;
                   setDigestTimeframe(newTimeframe);
+                  setDigest(null); // Clear current digest
+                  setDigestLoading(true); // Start loading immediately
                   // Use callback to ensure we get the latest state
                   setTimeout(() => {
                     loadOrGenerateDigest(selectedTopicId, findings, currentTopic);
@@ -683,12 +697,16 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
               />
             </div>
           </div>
-        ) : generatingDigest ? (
+        ) : generatingDigest || digestLoading ? (
           <Card className="p-8 text-center">
             <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
-            <CardTitle className="mb-2">Generating Digest...</CardTitle>
+            <CardTitle className="mb-2">
+              {generatingDigest ? 'Generating Digest...' : 'Loading Digest...'}
+            </CardTitle>
             <p className="text-muted-foreground">
-              Analyzing {findings.length} findings to create your research digest.
+              {generatingDigest
+                ? `Analyzing ${findings.length} findings to create your research digest.`
+                : 'Retrieving cached digest from server...'}
             </p>
           </Card>
         ) : (
