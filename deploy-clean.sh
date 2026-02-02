@@ -22,12 +22,13 @@ docker builder prune -f
 echo "📥 Pulling latest code..."
 git pull
 
-# Step 5: Verify the fix is in the source
-echo "✅ Verifying digest loading fix is present..."
-if grep -q "digestLoading" src/components/FindingsViewerEnhanced.tsx; then
-    echo "✓ Digest loading fix found in source!"
+# Step 5: Verify the fix is in the source (checking the CORRECT component)
+echo "✅ Verifying digest loading fix is present in FindingsViewerProgressive..."
+if grep -q "setLoadingDigest(true)" src/components/FindingsViewerProgressive.tsx; then
+    echo "✓ Digest loading fix found in FindingsViewerProgressive!"
+    echo "  Found $(grep -c 'setLoadingDigest(true)' src/components/FindingsViewerProgressive.tsx) occurrences of race condition protection"
 else
-    echo "✗ ERROR: Digest loading fix NOT found in source!"
+    echo "✗ ERROR: Digest loading fix NOT found in FindingsViewerProgressive!"
     echo "Please ensure the latest code has been pulled."
     exit 1
 fi

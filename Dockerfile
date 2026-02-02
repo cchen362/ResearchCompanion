@@ -17,10 +17,10 @@ COPY . ./
 # This prevents any path conversion issues from file-based env vars
 RUN rm -f .env .env.* .env.production .env.local .env.production.local
 
-# Verify our digest loading fix is present in the source
-RUN grep -q "digestLoading" src/components/FindingsViewerEnhanced.tsx && \
-    echo "✓ Digest loading state fix detected in source" || \
-    (echo "✗ ERROR: Digest loading fix NOT found!" && exit 1)
+# Verify the digest loading fix is present in the CORRECT component
+RUN grep -q "setLoadingDigest(true)" src/components/FindingsViewerProgressive.tsx && \
+    echo "✓ Digest loading state fix detected in FindingsViewerProgressive" || \
+    (echo "✗ ERROR: Digest loading fix NOT found in FindingsViewerProgressive!" && exit 1)
 
 # Build frontend with environment variables using ARG+ENV pattern
 # ARG prevents Git Bash path conversion that happens with direct ENV
