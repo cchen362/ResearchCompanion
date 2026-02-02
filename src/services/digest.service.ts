@@ -1,6 +1,5 @@
 import { getDB } from '@/utils/db/database';
 import { digestsAPIService } from './digests.api.service';
-import { digestCacheService } from './digestCache.service';
 import { storageConfig } from '@/config/storage.config';
 import type { SmartDigest } from '@/types';
 
@@ -28,26 +27,13 @@ class DigestService {
 
   async getDigest(topicId: string, timeframe?: string): Promise<SmartDigest | undefined> {
     if (this.isUsingAPI) {
-      // First check cache for a valid digest
-      const cachedDigest = await digestCacheService.getCachedDigest(topicId, timeframe || 'weekly');
-
-      if (cachedDigest && digestCacheService.isCacheValid(cachedDigest)) {
-        // Return cached digest with metadata indicating it's from cache
-        if (!cachedDigest.cacheMetadata) {
-          cachedDigest.cacheMetadata = {};
-        }
-        cachedDigest.cacheMetadata.source = 'postgresql';
-        cachedDigest.cacheMetadata.isCached = true;
-        cachedDigest.cacheMetadata.cacheRetrievedAt = Date.now();
-        return cachedDigest;
-      }
-
-      // No valid cache, fetch from API
+      // Directly fetch from API - the backend handles caching/deduplication
       const digest = await digestsAPIService.getLatestDigest(topicId, timeframe);
 
-      // Cache the fetched digest if valid
-      if (digest) {
-        await digestCacheService.cacheDigest(digest);
+      // If digest came from backend cache (deduplicated), mark it as cached
+      if (digest && digest.cacheMetadata?.deduplicated) {
+        digest.cacheMetadata.isCached = true;
+        digest.cacheMetadata.source = 'postgresql';
       }
 
       return digest;
@@ -89,10 +75,7 @@ class DigestService {
   async saveDigest(digest: SmartDigest): Promise<SmartDigest> {
     if (this.isUsingAPI) {
       const savedDigest = await digestsAPIService.saveDigest(digest);
-      // Update cache with the newly saved digest
-      if (savedDigest && !savedDigest.cacheMetadata?.deduplicated) {
-        await digestCacheService.cacheDigest(savedDigest);
-      }
+      // Backend handles caching, just return the saved digest
       return savedDigest;
     }
 
@@ -105,10 +88,8 @@ class DigestService {
   }
 
   async warmCache(topicIds?: string[]): Promise<void> {
-    if (this.isUsingAPI) {
-      await digestCacheService.warmCache(topicIds);
-    }
-    // No need to warm cache for local IndexedDB
+    // Cache warming not needed when using server storage
+    // Backend handles caching automatically
   }
 
   async deleteDigest(id: string): Promise<void> {
