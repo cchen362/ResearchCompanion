@@ -1,103 +1,119 @@
-# Deployment Instructions - Chat Citation Fixes
+# Deployment Instructions - Digest Loading Fix
 
-## Changes Made (Commit 384b07a)
+## Issue Being Fixed
+The cached digest wasn't loading immediately when users navigate to the Findings page. Instead, they saw "Generate Digest" button while findings loaded, then the cached digest appeared afterward.
 
-Fixed critical chat citation issues:
-1. Topic ID being passed as object causing 500 errors
-2. Citations showing as plain text instead of blue links
-3. Missing citations in the citation array
+## Root Cause
+1. **Code Issue**: Missing `digestLoading` state to track when digest is being fetched
+2. **Deployment Issue**: Docker was using cached layers and not picking up code changes
+
+## Files Changed
+- `src/components/FindingsViewerEnhanced.tsx` - Added `digestLoading` state
+- `Dockerfile` - Added verification step to ensure fix is present
+- `deploy-clean.sh` - Script to force complete rebuild
 
 ## Deployment Steps
 
-1. **SSH into the server:**
-   ```bash
-   ssh chee@100.94.82.35
-   ```
-
-2. **Navigate to project directory:**
-   ```bash
-   cd /home/chee/medical-pwa
-   ```
-
-3. **Pull the latest changes:**
-   ```bash
-   git pull origin fix/digest-findings-race-condition
-   ```
-
-   You should see:
-   ```
-   Updating cd47224..384b07a
-   ```
-
-4. **Rebuild and restart containers:**
-   ```bash
-   docker-compose down
-   docker-compose up --build -d
-   ```
-
-5. **Verify deployment:**
-   ```bash
-   # Check if containers are running
-   docker ps
-
-   # Check backend logs for errors
-   docker-compose logs backend --tail 50
-
-   # Check frontend is accessible
-   curl -I http://localhost:6767
-   ```
-
-## Testing After Deployment
-
-1. **Test Citation Display:**
-   - Open a topic with 20+ findings
-   - Send a message asking about the research
-   - Verify ALL citations appear as blue clickable buttons
-   - Check that citations [1] through [20] all render properly
-
-2. **Test Citation Clicks:**
-   - Click on any blue citation button
-   - Verify the finding modal opens without errors
-   - Check browser console - should NOT see `topic_id=[object Object]` errors
-
-3. **Check Debug Logs (backend):**
-   ```bash
-   docker-compose logs backend -f
-   ```
-
-   Look for these success messages:
-   - `📚 [enrichFindingsContext] Using X findings from frontend`
-   - `✅ [extractCitations] Citation [X] mapped to finding...`
-   - `📚 [extractCitations] Final result: Extracted X valid citations`
-
-## Rollback Instructions (if needed)
-
-If issues occur, rollback to previous version:
-
+### Step 1: SSH into the server
 ```bash
-cd /home/chee/medical-pwa
-git reset --hard cd47224
-docker-compose down
-docker-compose up --build -d
+ssh chee@100.94.82.35
 ```
 
-## Debug Information
+### Step 2: Navigate to project directory
+```bash
+cd medical-pwa
+```
 
-The changes add comprehensive logging. If issues persist, check:
+### Step 3: Pull latest changes
+```bash
+git pull
+```
 
-1. **Frontend Console:**
-   - `[ChatPanel] Loading findings for topic...`
-   - `[ChatPanel] Sending findings context: {count: X}`
+### Step 4: Make deployment script executable
+```bash
+chmod +x deploy-clean.sh
+```
 
-2. **Backend Logs:**
-   - Citation extraction details
-   - Finding context enrichment
-   - Citation number mapping
+### Step 5: Run clean deployment
+```bash
+./deploy-clean.sh
+```
+
+This script will:
+1. Stop all containers
+2. Remove old Docker images
+3. Clear Docker build cache
+4. Verify the fix is in the source code
+5. Build with `--no-cache` flag to force complete rebuild
+6. Start the containers
+7. Show logs
+
+### Step 6: Verify the fix
+
+The build should show:
+```
+✓ Digest loading fix detected in source!
+```
+
+If you see an error message instead, the fix is not present in the code.
+
+### Step 7: Test on production
+
+1. Go to http://100.94.82.35:6767
+2. Log in with test account
+3. Navigate to Findings page with existing cached digest
+4. You should see "Loading Digest..." message immediately
+5. Cached digest should appear within 500ms
+6. NO "Generate Digest" button should appear for cached digests
+
+## Rollback Instructions
+
+If something goes wrong:
+
+```bash
+# Stop containers
+docker-compose down
+
+# Checkout previous version
+git checkout 09484a0
+
+# Rebuild with previous version
+docker-compose up -d --build
+
+# Check logs
+docker-compose logs -f
+```
+
+## Important Notes
+
+1. **Docker Caching**: Regular `docker-compose up --build` may use cached layers. Always use `--no-cache` for critical fixes.
+
+2. **Verification**: The Dockerfile now includes a grep check to ensure the fix is present. The build will fail if the fix is missing.
+
+3. **Clean Build**: The `deploy-clean.sh` script ensures a completely clean build by:
+   - Removing old images
+   - Pruning build cache
+   - Using --no-cache flag
+
+## Expected Behavior After Fix
+
+### Before Fix:
+1. User navigates to Findings page
+2. Sees "Generate Digest" button
+3. Findings load in console
+4. Cached digest appears with "cached" indicator
+
+### After Fix:
+1. User navigates to Findings page
+2. Sees "Loading Digest..." message immediately
+3. Cached digest loads within 500ms
+4. No unnecessary "Generate Digest" button for cached content
 
 ## Contact
 
-If deployment issues occur, the changes are in:
-- Frontend: `src/components/ChatPanelMinimal.tsx`
-- Backend: `backend/src/routes/chat.routes.ts`
+If you encounter issues during deployment, check:
+1. Docker logs: `docker-compose logs medical-companion`
+2. Build output for the verification message
+3. Browser console for any JavaScript errors
 
-Both files have detailed logging to help trace any remaining issues.
+The fix has been tested locally and should work once properly deployed with a clean build.
