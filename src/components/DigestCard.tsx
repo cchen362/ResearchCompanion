@@ -15,7 +15,10 @@ import {
   BookOpen,
   Brain,
   HelpCircle,
-  Info
+  Info,
+  Database,
+  RefreshCw,
+  HardDrive
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -125,6 +128,52 @@ export function DigestCard({
     }
   };
 
+  // Get cache status information
+  const getCacheStatus = () => {
+    const meta = digest.cacheMetadata;
+    if (!meta) return null;
+
+    if (meta.deduplicated) {
+      return {
+        icon: Database,
+        label: 'Cached Version',
+        variant: 'secondary' as const,
+        tooltip: 'This digest was retrieved from the database cache to save processing time'
+      };
+    }
+
+    if (meta.isCached && meta.source === 'postgresql') {
+      return {
+        icon: Database,
+        label: 'From Server',
+        variant: 'secondary' as const,
+        tooltip: 'Retrieved from server database'
+      };
+    }
+
+    if (meta.isCached && meta.source === 'indexeddb') {
+      return {
+        icon: HardDrive,
+        label: 'Local Cache',
+        variant: 'outline' as const,
+        tooltip: 'Retrieved from local browser cache'
+      };
+    }
+
+    if (meta.source === 'generated') {
+      return {
+        icon: RefreshCw,
+        label: 'Fresh',
+        variant: 'default' as const,
+        tooltip: 'Newly generated digest with latest AI analysis'
+      };
+    }
+
+    return null;
+  };
+
+  const cacheStatus = getCacheStatus();
+
   return (
     <div className="space-y-4">
       {/* Header Card with Executive Summary */}
@@ -137,6 +186,22 @@ export function DigestCard({
                 <CardTitle className="text-xl">
                   {getTimeframeLabel(digest.timeframe)}
                 </CardTitle>
+                {/* Cache Status Badge */}
+                {cacheStatus && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant={cacheStatus.variant} className="gap-1">
+                          <cacheStatus.icon className="h-3 w-3" />
+                          {cacheStatus.label}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{cacheStatus.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <Badge variant="secondary" className="ml-auto">
                   {digest.statistics.totalFindings} findings
                 </Badge>
@@ -148,6 +213,11 @@ export function DigestCard({
               </div>
               <p className="text-sm text-muted-foreground mb-2">
                 Generated {formatDistanceToNow(digest.generatedAt, { addSuffix: true })}
+                {digest.cacheMetadata?.deduplicated && (
+                  <span className="ml-2 text-primary">
+                    • This is a cached version from your previous request
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex gap-2">

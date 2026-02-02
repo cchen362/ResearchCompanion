@@ -9,6 +9,8 @@ interface DigestsResponse {
 interface DigestResponse {
   success: boolean;
   digest: any;
+  deduplicated?: boolean;  // Flag from backend when returning existing digest
+  message?: string;        // Optional message about deduplication
 }
 
 interface DeleteResponse {
@@ -30,9 +32,10 @@ class DigestsAPIService {
 
   /**
    * Transform backend digest to frontend SmartDigest interface
+   * Now includes cache metadata from the response context
    */
-  private transformToFrontend(apiDigest: any): SmartDigest {
-    return {
+  private transformToFrontend(apiDigest: any, responseContext?: { deduplicated?: boolean; source?: string }): SmartDigest {
+    const digest: SmartDigest = {
       id: apiDigest.id,
       topicId: apiDigest.topic_id || '',
       timeframe: apiDigest.type || 'weekly',
@@ -40,21 +43,38 @@ class DigestsAPIService {
       executiveSummary: apiDigest.executive_summary || '',
       laymanSummary: apiDigest.metadata?.laymanSummary || '',
       themes: apiDigest.themes || [],
-      contradictions: apiDigest.contradictions || [],
-      breakthroughs: apiDigest.breakthroughs || [],
-      knowledgeGaps: apiDigest.knowledge_gaps || [],
       keyTakeaways: apiDigest.metadata?.keyTakeaways || [],
-      trendsAndPatterns: apiDigest.metadata?.trendsAndPatterns,
-      recommendations: apiDigest.next_steps || [],
-      status: 'completed',
-      progress: 100,
-      findingIds: apiDigest.finding_ids || [],
+      breakthroughs: apiDigest.breakthroughs || [],
+      contradictions: apiDigest.contradictions || [],
+      trends: apiDigest.metadata?.trends || {
+        emerging: [],
+        declining: [],
+        stable: []
+      },
       statistics: apiDigest.metadata?.statistics || {
         totalFindings: apiDigest.finding_ids?.length || 0,
-        uniqueResources: 0,
-        dateRange: { start: 0, end: Date.now() }
-      }
+        newFindings: 0,
+        highRelevanceCount: 0,
+        sourceCount: 0,
+        avgConfidence: 0
+      },
+      topSources: apiDigest.metadata?.topSources || [],
+      allFindingIds: apiDigest.finding_ids || [],
+      userEngagement: apiDigest.metadata?.userEngagement
     };
+
+    // Add cache metadata if we have context about the response
+    if (responseContext) {
+      digest.cacheMetadata = {
+        source: responseContext.source as 'postgresql' | 'indexeddb' | 'generated' || 'postgresql',
+        isCached: responseContext.deduplicated || false,
+        deduplicated: responseContext.deduplicated || false,
+        originalGeneratedAt: new Date(apiDigest.created_at).getTime(),
+        cacheRetrievedAt: Date.now()
+      };
+    }
+
+    return digest;
   }
 
   /**
@@ -115,7 +135,11 @@ class DigestsAPIService {
       const response = await api.get<DigestResponse>(url);
 
       if (response.data.success) {
-        return this.transformToFrontend(response.data.digest);
+        // Pass deduplicated flag to transformation
+        return this.transformToFrontend(response.data.digest, {
+          deduplicated: response.data.deduplicated,
+          source: 'postgresql'
+        });
       }
 
       return undefined;
@@ -154,7 +178,11 @@ class DigestsAPIService {
       // For updates, use updateDigest() method
       const response = await api.post<DigestResponse>(this.baseUrl, backendData);
       if (response.data.success) {
-        return this.transformToFrontend(response.data.digest);
+        // Pass deduplicated flag if backend returned existing digest
+        return this.transformToFrontend(response.data.digest, {
+          deduplicated: response.data.deduplicated,
+          source: response.data.deduplicated ? 'postgresql' : 'generated'
+        });
       }
 
       throw new Error('Failed to save digest');

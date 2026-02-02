@@ -1,5 +1,6 @@
 import { getDB } from '@/utils/db/database';
 import { digestsAPIService } from './digests.api.service';
+import { digestCacheService } from './digestCache.service';
 import { storageConfig } from '@/config/storage.config';
 import type { SmartDigest } from '@/types';
 
@@ -27,18 +28,51 @@ class DigestService {
 
   async getDigest(topicId: string, timeframe?: string): Promise<SmartDigest | undefined> {
     if (this.isUsingAPI) {
-      return await digestsAPIService.getLatestDigest(topicId, timeframe);
+      // First check cache for a valid digest
+      const cachedDigest = await digestCacheService.getCachedDigest(topicId, timeframe || 'weekly');
+
+      if (cachedDigest && digestCacheService.isCacheValid(cachedDigest)) {
+        // Return cached digest with metadata indicating it's from cache
+        if (!cachedDigest.cacheMetadata) {
+          cachedDigest.cacheMetadata = {};
+        }
+        cachedDigest.cacheMetadata.source = 'postgresql';
+        cachedDigest.cacheMetadata.isCached = true;
+        cachedDigest.cacheMetadata.cacheRetrievedAt = Date.now();
+        return cachedDigest;
+      }
+
+      // No valid cache, fetch from API
+      const digest = await digestsAPIService.getLatestDigest(topicId, timeframe);
+
+      // Cache the fetched digest if valid
+      if (digest) {
+        await digestCacheService.cacheDigest(digest);
+      }
+
+      return digest;
     }
 
+    // Local IndexedDB logic (unchanged)
     const db = await getDB();
     const tx = db.transaction('digests', 'readonly');
     const store = tx.objectStore('digests');
     const digests = await store.getAll();
     // Filter by topic and optionally by timeframe
-    return digests.find(d =>
+    const digest = digests.find(d =>
       d.topicId === topicId &&
       (!timeframe || d.timeframe === timeframe)
     );
+
+    if (digest && !digest.cacheMetadata) {
+      digest.cacheMetadata = {
+        source: 'indexeddb',
+        isCached: true,
+        cacheRetrievedAt: Date.now()
+      };
+    }
+
+    return digest;
   }
 
   async getDigestById(id: string): Promise<SmartDigest | undefined> {
@@ -54,7 +88,12 @@ class DigestService {
 
   async saveDigest(digest: SmartDigest): Promise<SmartDigest> {
     if (this.isUsingAPI) {
-      return await digestsAPIService.saveDigest(digest);
+      const savedDigest = await digestsAPIService.saveDigest(digest);
+      // Update cache with the newly saved digest
+      if (savedDigest && !savedDigest.cacheMetadata?.deduplicated) {
+        await digestCacheService.cacheDigest(savedDigest);
+      }
+      return savedDigest;
     }
 
     const db = await getDB();
@@ -63,6 +102,13 @@ class DigestService {
     await store.put(digest);
     await tx.done;
     return digest;
+  }
+
+  async warmCache(topicIds?: string[]): Promise<void> {
+    if (this.isUsingAPI) {
+      await digestCacheService.warmCache(topicIds);
+    }
+    // No need to warm cache for local IndexedDB
   }
 
   async deleteDigest(id: string): Promise<void> {

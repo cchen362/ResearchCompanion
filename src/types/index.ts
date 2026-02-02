@@ -571,6 +571,15 @@ export interface SmartDigest {
     expandedThemes?: string[];   // Theme IDs user expanded
     followUpQuestions?: string[]; // Questions user asked
   };
+  // Cache metadata for tracking digest source and freshness
+  cacheMetadata?: {
+    source?: 'postgresql' | 'indexeddb' | 'generated'; // Where this digest came from
+    isCached?: boolean;                                 // Whether this is from cache or freshly generated
+    deduplicated?: boolean;                             // Whether backend returned existing digest instead of generating new
+    originalGeneratedAt?: number;                       // Original generation timestamp if from cache
+    cacheRetrievedAt?: number;                          // When retrieved from cache
+    cacheExpiresAt?: number;                            // When cache entry expires
+  };
 }
 
 export interface DigestTheme {

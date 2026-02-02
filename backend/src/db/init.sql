@@ -272,7 +272,7 @@ FOR EACH ROW EXECUTE FUNCTION update_chat_updated_at();
 -- Create default admin user (optional, remove in production)
 -- Password: admin123 (change this!)
 INSERT INTO users (email, password_hash, name, email_verified)
-VALUES ('admin@medcompanion.local', '$2b$10$YourHashedPasswordHere', 'Admin User', true)
+VALUES ('admin@medcompanion.local', '$2b$10$RPw3fkQ/EpAc6QKYeRnMb.PkSvrBrDLTBg8nUOKA/B/tvImJVdywK', 'Admin User', true)
 ON CONFLICT (email) DO NOTHING;
 
 -- Grant permissions (adjust as needed for your setup)

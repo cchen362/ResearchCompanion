@@ -8,6 +8,7 @@ import { FileText, Bot, MessageSquare, TrendingUp, Plus, X } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore';
 import { findingsService } from '@/services/findings.service';
 import { digestQueueService } from '@/services/digestQueue.service';
+import { digestService } from '@/services/digest.service';
 
 interface DashboardProps {
   setCurrentView?: (view: string) => void;
@@ -42,6 +43,16 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       // Load topics
       const allTopics = await getAllTopics();
       setTopics(allTopics);
+
+      // Warm digest cache for all topics in background
+      if (allTopics.length > 0) {
+        console.log('[Dashboard] Warming digest cache for', allTopics.length, 'topics');
+        const topicIds = allTopics.map(t => t.id);
+        // Fire and forget - don't await this as it runs in background
+        digestService.warmCache(topicIds).catch(err => {
+          console.log('[Dashboard] Cache warming failed (non-critical):', err);
+        });
+      }
 
       // Load agent counts for each topic
       const counts: Record<string, number> = {};

@@ -120,20 +120,30 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         if (existingDigest) {
           console.log('[DIGEST PARALLEL] Found digest in parallel fetch:', {
             id: existingDigest.id,
-            timeframe: existingDigest.timeframe
+            timeframe: existingDigest.timeframe,
+            isCached: existingDigest.cacheMetadata?.isCached,
+            deduplicated: existingDigest.cacheMetadata?.deduplicated,
+            source: existingDigest.cacheMetadata?.source
           });
 
-          const maxAge = getMaxDigestAge(digestTimeframe);
-          const isRecent = (Date.now() - existingDigest.generatedAt) < maxAge;
-
-          if (isRecent) {
-            console.log('[DIGEST PARALLEL] Using existing digest from parallel load');
+          // If digest is from cache or was deduplicated, trust it's valid
+          if (existingDigest.cacheMetadata?.isCached || existingDigest.cacheMetadata?.deduplicated) {
+            console.log('[DIGEST PARALLEL] Using cached/deduplicated digest');
             setDigest(existingDigest);
           } else {
-            // Digest is too old, generate new one
-            console.log('[DIGEST PARALLEL] Digest from parallel load is too old, generating new');
-            if (topicFindings.length > 0) {
-              await generateNewDigest(topicFindings, topic);
+            // Only check age for non-cached digests
+            const maxAge = getMaxDigestAge(digestTimeframe);
+            const isRecent = (Date.now() - existingDigest.generatedAt) < maxAge;
+
+            if (isRecent) {
+              console.log('[DIGEST PARALLEL] Using existing digest from parallel load');
+              setDigest(existingDigest);
+            } else {
+              // Digest is too old and not cached, generate new one
+              console.log('[DIGEST PARALLEL] Digest from parallel load is too old, generating new');
+              if (topicFindings.length > 0) {
+                await generateNewDigest(topicFindings, topic);
+              }
             }
           }
         } else {
@@ -174,12 +184,20 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
           id: existingDigest.id,
           timeframe: existingDigest.timeframe,
           generatedAt: new Date(existingDigest.generatedAt).toISOString(),
-          age: Math.round((Date.now() - existingDigest.generatedAt) / (1000 * 60 * 60)) + ' hours ago'
+          age: Math.round((Date.now() - existingDigest.generatedAt) / (1000 * 60 * 60)) + ' hours ago',
+          isCached: existingDigest.cacheMetadata?.isCached,
+          deduplicated: existingDigest.cacheMetadata?.deduplicated,
+          source: existingDigest.cacheMetadata?.source
         });
 
-        // Check if this digest matches our desired timeframe
-        // For now, accept any digest since backend doesn't store timeframe yet
-        // TODO: Once backend stores timeframe, filter by it
+        // If digest is from cache or was deduplicated by backend, it's already valid
+        if (existingDigest.cacheMetadata?.isCached || existingDigest.cacheMetadata?.deduplicated) {
+          console.log('[DIGEST CHECK] Using cached/deduplicated digest from server');
+          setDigest(existingDigest);
+          return; // Exit early - we have what we need
+        }
+
+        // Only check age for non-cached digests
         const maxAge = getMaxDigestAge(digestTimeframe);
         const isRecent = (Date.now() - existingDigest.generatedAt) < maxAge;
 
