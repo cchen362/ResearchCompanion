@@ -408,26 +408,31 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
             cachedDigest
           );
 
-          if (shouldRefresh || isStale) {
+          if ((shouldRefresh || isStale) && !loadingDigest) {
             // Add small delay to prevent race condition with queue status
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Queue background refresh if stale or needs update (double-check no queue exists)
             const recheckQueue = await digestQueueService.getQueueStatus(topicId);
             if (!recheckQueue && !queueItem) {
-              const newQueueItem = await digestQueueService.queueDigestGeneration(
-                topicId,
-                digestTimeframe,
-                topicFindings.map(f => f.id),
-                isStale ? 'high' : 'normal',
-                'system'
-              );
-              setQueueItem(newQueueItem);
-              setDigestGeneration({
-                isGenerating: true,
-                progress: 0,
-                message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
-              });
+              setLoadingDigest(true); // Prevent race condition
+              try {
+                const newQueueItem = await digestQueueService.queueDigestGeneration(
+                  topicId,
+                  digestTimeframe,
+                  topicFindings.map(f => f.id),
+                  isStale ? 'high' : 'normal',
+                  'system'
+                );
+                setQueueItem(newQueueItem);
+                setDigestGeneration({
+                  isGenerating: true,
+                  progress: 0,
+                  message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
+                });
+              } finally {
+                setLoadingDigest(false);
+              }
             }
           }
         }
@@ -468,7 +473,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         } else {
           // No cached digest and no queue
           // Check if we have findings - if yes and they're from agents, auto-queue digest
-          if (topicFindings.length > 0) {
+          if (topicFindings.length > 0 && !loadingDigest) {
             // Check if any findings are from agents (not manual)
             const hasAgentFindings = topicFindings.some(f =>
               f.source?.type === 'agent' ||
@@ -478,16 +483,21 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
             if (hasAgentFindings) {
               console.log('Found agent findings without digest, auto-queueing digest generation');
-              const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
-                topicId,
-                digestTimeframe
-              );
-              setQueueItem(newQueueItem);
-              setDigestGeneration({
-                isGenerating: true,
-                progress: 0,
-                message: 'Starting automatic digest generation...'
-              });
+              setLoadingDigest(true); // Prevent race condition
+              try {
+                const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+                  topicId,
+                  digestTimeframe
+                );
+                setQueueItem(newQueueItem);
+                setDigestGeneration({
+                  isGenerating: true,
+                  progress: 0,
+                  message: 'Starting automatic digest generation...'
+                });
+              } finally {
+                setLoadingDigest(false);
+              }
             } else {
               console.log('No agent findings found, showing manual generate button');
             }
