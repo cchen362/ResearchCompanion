@@ -116,7 +116,15 @@ export class DigestQueueService {
   }
 
   // Get queue status for a topic
-  async getQueueStatus(topicId: string): Promise<DigestQueueItem | null> {
+  // Get queue status by queue ID (for polling after queueing)
+  async getQueueStatus(queueId: string): Promise<DigestQueueItem | null> {
+    const db = await getDB();
+    const item = await db.get('digestQueue', queueId);
+    return item || null;
+  }
+
+  // Get queue status by topic ID (for checking if topic has pending digests)
+  async getQueueStatusByTopic(topicId: string): Promise<DigestQueueItem | null> {
     const db = await getDB();
     const items = await db.getAllFromIndex('digestQueue', 'by-topic', topicId);
 
@@ -263,20 +271,27 @@ export class DigestQueueService {
       // Save the digest using service (respects storage config)
       console.log('[DIGEST SAVE] Saving digest with finding_ids:', digest.allFindingIds?.length || 0);
       console.log('[DIGEST SAVE] First 3 finding IDs:', digest.allFindingIds?.slice(0, 3));
-      await digestService.saveDigest(digest);
+      // Save digest and get back the saved version (which may have cache metadata if deduplicated)
+      const savedDigest = await digestService.saveDigest(digest);
 
       // Skip marking findings as read here to avoid unnecessary API calls
       // Findings will be marked as read when user actually views them
-      console.log(`[DIGEST SAVE] Successfully saved digest with ${digest.allFindingIds?.length || 0} findings`);
+      console.log(`[DIGEST SAVE] Successfully saved digest with ${savedDigest.allFindingIds?.length || 0} findings`);
 
-      // Update queue item as completed
+      // Log if digest was deduplicated
+      if (savedDigest.cacheMetadata?.deduplicated) {
+        console.log('[DIGEST SAVE] Backend returned existing digest (deduplicated)');
+      }
+
+      // Update queue item as completed with the saved digest ID
       item.status = 'completed';
       item.completedAt = Date.now();
-      item.resultDigestId = digest.id;
+      item.resultDigestId = savedDigest.id;
+      item.digest = savedDigest; // Store the saved digest with cache metadata
       await db.put('digestQueue', item);
 
-      // Notify UI of completion
-      this.notifyCompletion(item, digest);
+      // Notify UI of completion with the saved digest (includes cache metadata)
+      this.notifyCompletion(item, savedDigest);
 
     } catch (error) {
       console.error('Error generating digest:', error);

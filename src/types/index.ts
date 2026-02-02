@@ -508,6 +508,7 @@ export interface DigestQueueItem {
   maxAttempts: number;
   error?: string;
   resultDigestId?: string; // ID of generated digest when completed
+  digest?: SmartDigest; // The actual digest object (with cache metadata if deduplicated)
   findingIds: string[]; // Findings to include in digest
   requestedBy: 'user' | 'system' | 'background';
   estimatedCompletionTime?: number;
