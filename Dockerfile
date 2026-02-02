@@ -9,6 +9,9 @@ WORKDIR /app/frontend
 COPY package*.json ./
 RUN npm ci
 
+# Cache bust to force rebuild when code changes
+ARG CACHE_BUST=1
+
 # Copy frontend source
 COPY . ./
 
