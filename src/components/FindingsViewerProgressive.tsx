@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getDB } from '@/utils/db/database';
+import { api } from '@/services/api';
 import { topicsService } from '@/services/topics.service';
 import { digestQueueService } from '@/services/digestQueue.service';
 import { digestCacheService } from '@/services/digestCache.service';
@@ -391,27 +392,44 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setDigest(cachedDigest);
         setIsLoadingCachedDigest(false); // Clear cached loading state
         // Don't need to clear loadingDigest since we didn't set it
-
-        // Always check for existing queue status first
-        const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
-        if (existingQueue) {
-          console.log('Found existing digest generation in progress (with cached digest):', existingQueue);
-          setQueueItem(existingQueue);
-          setDigestGeneration({
-            isGenerating: true,
-            progress: existingQueue.progress?.percentage || 0,
-            message: existingQueue.progress?.message || 'Updating digest...'
-          });
+      } else {
+        // No cached digest - try to fetch from server
+        setIsLoadingCachedDigest(false);
+        try {
+          const response = await api.get(`/digest/by-topic/${topicId}`);
+          if (response.data && response.data.id) {
+            console.log('[FindingsViewer] Found existing digest on server');
+            setDigest(response.data);
+            setCachedDigest(response.data);
+            // Cache it locally
+            await digestCacheService.saveDigest(response.data);
+          }
+        } catch (error) {
+          // No existing digest - that's fine
+          console.log('[FindingsViewer] No existing digest found');
         }
+      }
 
-        // DISABLED: Auto-refresh removed to prevent confusing loading animations
-        // Digests will be refreshed either:
-        // 1. Manually by user clicking refresh button
-        // 2. Automatically by backend autonomous agents (when implemented)
+      // Always check for existing queue status first
+      const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
+      if (existingQueue) {
+        console.log('Found existing digest generation in progress (with cached digest):', existingQueue);
+        setQueueItem(existingQueue);
+        setDigestGeneration({
+          isGenerating: true,
+          progress: existingQueue.progress?.percentage || 0,
+          message: existingQueue.progress?.message || 'Updating digest...'
+        });
+      }
 
-        // This entire block is commented out to fix Issue 17
-        // Auto-refresh was causing "Generating AI-Powered Insights" to show on every page load
-        /*
+      // DISABLED: Auto-refresh removed to prevent confusing loading animations
+      // Digests will be refreshed either:
+      // 1. Manually by user clicking refresh button
+      // 2. Automatically by backend autonomous agents (when implemented)
+
+      // This entire block is commented out to fix Issue 17
+      // Auto-refresh was causing "Generating AI-Powered Insights" to show on every page load
+      /*
         if (!isManualRefresh && !existingQueue) {
           const shouldRefresh = await digestCacheService.shouldRefreshDigest(
             topicId,
@@ -423,8 +441,9 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
             // Auto-refresh logic removed - see Issue 17 in server_storage_fixes.md
           }
         }
-        */
-      } else {
+      */
+
+      if (!cachedDigest && !digest) {
         setCachedDigest(null);
         setIsLoadingCachedDigest(false); // Clear cached loading state
         // Don't need to clear loadingDigest since we didn't set it

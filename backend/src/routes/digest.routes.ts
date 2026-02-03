@@ -1,8 +1,82 @@
 import { Router } from 'express';
 import { generateSmartDigest } from '../services/ai.service.js';
 import { searchService } from '../services/search.service.js';
+import { pool } from '../db/database.js';
 
 const router = Router();
+
+/**
+ * Get existing digest for a topic
+ */
+router.get('/by-topic/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    const userId = (req as any).userId;
+
+    if (!topicId) {
+      return res.status(400).json({ error: 'Topic ID is required' });
+    }
+
+    // Query for the most recent digest for this topic
+    const query = `
+      SELECT
+        id,
+        user_id as "userId",
+        topic_id as "topicId",
+        executive_summary as "executiveSummary",
+        layman_summary as "laymanSummary",
+        themes,
+        key_takeaways as "keyTakeaways",
+        contradictions,
+        breakthroughs,
+        trends,
+        knowledge_gaps as "knowledgeGaps",
+        next_steps as "nextSteps",
+        clinical_implications as "clinicalImplications",
+        lifestyle_considerations as "lifestyleConsiderations",
+        questions_for_doctor as "questionsForDoctor",
+        warning_signs as "warningSigns",
+        metadata,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM digests
+      WHERE topic_id = $1 AND user_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [topicId, userId]);
+
+    if (result.rows[0]) {
+      console.log(`[DigestRoute] Found existing digest for topic ${topicId}`);
+
+      // Also check if there's a queue item linked to this digest
+      const queueQuery = `
+        SELECT status, completed_at
+        FROM digest_queue
+        WHERE result_id = $1
+        LIMIT 1
+      `;
+      const queueResult = await pool.query(queueQuery, [result.rows[0].id]);
+
+      const digest = {
+        ...result.rows[0],
+        topicId, // Ensure topicId is included
+        queueStatus: queueResult.rows[0] || null
+      };
+
+      res.json(digest);
+    } else {
+      res.status(404).json({ error: 'No digest found for this topic' });
+    }
+  } catch (error) {
+    console.error('Error fetching digest by topic:', error);
+    res.status(500).json({
+      error: 'Failed to fetch digest',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 /**
  * Generate a smart digest from research findings
@@ -32,10 +106,16 @@ router.post('/generate-digest', async (req, res) => {
     // Generate the smart digest using AI
     const digest = await generateSmartDigest(findings, topic, timeframe);
 
+    // CRITICAL: Include topicId in the response
+    const digestWithTopicId = {
+      ...digest,
+      topicId: topic.id || topic.topicId
+    };
+
     const duration = Date.now() - startTime;
     console.log(`✅ Digest generated successfully in ${(duration / 1000).toFixed(1)}s`);
 
-    res.json(digest);
+    res.json(digestWithTopicId);
   } catch (error) {
     console.error('Error generating digest:', error);
     res.status(500).json({

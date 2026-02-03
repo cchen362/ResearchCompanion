@@ -290,9 +290,14 @@ export class DigestQueueService {
           console.log(`[DigestQueueService] Processing pending queue item ${item.id} for topic ${item.topicId}`);
 
           try {
-            // Mark as processing
+            // Mark as processing (but don't fail if update fails)
             this.currentProcessingId = item.id;
-            await digestQueueAPI.updateQueueStatus(item.id, 'processing');
+            try {
+              await digestQueueAPI.updateQueueStatus(item.id, 'processing');
+            } catch (updateError) {
+              console.error(`[DigestQueueService] Failed to update queue to processing:`, updateError);
+              // Continue anyway - we'll still try to generate the digest
+            }
 
             // Get topic and findings
             const topic = await topicsService.getTopic(item.topicId);
@@ -340,15 +345,22 @@ export class DigestQueueService {
             // Save the digest
             const savedDigest = await digestService.saveDigest(digest);
 
-            // Update queue as completed
-            await digestQueueAPI.updateQueueStatus(
-              item.id,
-              'completed',
-              undefined,
-              savedDigest.id
-            );
+            // Update queue as completed (but don't fail if queue update fails)
+            try {
+              await digestQueueAPI.updateQueueStatus(
+                item.id,
+                'completed',
+                undefined,
+                savedDigest.id
+              );
+              console.log(`[DigestQueueService] Queue ${item.id} marked as completed`);
+            } catch (updateError) {
+              console.error(`[DigestQueueService] Failed to update queue status to completed:`, updateError);
+              // Continue anyway - digest was saved successfully
+            }
 
-            // Notify completion
+            // ALWAYS notify completion even if queue update failed
+            // The digest exists and was saved, that's what matters
             queueItem.status = 'completed';
             queueItem.completedAt = Date.now();
             queueItem.progress = {

@@ -128,24 +128,82 @@ export class DigestQueueServicePG {
   }
 
   /**
-   * Create a new queue item
+   * Create a new queue item (or return existing one)
    */
   async createQueueItem(data: CreateQueueItemData): Promise<QueueItem> {
     const id = uuidv4();
 
     try {
-      // Check for existing active queue first
-      const existing = await this.getActiveQueueForTopic(
+      // First check for ANY existing queue item (not just active)
+      const existingQuery = `
+        SELECT
+          id,
+          user_id as "userId",
+          topic_id as "topicId",
+          digest_type as "digestType",
+          timeframe,
+          status,
+          priority,
+          created_at as "createdAt",
+          started_at as "startedAt",
+          completed_at as "completedAt",
+          error,
+          retry_count as "retryCount",
+          result_id as "resultId",
+          metadata
+        FROM digest_queue
+        WHERE
+          user_id = $1
+          AND topic_id = $2
+          AND digest_type = $3
+          AND timeframe = $4
+        LIMIT 1
+      `;
+
+      const existingResult = await this.pool.query(existingQuery, [
         data.userId,
         data.topicId,
+        data.digestType || 'smart',
         data.timeframe
-      );
+      ]);
 
-      if (existing) {
-        console.log('[DigestQueueService] Active queue already exists:', existing.id);
+      if (existingResult.rows[0]) {
+        const existing = existingResult.rows[0];
+        console.log('[DigestQueueService] Queue item already exists:', existing.id, 'status:', existing.status);
+
+        // If it's completed or failed, reset it to pending for new generation
+        if (existing.status === 'completed' || existing.status === 'failed' || existing.status === 'cancelled') {
+          const resetQuery = `
+            UPDATE digest_queue
+            SET status = 'pending',
+                started_at = NULL,
+                completed_at = NULL,
+                error = NULL,
+                result_id = NULL,
+                created_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            RETURNING
+              id,
+              user_id as "userId",
+              topic_id as "topicId",
+              digest_type as "digestType",
+              timeframe,
+              status,
+              priority,
+              created_at as "createdAt",
+              metadata
+          `;
+
+          const resetResult = await this.pool.query(resetQuery, [existing.id]);
+          console.log('[DigestQueueService] Reset existing queue item to pending:', existing.id);
+          return resetResult.rows[0];
+        }
+
+        // Return existing if it's pending or processing
         return existing;
       }
 
+      // No existing item, create new one
       const query = `
         INSERT INTO digest_queue (
           id, user_id, topic_id, digest_type, timeframe,
@@ -175,38 +233,72 @@ export class DigestQueueServicePG {
       ];
 
       const result = await this.pool.query(query, values);
-      console.log('[DigestQueueService] Created queue item:', id);
+      console.log('[DigestQueueService] Created new queue item:', id);
       return result.rows[0];
     } catch (error: any) {
-      // Handle unique constraint violation (duplicate queue)
-      if (error.code === '23505') {
-        console.log('[DigestQueueService] Duplicate queue prevented, fetching existing');
-        const existing = await this.getActiveQueueForTopic(
-          data.userId,
-          data.topicId,
-          data.timeframe
-        );
-        if (existing) return existing;
-      }
-
       console.error('[DigestQueueService] Error creating queue item:', error);
       throw error;
     }
   }
 
   /**
-   * Update queue item status
+   * Get queue item by topic and timeframe (more reliable than by ID)
+   */
+  async getQueueByTopicAndTimeframe(
+    userId: string,
+    topicId: string,
+    timeframe: string,
+    digestType: string = 'smart'
+  ): Promise<QueueItem | null> {
+    try {
+      const query = `
+        SELECT
+          id,
+          user_id as "userId",
+          topic_id as "topicId",
+          digest_type as "digestType",
+          timeframe,
+          status,
+          priority,
+          created_at as "createdAt",
+          started_at as "startedAt",
+          completed_at as "completedAt",
+          error,
+          retry_count as "retryCount",
+          result_id as "resultId",
+          metadata
+        FROM digest_queue
+        WHERE
+          user_id = $1
+          AND topic_id = $2
+          AND timeframe = $3
+          AND digest_type = $4
+        LIMIT 1
+      `;
+
+      const result = await this.pool.query(query, [userId, topicId, timeframe, digestType]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[DigestQueueService] Error getting queue by topic/timeframe:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update queue item status (with fallback to find by topic/timeframe)
    */
   async updateQueueStatus(
     queueId: string,
     status: QueueItem['status'],
     error?: string,
-    resultId?: string
+    resultId?: string,
+    fallbackData?: { userId: string; topicId: string; timeframe: string }
   ): Promise<boolean> {
     try {
       let query: string;
       let values: any[];
 
+      // First, try to update by ID
       if (status === 'processing') {
         query = `
           UPDATE digest_queue
@@ -234,9 +326,34 @@ export class DigestQueueServicePG {
         values = [queueId, status];
       }
 
-      const result = await this.pool.query(query, values);
-      console.log(`[DigestQueueService] Updated queue ${queueId} to ${status}`);
-      return (result.rowCount || 0) > 0;
+      let result = await this.pool.query(query, values);
+
+      // If no rows updated and we have fallback data, try to find by topic/timeframe
+      if ((result.rowCount || 0) === 0 && fallbackData) {
+        console.log(`[DigestQueueService] Queue ${queueId} not found, trying fallback lookup`);
+
+        const queue = await this.getQueueByTopicAndTimeframe(
+          fallbackData.userId,
+          fallbackData.topicId,
+          fallbackData.timeframe
+        );
+
+        if (queue) {
+          console.log(`[DigestQueueService] Found queue by fallback: ${queue.id}`);
+          // Update with the found queue ID
+          values[0] = queue.id;
+          result = await this.pool.query(query, values);
+        }
+      }
+
+      const success = (result.rowCount || 0) > 0;
+      if (success) {
+        console.log(`[DigestQueueService] Updated queue to ${status}`);
+      } else {
+        console.log(`[DigestQueueService] Failed to update queue to ${status}`);
+      }
+
+      return success;
     } catch (error) {
       console.error('[DigestQueueService] Error updating queue status:', error);
       return false;
