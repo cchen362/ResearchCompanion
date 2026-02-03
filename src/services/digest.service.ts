@@ -74,6 +74,14 @@ class DigestService {
 
   async saveDigest(digest: SmartDigest): Promise<SmartDigest> {
     if (this.isUsingAPI) {
+      console.log('[DigestService] Saving digest:', digest);
+      if (!digest) {
+        console.error('[DigestService] ERROR: digest is undefined!');
+        throw new Error('Cannot save undefined digest');
+      }
+      if (!digest.topicId) {
+        console.error('[DigestService] WARNING: digest.topicId is undefined!', digest);
+      }
       const savedDigest = await digestsAPIService.saveDigest(digest);
       // Backend handles caching, just return the saved digest
       return savedDigest;

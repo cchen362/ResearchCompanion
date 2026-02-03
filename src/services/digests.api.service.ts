@@ -81,6 +81,11 @@ class DigestsAPIService {
    * Transform frontend SmartDigest to backend format
    */
   private transformToBackend(digest: Partial<SmartDigest>): any {
+    console.log('[DigestsAPIService] transformToBackend input:', digest);
+    if (!digest) {
+      console.error('[DigestsAPIService] ERROR: digest is undefined in transformToBackend!');
+      throw new Error('Cannot transform undefined digest');
+    }
     return {
       topic_id: digest.topicId || null,
       type: digest.timeframe || 'weekly',
