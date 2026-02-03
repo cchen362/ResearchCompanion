@@ -366,18 +366,18 @@ export class AgentExecutionService {
       id: uuidv4(),
       topic_id: topicId,
       user_id: userId,
+      title: source.displayName || source.name || 'Research Finding',
       source,
       content,
-      keyInsights,
+      summary: content.substring(0, 200),
       metadata: {
+        keyInsights,
         agentId: agent.id,
         agentName: agent.name,
         searchQuery: agent.config?.query,
         originalResult: result
       },
-      tags: this.extractTags(result, agent.type),
-      createdAt: new Date(),
-      updatedAt: new Date()
+      tags: this.extractTags(result, agent.type)
     };
 
     return finding;
