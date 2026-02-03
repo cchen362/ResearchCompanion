@@ -26,6 +26,12 @@ export class DigestQueueService {
   private constructor() {
     // Start processing queue on instantiation
     this.startQueueProcessor();
+
+    // Immediately check for any pending items on startup
+    setTimeout(() => {
+      console.log('[DigestQueueService] Initial queue check on startup');
+      this.processQueue();
+    }, 1000);
   }
 
   static getInstance(): DigestQueueService {
@@ -241,9 +247,6 @@ export class DigestQueueService {
     this.processingQueue = true;
 
     try {
-      // Note: With PostgreSQL backend, the actual processing happens server-side
-      // This method now just polls for status updates
-
       // Get user's pending queue items
       const response = await digestQueueAPI.getUserQueueItems(10);
       const pendingItems = response.items.filter(item =>
@@ -254,10 +257,11 @@ export class DigestQueueService {
         return;
       }
 
-      // For each pending item, check if it's been completed
+      // Process each pending item
       for (const item of pendingItems) {
-        if (item.status === 'processing') {
-          // Update local progress notification
+        // Skip if already processing (another instance might be handling it)
+        if (item.status === 'processing' && this.currentProcessingId !== item.id) {
+          // Just notify progress for items being processed elsewhere
           this.notifyProgressUpdate({
             id: item.id,
             topicId: item.topicId,
@@ -277,12 +281,120 @@ export class DigestQueueService {
               message: 'Generating digest...'
             }
           });
+          continue;
+        }
+
+        // Process pending items
+        if (item.status === 'pending') {
+          console.log(`[DigestQueueService] Processing pending queue item ${item.id} for topic ${item.topicId}`);
+
+          try {
+            // Mark as processing
+            this.currentProcessingId = item.id;
+            await digestQueueAPI.updateQueueStatus(item.id, 'processing');
+
+            // Get topic and findings
+            const topic = await topicsService.getTopic(item.topicId);
+            if (!topic) {
+              throw new Error(`Topic ${item.topicId} not found`);
+            }
+
+            const findings = await findingsService.getFindings(item.topicId);
+            if (findings.length === 0) {
+              throw new Error('No findings available for digest generation');
+            }
+
+            // Notify progress
+            const queueItem: DigestQueueItem = {
+              id: item.id,
+              topicId: item.topicId,
+              timeframe: item.timeframe as DigestTimeframe,
+              status: 'processing',
+              priority: 'normal',
+              createdAt: new Date(item.createdAt).getTime(),
+              startedAt: Date.now(),
+              attempts: 1,
+              maxAttempts: 3,
+              findingIds: findings.map(f => f.id),
+              requestedBy: 'user',
+              estimatedCompletionTime: Date.now() + 60000,
+              progress: {
+                stage: 'generating',
+                percentage: 10,
+                message: 'Starting digest generation...'
+              }
+            };
+
+            this.notifyProgressUpdate(queueItem);
+
+            // Generate the digest
+            console.log(`[DigestQueueService] Generating digest from ${findings.length} findings`);
+            const digest = await this.generateDigestFromFindings(
+              queueItem,
+              topic,
+              findings,
+              item.timeframe as DigestTimeframe
+            );
+
+            // Save the digest
+            const savedDigest = await digestService.saveDigest(digest);
+
+            // Update queue as completed
+            await digestQueueAPI.updateQueueStatus(
+              item.id,
+              'completed',
+              undefined,
+              savedDigest.id
+            );
+
+            // Notify completion
+            queueItem.status = 'completed';
+            queueItem.completedAt = Date.now();
+            queueItem.progress = {
+              stage: 'completed',
+              percentage: 100,
+              message: 'Digest generated successfully'
+            };
+            this.notifyCompletion(queueItem);
+
+            console.log(`[DigestQueueService] Successfully completed digest ${savedDigest.id} for queue item ${item.id}`);
+
+          } catch (error) {
+            console.error(`[DigestQueueService] Failed to process queue item ${item.id}:`, error);
+
+            // Update queue as failed
+            await digestQueueAPI.updateQueueStatus(
+              item.id,
+              'failed',
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+
+            // Notify failure
+            this.notifyFailure({
+              id: item.id,
+              topicId: item.topicId,
+              timeframe: item.timeframe as DigestTimeframe,
+              status: 'failed',
+              priority: 'normal',
+              createdAt: new Date(item.createdAt).getTime(),
+              startedAt: Date.now(),
+              completedAt: Date.now(),
+              attempts: 1,
+              maxAttempts: 3,
+              findingIds: [],
+              requestedBy: 'user',
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          } finally {
+            if (this.currentProcessingId === item.id) {
+              this.currentProcessingId = null;
+            }
+          }
         }
       }
 
       // DON'T RECURSIVELY CALL - let the setInterval handle periodic checks
-      // The startQueueProcessor already runs this every 5 seconds
-      // setTimeout(() => this.processQueue(), 5000);
+      // The startQueueProcessor already runs this every 30 seconds
 
     } finally {
       this.processingQueue = false;
