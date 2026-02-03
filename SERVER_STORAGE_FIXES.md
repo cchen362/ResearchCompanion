@@ -624,6 +624,7 @@ This implementation finally delivers the **autonomous agent system** that was in
 **Discovered:** February 3, 2026
 **Fixed:** February 4, 2026
 **Implementation Time:** 3 hours
+**Deployed to Production:** February 4, 2026 at 00:46 UTC (100.94.82.35:6767)
 
 ### Problem Description
 The digest queue was trapped in IndexedDB (client-side only) while everything else uses PostgreSQL. This architectural mismatch caused:
@@ -720,6 +721,39 @@ This fix completely resolves the digest animation bug by:
 - Enabling proper multi-device synchronization
 - Eliminating stale IndexedDB queue items
 - Providing clear queue status in API responses
+
+### Production Deployment Summary
+
+**Deployment Date:** February 4, 2026 at 00:46 UTC
+**Server:** 100.94.82.35:6767
+**Deployment Steps Executed:**
+
+1. ✅ Created database backup: medcomp_before_queue_20260204_003720.sql
+2. ✅ Applied migration 006_create_digest_queue.sql successfully
+3. ✅ Verified digest_queue table created with all indexes
+4. ✅ Rebuilt Docker containers with --no-cache flag
+5. ✅ Application restarted successfully
+6. ✅ Queue endpoints verified as functional
+7. ✅ No errors in production logs
+
+**Critical Notes:**
+- Migration file (006_create_digest_queue.sql) was initially missing from git (ignored by .gitignore)
+- Had to force-add migration file with `git add -f`
+- Docker container names differ from expected: `medcompanion-postgres` not `medical-pwa-postgres`
+- Database user is `meduser` not `medcomp`
+- Database name is `medcompanion` not `medcomp`
+
+**Post-Deployment Verification:**
+- Backend running on http://localhost:3001
+- Frontend accessible on http://100.94.82.35:6767
+- Queue API endpoints require authentication (as expected)
+- digest_queue table exists and is empty (ready for use)
+- No module import errors
+- No TypeScript compilation errors
+
+**Rollback Information:**
+- Backup available at: ~/backups/medcomp_before_queue_20260204_003720.sql
+- Can restore with: `docker exec -i medcompanion-postgres psql -U meduser medcompanion < backup.sql`
 
 ---
 
