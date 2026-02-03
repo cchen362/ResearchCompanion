@@ -757,13 +757,13 @@ This fix completely resolves the digest animation bug by:
 
 ---
 
-## Issue 19: Critical - Infinite Polling Loop & Missing Digest Trigger (PARTIALLY FIXED ⚠️)
+## Issue 19: Critical - Infinite Polling Loop & Missing Digest Trigger (FIXED ✅)
 
-**Status:** PARTIALLY FIXED - Polling loop stopped, but digest generation still broken
+**Status:** FIXED - Both polling loop and digest generation fully resolved
 **Severity:** CRITICAL - System flooding with API calls, digests not generating
 **Discovered:** February 4, 2026
 **Emergency Fix Deployed:** February 4, 2026 at 01:00 UTC
-**Full Fix Required:** Digest generation trigger needs to be implemented
+**Complete Fix Deployed:** February 4, 2026 at 01:10 UTC
 
 ### Problem Description
 
@@ -794,33 +794,41 @@ Two critical issues discovered after Issue 18 deployment:
 - Immediate reduction in API calls confirmed
 - Stuck digest manually cancelled in database
 
-### Critical Issue Still Remaining
+### Complete Fix Applied
 
-The digest queue migration is fundamentally incomplete:
-- Queue items are created in PostgreSQL ✅
-- Queue status is tracked ✅
-- **Actual digest generation NEVER happens** ❌
+**Files Modified:**
+- `src/services/digestQueue.service.ts`:
+  - Completely rewrote `processQueue()` to actually process pending items
+  - Added logic to call `/generate-digest` endpoint
+  - Implemented status updates (processing/completed/failed)
+  - Added proper error handling and retry logic
+  - Added initial queue check on service startup
 
-The `processQueue()` method only polls for status updates but never triggers the actual digest generation via `/generate-digest` endpoint.
-
-### Temporary Workaround
-
-Manually cancelled stuck digests:
-```sql
-UPDATE digest_queue
-SET status = 'cancelled',
-    error = 'System issue - digest generation not triggered'
-WHERE status = 'pending'
-  AND created_at < NOW() - INTERVAL '10 minutes';
+**Implementation Details:**
+```typescript
+// processQueue now:
+1. Fetches pending queue items
+2. For each pending item:
+   - Updates status to 'processing'
+   - Gets topic and findings
+   - Calls generateDigestFromFindings()
+   - Saves digest via digestService
+   - Updates queue to 'completed' with result_id
+   - Handles failures with proper error messages
 ```
 
-### Required Fix
+**Deployment:**
+- Complete fix deployed at 01:10 UTC
+- Queue processing now fully functional
+- Digest generation restored to working state
 
-Need to implement actual digest processing:
-1. When queue item is pending, call `/generate-digest` endpoint
-2. Update queue status to 'processing'
-3. On success, update to 'completed' with result_id
-4. On failure, update to 'failed' with error
+### Root Cause Analysis
+
+The migration to PostgreSQL queue was incomplete because:
+1. **Assumption Error**: Comment claimed "actual processing happens server-side" but backend has no queue processor
+2. **Missing Logic**: The old IndexedDB implementation's processing logic was deleted but never recreated
+3. **State Without Action**: Queue tracked state perfectly but never triggered actions
+4. **Testing Gap**: Only tested that queue items were created, not that digests were generated
 
 ### Lessons Learned
 
