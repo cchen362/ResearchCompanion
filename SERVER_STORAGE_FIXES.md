@@ -757,6 +757,80 @@ This fix completely resolves the digest animation bug by:
 
 ---
 
+## Issue 19: Critical - Infinite Polling Loop & Missing Digest Trigger (PARTIALLY FIXED ⚠️)
+
+**Status:** PARTIALLY FIXED - Polling loop stopped, but digest generation still broken
+**Severity:** CRITICAL - System flooding with API calls, digests not generating
+**Discovered:** February 4, 2026
+**Emergency Fix Deployed:** February 4, 2026 at 01:00 UTC
+**Full Fix Required:** Digest generation trigger needs to be implemented
+
+### Problem Description
+
+Two critical issues discovered after Issue 18 deployment:
+
+1. **Infinite Polling Loop** (FIXED)
+   - Frontend was calling `/digest-queue` API every 1-2 seconds
+   - Caused by BOTH setInterval AND recursive setTimeout running simultaneously
+   - Each user generating thousands of API calls per minute
+   - Server logs flooded with "[DigestQueue] Fetching queue items"
+
+2. **Digest Generation Not Triggered** (STILL BROKEN)
+   - Queue items created but never processed
+   - Backend queue is only a state tracker, doesn't trigger actual generation
+   - `/generate-digest` endpoint never called
+   - Digests stuck in "pending" state forever
+
+### Emergency Fix Applied
+
+**Files Modified:**
+- `src/services/digestQueue.service.ts`:
+  - Removed recursive `setTimeout(() => this.processQueue(), 5000)` at line 283
+  - Changed polling interval from 5 seconds to 30 seconds
+  - Added proper interval cleanup mechanism
+
+**Deployment:**
+- Emergency fix deployed at 01:00 UTC
+- Immediate reduction in API calls confirmed
+- Stuck digest manually cancelled in database
+
+### Critical Issue Still Remaining
+
+The digest queue migration is fundamentally incomplete:
+- Queue items are created in PostgreSQL ✅
+- Queue status is tracked ✅
+- **Actual digest generation NEVER happens** ❌
+
+The `processQueue()` method only polls for status updates but never triggers the actual digest generation via `/generate-digest` endpoint.
+
+### Temporary Workaround
+
+Manually cancelled stuck digests:
+```sql
+UPDATE digest_queue
+SET status = 'cancelled',
+    error = 'System issue - digest generation not triggered'
+WHERE status = 'pending'
+  AND created_at < NOW() - INTERVAL '10 minutes';
+```
+
+### Required Fix
+
+Need to implement actual digest processing:
+1. When queue item is pending, call `/generate-digest` endpoint
+2. Update queue status to 'processing'
+3. On success, update to 'completed' with result_id
+4. On failure, update to 'failed' with error
+
+### Lessons Learned
+
+1. **Test End-to-End**: The queue migration was tested for state tracking but not actual functionality
+2. **Beware of Recursive Patterns**: setTimeout calling itself + setInterval = exponential growth
+3. **Monitor API Usage**: Should have caught thousands of requests per minute earlier
+4. **Incomplete Migrations Are Dangerous**: Moving state to server without moving logic breaks functionality
+
+---
+
 ## Next Steps
 
 1. Implement comprehensive error handling and user feedback
