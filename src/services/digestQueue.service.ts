@@ -692,23 +692,19 @@ export class DigestQueueService {
       clearInterval(this.queueProcessorInterval);
     }
 
-    // Check queue status every 30 seconds (not 5 seconds - too aggressive!)
-    this.queueProcessorInterval = setInterval(() => {
-      if (!this.processingQueue) {
-        console.log('[DigestQueueService] Periodic queue check');
-        this.processQueue();
-      }
-    }, 30000); // 30 seconds instead of 5
+    // REMOVED: Continuous polling every 30 seconds was causing unnecessary API calls
+    // Only process queue when explicitly triggered (new digest request, etc.)
+    console.log('[DigestQueueService] Queue processor ready - will process on demand only');
   }
 
   // Start polling (call after user logs in)
   public startPolling(): void {
-    console.log('[DigestQueueService] Starting queue polling after login');
+    console.log('[DigestQueueService] Initializing queue service after login');
     this.startQueueProcessor();
 
-    // Check for any pending items immediately
+    // Check for any pending items ONCE on login
     setTimeout(() => {
-      console.log('[DigestQueueService] Initial queue check after login');
+      console.log('[DigestQueueService] One-time queue check after login');
       this.processQueue();
     }, 1000);
   }
