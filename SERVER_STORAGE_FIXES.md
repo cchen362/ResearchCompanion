@@ -884,6 +884,65 @@ The migration to PostgreSQL queue was incomplete because:
 
 ---
 
-*Last Updated: February 4, 2026 - Issue 18 Digest Queue PostgreSQL Migration Complete*
+### Issue 20: Digest Queue 404 Errors and Generation Failures (FIXED)
+
+**Problem:**
+- PATCH /digest-queue/:queueId returning 404 "Queue item not found"
+- TypeError: Cannot read properties of undefined (reading 'topicId')
+- "Generate Digest" UI never resolves, stays in generating state forever
+- Digests not persisting after navigation/logout despite being saved to database
+
+**Root Causes:**
+1. **Database Constraint Issue**: The unique constraint on digest_queue included 'status' field, allowing duplicate queue items when status changed from 'pending' to 'processing'
+2. **Missing topicId**: Backend /generate-digest endpoint didn't include topicId in response
+3. **Broken Event Chain**: Queue update failures prevented UI notification events from firing
+4. **No Recovery Mechanism**: Frontend had no way to retrieve orphaned digests from database
+
+**Fix Applied (February 3, 2026):**
+
+**Database Migration:**
+```sql
+-- Migration 014: Fix digest_queue unique constraint
+ALTER TABLE digest_queue DROP CONSTRAINT unique_active_queue;
+ALTER TABLE digest_queue ADD CONSTRAINT unique_active_queue_fixed
+  UNIQUE (user_id, topic_id, digest_type, timeframe);
+-- Removed 'status' from constraint to prevent duplicates
+```
+
+**Backend Fixes:**
+1. **Queue Service** (`backend/src/services/digestQueue.service.pg.ts`):
+   - Added fallback lookup by topic/timeframe when ID lookup fails
+   - Reset completed/failed items to 'pending' for retry
+   - Added `getQueueByTopicAndTimeframe()` method
+
+2. **Digest Routes** (`backend/src/routes/digest.routes.ts`):
+   - Added GET `/digest/by-topic/:topicId` endpoint for recovery
+   - Ensured all digest responses include topicId field
+
+**Frontend Fixes:**
+1. **Queue Service** (`src/services/digestQueue.service.ts`):
+   - Always dispatch completion events even if queue update fails
+   - Continue processing even if status updates fail
+   - Added try-catch around queue updates to prevent cascade failures
+
+2. **Research Findings** (`src/components/FindingsViewerProgressive.tsx`):
+   - Added fallback to fetch digest from server if not in cache
+   - Check `/digest/by-topic/:topicId` on component mount
+   - Cache server digests locally for performance
+
+**Deployment:**
+- Fixed database constraint on production at 18:10 UTC
+- Deployed code fixes via git pull + docker rebuild at 18:19 UTC
+- All digest generation now working properly
+
+**Verification:**
+- Queue items no longer get duplicated
+- Digests persist across all devices and sessions
+- "Cached digest from X ago" banner displays correctly
+- No more 404 errors or TypeErrors in console
+
+---
+
+*Last Updated: February 3, 2026 - Issue 20 Digest Queue Critical Fixes Deployed*
 *Document maintained by: Development Team*
 *Issue 18 added - Complete digest queue migration to PostgreSQL, fixing animation bug root cause*
