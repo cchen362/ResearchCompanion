@@ -365,7 +365,7 @@ export class AgentExecutionService {
     const finding: Finding = {
       id: uuidv4(),
       topic_id: topicId,
-      userId,
+      user_id: userId,
       source,
       content,
       keyInsights,
@@ -406,7 +406,11 @@ export class AgentExecutionService {
           displayName: result.protocolSection?.identificationModule?.briefTitle || 'Untitled Trial',
           url: `https://clinicaltrials.gov/study/${result.protocolSection?.identificationModule?.nctId}`,
           trialPhase: result.protocolSection?.designModule?.phases?.[0],
-          status: result.protocolSection?.statusModule?.overallStatus,
+          trial: {
+            id: result.protocolSection?.identificationModule?.nctId || '',
+            status: result.protocolSection?.statusModule?.overallStatus || 'Unknown',
+            phase: result.protocolSection?.designModule?.phases?.[0]
+          },
           publishDate: result.protocolSection?.statusModule?.statusVerifiedDate || new Date().toISOString()
         };
 

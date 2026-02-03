@@ -3,7 +3,7 @@
  * Handles database operations for user notifications
  */
 
-import { pool } from '../db/database.js';
+import { db as pool } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface NotificationData {
