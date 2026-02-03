@@ -501,6 +501,33 @@ setIsLoadingCachedDigest(true);
 - Deployed with --no-cache flag again
 - Verified "Loading cached digest" is in production bundle
 
+### Third Critical Fix - Wrong Method Call (February 3, 2026)
+
+**Issue Still Persisted After Second Fix:**
+Even after fixing the loading state, the "Generating AI-Powered Insights" animation still showed because of an incorrect method call.
+
+**The REAL Root Cause:**
+FindingsViewerProgressive.tsx was calling `getQueueStatus(topicId)` instead of `getQueueStatusByTopic(topicId)`:
+- `getQueueStatus` expects a queueId, not a topicId
+- Passing topicId caused IndexedDB to return unrelated stale queue items
+- These stale items had status='pending' triggering the wrong UI
+
+**The Final Fix:**
+```typescript
+// WRONG - returns stale queue items:
+const existingQueue = await digestQueueService.getQueueStatus(topicId);
+
+// CORRECT - properly checks by topic:
+const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
+```
+
+This incorrect method call was in 3 places (lines 396, 433, and 287).
+
+**Third Deployment:** February 3, 2026
+- Fixed all 3 incorrect method calls
+- Deployed with --no-cache flag
+- Now properly checks for active queue items by topic only
+
 #### Files Created
 - `backend/src/services/scheduler.service.ts` (197 lines)
 - `backend/src/services/agent-execution.service.ts` (621 lines)
