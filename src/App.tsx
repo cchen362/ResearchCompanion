@@ -16,6 +16,7 @@ import { DebugPanel } from './components/DebugPanel';
 import { UpdateNotification } from './components/UpdateNotification';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
+import { notificationStream } from './services/notification-stream.service';
 import type { Topic } from './types';
 import './App.css';
 
@@ -49,6 +50,13 @@ function App() {
 
         // Load topics
         await refreshTopics();
+
+        // Connect to notification stream for autonomous agent updates
+        const token = localStorage.getItem('token');
+        if (token) {
+          console.log('🔔 Connecting to notification stream...');
+          notificationStream.connect();
+        }
 
         // Service worker disabled - server-first architecture
         // Per CLAUDE.md: No offline support, service worker removed
@@ -109,10 +117,31 @@ function App() {
     window.addEventListener('topic-created', handleTopicCreated);
     window.addEventListener('digest-completed', handleDigestCompleted);
 
+    // Handle server notifications from autonomous agents
+    const handleServerNotification = (event: CustomEvent) => {
+      const { notification } = event.detail;
+      console.log('Server notification received:', notification);
+
+      // Refresh topics if autonomous agents found new research
+      if (notification.type === 'agent_complete' || notification.type === 'digest_ready') {
+        refreshTopics();
+      }
+    };
+
+    window.addEventListener('server-notification', handleServerNotification as EventListener);
+
     return () => {
       window.removeEventListener('agent-complete', handleAgentComplete);
       window.removeEventListener('topic-created', handleTopicCreated);
       window.removeEventListener('digest-completed', handleDigestCompleted);
+      window.removeEventListener('server-notification', handleServerNotification as EventListener);
+    };
+  }, []);
+
+  // Clean up notification stream on unmount
+  useEffect(() => {
+    return () => {
+      notificationStream.disconnect();
     };
   }, []);
 

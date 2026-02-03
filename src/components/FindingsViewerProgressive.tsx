@@ -124,6 +124,8 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [loadingFindings, setLoadingFindings] = useState(false);
   const [loadingDigest, setLoadingDigest] = useState(false);
+  const [isLoadingCachedDigest, setIsLoadingCachedDigest] = useState(false); // New: distinguish cached loading
+  const [isGeneratingNewDigest, setIsGeneratingNewDigest] = useState(false); // New: distinguish new generation
 
   // Queue state
   const [queueItem, setQueueItem] = useState<DigestQueueItem | null>(null);
@@ -377,6 +379,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       await findingsService.markFindingsAsRead(topicId);
 
       // Step 3: Check for cached digest using cache service
+      setIsLoadingCachedDigest(true); // Use new state for loading cached digest
       setLoadingDigest(true);
       const { digest: cachedDigest, isStale } = await digestCacheService.getCachedDigest(
         topicId,
@@ -386,6 +389,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       if (cachedDigest) {
         setCachedDigest(cachedDigest);
         setDigest(cachedDigest);
+        setIsLoadingCachedDigest(false); // Clear cached loading state
         setLoadingDigest(false);
 
         // Always check for existing queue status first
@@ -400,7 +404,14 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
           });
         }
 
-        // Check if we should refresh the digest (but skip if manual refresh is in progress)
+        // DISABLED: Auto-refresh removed to prevent confusing loading animations
+        // Digests will be refreshed either:
+        // 1. Manually by user clicking refresh button
+        // 2. Automatically by backend autonomous agents (when implemented)
+
+        // This entire block is commented out to fix Issue 17
+        // Auto-refresh was causing "Generating AI-Powered Insights" to show on every page load
+        /*
         if (!isManualRefresh && !existingQueue) {
           const shouldRefresh = await digestCacheService.shouldRefreshDigest(
             topicId,
@@ -409,35 +420,13 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
           );
 
           if ((shouldRefresh || isStale) && !loadingDigest) {
-            // Add small delay to prevent race condition with queue status
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Queue background refresh if stale or needs update (double-check no queue exists)
-            const recheckQueue = await digestQueueService.getQueueStatus(topicId);
-            if (!recheckQueue && !queueItem) {
-              setLoadingDigest(true); // Prevent race condition
-              try {
-                const newQueueItem = await digestQueueService.queueDigestGeneration(
-                  topicId,
-                  digestTimeframe,
-                  topicFindings.map(f => f.id),
-                  isStale ? 'high' : 'normal',
-                  'system'
-                );
-                setQueueItem(newQueueItem);
-                setDigestGeneration({
-                  isGenerating: true,
-                  progress: 0,
-                  message: isStale ? 'Updating stale digest...' : 'Refreshing digest...'
-                });
-              } finally {
-                setLoadingDigest(false);
-              }
-            }
+            // Auto-refresh logic removed - see Issue 17 in server_storage_fixes.md
           }
         }
+        */
       } else {
         setCachedDigest(null);
+        setIsLoadingCachedDigest(false); // Clear cached loading state
         setLoadingDigest(false);
 
         // Step 4: Check if there's already a digest being generated
@@ -907,7 +896,19 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
                 {/* Themes Removed - These were confusing AI-generated groupings */}
                 {/* Will be replaced with better organization when we have real research data */}
               </>
+            ) : isLoadingCachedDigest && !queueItem ? (
+              // Show simple loading message when fetching cached digest
+              <Card className="p-8 text-center">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-12 w-12 mx-auto rounded-full bg-muted" />
+                  <CardTitle className="mb-2">Loading cached digest...</CardTitle>
+                  <p className="text-muted-foreground">
+                    Retrieving your previously generated insights
+                  </p>
+                </div>
+              </Card>
             ) : queueItem && (queueItem.status === 'pending' || queueItem.status === 'processing') ? (
+              // Only show "Generating" animation when actually generating new digest
               <Card className="p-8 text-center">
                 <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
                 <CardTitle className="mb-2">Generating AI-Powered Insights</CardTitle>

@@ -22,11 +22,15 @@ import chatsRoutes from './routes/chats.routes.js';
 import timelineRoutes from './routes/timeline.routes.js';
 import audioRoutes from './routes/audio.routes.js';
 import versionRoutes from './routes/version.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
 import { userDatabase } from './database/users.db.js';
 import { testConnection } from './db/database.js';
+
+// Import scheduler for autonomous agents
+import { schedulerService } from './services/scheduler.service.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -122,6 +126,8 @@ app.use('/api', authenticate, chatsRoutes);
 // Voice recording and timeline routes
 app.use('/api', authenticate, timelineRoutes);
 app.use('/api', authenticate, audioRoutes);
+// Notifications routes (SSE endpoint needs special handling)
+app.use('/api', authenticate, notificationsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -135,6 +141,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log('🔐 Authentication enabled - all API routes require login');
+
+  // Start autonomous agent scheduler
+  console.log('🤖 Starting autonomous agent scheduler...');
+  schedulerService.start();
+  console.log('✅ Autonomous agents will run on their configured schedules');
   console.log('\n📡 Auth endpoints (no token required):');
   console.log('  - POST /api/auth/register');
   console.log('  - POST /api/auth/login');
@@ -159,3 +170,28 @@ const server = app.listen(PORT, () => {
 server.timeout = 300000; // 5 minutes
 server.keepAliveTimeout = 310000; // Slightly longer than timeout
 server.headersTimeout = 320000; // Even longer to prevent premature closing
+
+// Graceful shutdown handling
+const gracefulShutdown = () => {
+  console.log('\n🛑 Shutting down server...');
+
+  // Stop the scheduler
+  console.log('🤖 Stopping autonomous agent scheduler...');
+  schedulerService.stop();
+
+  // Close the server
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('⚠️ Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+};
+
+// Listen for termination signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

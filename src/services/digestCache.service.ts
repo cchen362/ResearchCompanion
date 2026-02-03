@@ -13,29 +13,30 @@ export interface DigestCacheConfig {
 }
 
 // Default cache configurations per timeframe
+// Updated for Issue 17: Increased cache durations and disabled autoRefresh
 const DEFAULT_CACHE_CONFIGS: Record<DigestTimeframe, DigestCacheConfig> = {
   'daily': {
-    maxAge: 1 * 60 * 60 * 1000, // 1 hour
+    maxAge: 3 * 60 * 60 * 1000, // 3 hours (was 1 hour)
     staleWhileRevalidate: true,
-    autoRefresh: true,
+    autoRefresh: false, // Disabled to prevent auto-generation on page load
     refreshThreshold: 3
   },
   'weekly': {
-    maxAge: 6 * 60 * 60 * 1000, // 6 hours
+    maxAge: 12 * 60 * 60 * 1000, // 12 hours (was 6 hours)
     staleWhileRevalidate: true,
-    autoRefresh: true,
+    autoRefresh: false, // Disabled to prevent auto-generation on page load
     refreshThreshold: 10
   },
   'monthly': {
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 48 * 60 * 60 * 1000, // 48 hours (was 24 hours)
     staleWhileRevalidate: true,
-    autoRefresh: true,
+    autoRefresh: false, // Disabled to prevent auto-generation on page load
     refreshThreshold: 20
   },
   'all-time': {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (unchanged)
     staleWhileRevalidate: true,
-    autoRefresh: false,
+    autoRefresh: false, // Already disabled
     refreshThreshold: 50
   }
 };

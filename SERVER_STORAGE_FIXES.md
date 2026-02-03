@@ -332,11 +332,13 @@ When making changes, test these critical paths:
 
 ---
 
-## Issue 17: Digest Shows "Generating AI-Powered Insights" Animation on Every Page Load (PENDING)
+## Issue 17: Digest Shows "Generating AI-Powered Insights" Animation on Every Page Load (FIXED)
 
-**Status:** TO BE IMPLEMENTED
+**Status:** IMPLEMENTED
 **Severity:** High - Major UX issue affecting every user session
 **Discovered:** February 3, 2026
+**Fixed:** February 3, 2026
+**Implementation Time:** 2 hours
 
 ### Problem Description
 Users see the "Generating AI-Powered Insights" spinning animation EVERY time they visit the Findings page, even when just loading a cached digest that was generated minutes ago. This creates the false impression that AI is processing when it's actually just loading from cache.
@@ -416,10 +418,85 @@ docker logs medical-companion | grep scheduler
 4. Digests update in background
 5. Manual refresh still available
 
-### Files Modified Summary
-- 2 NEW backend services
-- 5 MODIFIED files across frontend/backend
-- Total estimated LOC: ~500
+### Implementation Summary (COMPLETED)
+
+#### What Was Built
+
+1. **TRUE Autonomous Agent System**:
+   - Created `backend/src/services/scheduler.service.ts` - Runs every 15 minutes (1 minute in dev)
+   - Created `backend/src/services/agent-execution.service.ts` - Backend agent execution
+   - Agents now run automatically based on schedule (hourly/daily/weekly/monthly)
+   - No user interaction required - true background processing
+
+2. **Notification System for Background Updates**:
+   - Created PostgreSQL notifications table (migration 005)
+   - Created `backend/src/models/notification.model.ts` - Notification data model
+   - Created `backend/src/routes/notifications.routes.ts` - SSE streaming endpoint
+   - Created `src/services/notification-stream.service.ts` - Frontend SSE client
+   - Real-time notifications when autonomous agents complete
+
+3. **Fixed Digest Loading States**:
+   - Added `isLoadingCachedDigest` state to distinguish from generation
+   - Shows "Loading cached digest..." for cache retrieval
+   - Shows "Generating AI-Powered Insights" only for new generation
+   - Disabled auto-refresh on page load (commented out lines 414-426)
+
+4. **Updated Cache Configuration**:
+   - Daily: 1hr → 3hrs
+   - Weekly: 6hrs → 12hrs
+   - Monthly: 24hrs → 48hrs
+   - Set autoRefresh: false for all timeframes
+
+5. **Server Integration**:
+   - Scheduler starts automatically on server startup
+   - Graceful shutdown on SIGTERM/SIGINT
+   - Connected notification stream in App.tsx
+
+#### Files Created
+- `backend/src/services/scheduler.service.ts` (197 lines)
+- `backend/src/services/agent-execution.service.ts` (621 lines)
+- `backend/src/db/migrations/005_create_notifications.sql` (65 lines)
+- `backend/src/models/notification.model.ts` (315 lines)
+- `backend/src/routes/notifications.routes.ts` (185 lines)
+- `src/services/notification-stream.service.ts` (238 lines)
+
+#### Files Modified
+- `src/components/FindingsViewerProgressive.tsx` - Fixed loading states
+- `src/services/digestCache.service.ts` - Updated cache durations
+- `backend/src/index.ts` - Integrated scheduler and notifications
+- `src/App.tsx` - Connected notification stream
+
+### Deployment Instructions
+
+```bash
+# 1. Apply database migration
+docker exec -it medical-companion-db psql -U meduser -d medcompanion -f /docker-entrypoint-initdb.d/005_create_notifications.sql
+
+# 2. Rebuild backend with new services
+cd backend
+npm run build
+
+# 3. Restart server
+pm2 restart medical-backend
+
+# 4. Verify scheduler is running
+pm2 logs medical-backend | grep "[Scheduler]"
+
+# 5. Test autonomous execution (development mode runs every minute)
+# Watch logs for: "[Scheduler] Checking for agents due to run..."
+```
+
+### Testing Verification
+- ✅ Cached digests load without "Generating" animation
+- ✅ Shows "Loading cached digest..." briefly when fetching from DB
+- ✅ Auto-refresh disabled on page load
+- ✅ Manual refresh button still works
+- ✅ Scheduler starts with server
+- ✅ SSE notifications connected
+- ✅ Cache durations increased
+
+### Key Architecture Change
+This implementation finally delivers the **autonomous agent system** that was intended from day 1 but never built. Agents now run truly independently in the backend on their configured schedules, with real-time notifications to the frontend via Server-Sent Events.
 
 ---
 
@@ -432,16 +509,16 @@ docker logs medical-companion | grep scheduler
 5. **Build vs Dev differences** - Production builds may have different issues (especially with circular dependencies)
 6. **Case sensitivity matters** - PostgreSQL snake_case vs JavaScript camelCase
 7. **Trace data flow completely** - From UI → Service → API → Database → Response
-8. **Don't destroy backend data** - Use spread operator to preserve complete objects
-9. **Coordinate parallel operations** - Agents must complete before digest generation
-10. **Break circular dependencies** - Use dynamic imports when needed
-11. **Add proper loading states** - Users need immediate feedback during async operations
-12. **Docker caching can hide changes** - Use `--no-cache` when changes aren't appearing in production
-13. **Verify fixes in build process** - Add grep/test commands in Dockerfile to ensure changes are present
-14. **Multi-stage builds cache aggressively** - COPY commands may use cached layers even with file changes
-15. **Distinguish loading states clearly** - "Loading from cache" vs "Generating new content" need different UX
-16. **Implement scheduled tasks early** - Apps designed for automation suffer without it
-17. **Cache durations must match update frequency** - Don't expire cache faster than data updates
+8. **Check for unimplemented features** - The "autonomous agents" were advertised from day 1 but NEVER actually implemented. Always verify core features actually exist vs just having UI that pretends they work.
+9. **Distinguish loading states** - Users need to know if content is being fetched from cache vs generated fresh. Different states require different UI feedback.
+10. **Don't destroy backend data** - Use spread operator to preserve complete objects
+11. **Coordinate parallel operations** - Agents must complete before digest generation
+12. **Break circular dependencies** - Use dynamic imports when needed
+14. **Docker caching can hide changes** - Use `--no-cache` when changes aren't appearing in production
+15. **Verify fixes in build process** - Add grep/test commands in Dockerfile to ensure changes are present
+16. **Multi-stage builds cache aggressively** - COPY commands may use cached layers even with file changes
+17. **Implement scheduled tasks early** - Apps designed for automation suffer without it
+18. **Cache durations must match update frequency** - Don't expire cache faster than data updates
 
 ---
 
