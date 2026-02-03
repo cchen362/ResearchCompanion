@@ -332,9 +332,9 @@ When making changes, test these critical paths:
 
 ---
 
-## Issue 17: Digest Shows "Generating AI-Powered Insights" Animation on Every Page Load (DEPLOYED ✅)
+## Issue 17: Digest Shows "Generating AI-Powered Insights" Animation on Every Page Load (FIXED ✅)
 
-**Status:** IMPLEMENTED
+**Status:** FIXED - Required second deployment with corrected logic
 **Severity:** High - Major UX issue affecting every user session
 **Discovered:** February 3, 2026
 **Fixed:** February 3, 2026
@@ -476,6 +476,30 @@ docker logs medical-companion | grep scheduler
 - ✅ "Loading cached digest" text found in deployed frontend bundle
 - ✅ Backend API responding correctly
 - ✅ Containers healthy and running
+
+### Critical Fix - Second Deployment (February 3, 2026)
+
+**Issue Found in Production Testing:**
+The initial fix didn't work because of a critical bug: `setLoadingDigest(true)` was being called when loading cached digests, which triggered the "Generating AI-Powered Insights" UI instead of "Loading cached digest...".
+
+**Root Cause:**
+Line 383 in FindingsViewerProgressive.tsx incorrectly set `setLoadingDigest(true)` when loading cached digests. This state should ONLY be set when generating NEW digests, not when loading cached ones.
+
+**The Real Fix:**
+```typescript
+// WRONG - caused the issue to persist:
+setIsLoadingCachedDigest(true);
+setLoadingDigest(true);  // <-- This was the bug!
+
+// CORRECT - fixed version:
+setIsLoadingCachedDigest(true);
+// Don't set loadingDigest here - that's for generating new digests!
+```
+
+**Second Deployment:**
+- Removed `setLoadingDigest(true)` from cache loading flow
+- Deployed with --no-cache flag again
+- Verified "Loading cached digest" is in production bundle
 
 #### Files Created
 - `backend/src/services/scheduler.service.ts` (197 lines)
