@@ -455,13 +455,17 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         // No cached digest - try to fetch from server
         setIsLoadingCachedDigest(false);
         try {
-          const response = await api.get(`/digest/by-topic/${topicId}`);
-          if (response.data && response.data.id) {
+          // FIXED: Use correct API endpoint with query parameter
+          const response = await api.get('/digests', {
+            params: { topic_id: topicId, limit: 1 }
+          });
+          if (response.data && response.data.digests && response.data.digests.length > 0) {
             console.log('[FindingsViewer] Found existing digest on server');
-            setDigest(response.data);
-            setCachedDigest(response.data);
+            const serverDigest = response.data.digests[0];
+            setDigest(serverDigest);
+            setCachedDigest(serverDigest);
             // Cache it locally
-            await digestCacheService.saveDigest(response.data);
+            await digestCacheService.saveDigest(serverDigest);
           }
         } catch (error) {
           // No existing digest - that's fine
