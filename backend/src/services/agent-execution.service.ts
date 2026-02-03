@@ -23,11 +23,12 @@ import type { Finding } from '../models/finding.model.js';
 interface FindingSource {
   name: string;
   url: string;
-  type: 'pubmed' | 'clinical_trial' | 'web' | 'pdf' | 'local' | 'timeline';
+  type: 'pubmed' | 'clinical_trial' | 'web' | 'pdf' | 'local' | 'timeline' | 'research_article' | 'web_article' | 'unknown';
   publishDate?: string;
   journal?: string;
   displayName?: string;
   authors?: string[];
+  trialPhase?: string; // Added for compatibility
   trial?: {
     id: string;
     phase?: string;
@@ -113,15 +114,15 @@ export class AgentExecutionService {
 
     switch (agent.type) {
       case 'pubmed':
-        searchResults = await this.searchPubMed(searchQuery, agent.parameters?.maxResults || 10);
+        searchResults = await this.searchPubMed(searchQuery, agent.config?.maxResults || 10);
         break;
 
       case 'clinical_trials':
-        searchResults = await this.searchClinicalTrials(searchQuery, agent.parameters?.maxResults || 10);
+        searchResults = await this.searchClinicalTrials(searchQuery, agent.config?.maxResults || 10);
         break;
 
       case 'web':
-        searchResults = await this.searchWeb(searchQuery, agent.parameters?.maxResults || 10);
+        searchResults = await this.searchWeb(searchQuery, agent.config?.maxResults || 10);
         break;
 
       default:
@@ -147,7 +148,7 @@ export class AgentExecutionService {
    * Build search query from agent parameters
    */
   private buildSearchQuery(agent: Agent, topicId: string): string {
-    const params = agent.parameters || {};
+    const params = agent.config || {};
 
     // Start with base query
     let query = params.query || agent.name;
@@ -363,7 +364,7 @@ export class AgentExecutionService {
 
     const finding: Finding = {
       id: uuidv4(),
-      topicId,
+      topic_id: topicId,
       userId,
       source,
       content,
@@ -371,7 +372,7 @@ export class AgentExecutionService {
       metadata: {
         agentId: agent.id,
         agentName: agent.name,
-        searchQuery: agent.parameters?.query,
+        searchQuery: agent.config?.query,
         originalResult: result
       },
       tags: this.extractTags(result, agent.type),
@@ -438,11 +439,8 @@ export class AgentExecutionService {
     try {
       const response = await aiService.client.messages.create({
         model: 'claude-3-haiku-20240307', // Use faster model for background processing
+        system: 'You are a medical research analyst. Extract key information and insights from research findings. Be concise and factual.',
         messages: [
-          {
-            role: 'system',
-            content: 'You are a medical research analyst. Extract key information and insights from research findings. Be concise and factual.'
-          },
           {
             role: 'user',
             content: prompt
@@ -452,7 +450,8 @@ export class AgentExecutionService {
       });
 
       // Parse AI response
-      const content = response.content[0]?.text || '';
+      const contentBlock = response.content[0];
+      const content = contentBlock && 'text' in contentBlock ? contentBlock.text : '';
       const lines = content.split('\n').filter((l: string) => l.trim());
 
       return {

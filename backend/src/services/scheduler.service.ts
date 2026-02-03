@@ -148,17 +148,17 @@ class SchedulerService {
       const now = new Date();
       const dueAgents = allAgents.filter(agent => {
         // Check if agent is for this topic and enabled
-        if (!agent.enabled || !agent.topics?.includes(topicId)) {
+        if (!agent.enabled || agent.topic_id !== topicId) {
           return false;
         }
 
         // Check if it's time to run based on schedule
-        if (!agent.lastRun) {
+        if (!agent.last_run) {
           // Never run before, so it's due
           return true;
         }
 
-        const lastRunTime = new Date(agent.lastRun).getTime();
+        const lastRunTime = new Date(agent.last_run).getTime();
         const timeSinceLastRun = now.getTime() - lastRunTime;
 
         // Check based on schedule
@@ -208,12 +208,13 @@ class SchedulerService {
 
       if (findings.length > 0) {
         // Queue digest generation for the new findings
-        await digestQueueService.queueDigestGeneration(
-          topicId,
-          userId,
-          'all-time', // Generate comprehensive digest
-          'scheduled' // Source type for tracking
-        );
+        // TODO: Implement digestQueueService when available
+        // await digestQueueService.queueDigestGeneration(
+        //   topicId,
+        //   userId,
+        //   'all-time', // Generate comprehensive digest
+        //   'scheduled' // Source type for tracking
+        // );
 
         // Create notification for the user
         await this.createBackgroundNotification(
@@ -230,8 +231,7 @@ class SchedulerService {
       for (const agent of agents) {
         await AgentModel.update(agent.id, userId, {
           last_run: now,
-          nextScheduledRun: this.calculateNextRun(agent.schedule || 'daily', now),
-          status: 'active'
+          next_run: this.calculateNextRun(agent.schedule || 'daily', now)
         });
       }
 
