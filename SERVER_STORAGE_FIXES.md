@@ -250,12 +250,44 @@ Set `VITE_USE_SERVER_STORAGE=true` in `.env` to enable server storage mode.
 2. Breaks circular chain at initialization time
 3. Production build works correctly
 
-**Files Modified:**
-- `src/components/ChatPanelMinimal.tsx` - New component with dynamic imports
-- `src/pages/Chat.tsx` - Uses ChatPanelMinimal
-- `src/components/ResearchAgentTrigger.tsx` - Uses ChatPanelMinimal
+### Issue 20: Digest Queue API Flooding and Critical Errors (FIXED)
+**Problem:** After implementing PostgreSQL digest queue, production showed:
+1. Hundreds of duplicate API calls flooding the server
+2. TypeError: Cannot read properties of undefined (reading 'topicId')
+3. Digest generation marking as completed but not actually generating
+4. CORS errors despite configuration attempts
 
-**Current State:** Chat functional but needs UI restoration
+**Root Causes:**
+1. **Infinite Loop**: useEffect in FindingsViewerProgressive had `queueItem` in dependency array
+   - Every progress update changed queueItem
+   - This re-ran effect, re-adding event listeners
+   - Created exponential API call multiplication
+
+2. **Missing topicId**: Backend /generate-digest response didn't include topicId
+   - digestService.saveDigest() expected topicId in digest object
+   - Backend returned digest without topicId field
+
+3. **CORS Not Parsing ENV**: Backend wasn't parsing CORS_ALLOWED_ORIGINS environment variable
+   - Hardcoded origins array, ignored environment config
+
+4. **Queue Auto-Starting**: DigestQueueService started polling before user login
+   - Constructor called startPolling() immediately
+   - No authentication check
+
+**Fixes:**
+1. Removed `queueItem` from useEffect dependency array
+2. Added topicId to digest response in generateDigestFromFindings()
+3. Implemented CORS_ALLOWED_ORIGINS parsing in backend/src/index.ts
+4. Made DigestQueueService wait for explicit startPolling() after login
+5. Added authentication middleware to digest queue routes
+
+**Files Modified:**
+- `src/components/FindingsViewerProgressive.tsx` - Fixed infinite loop deps
+- `src/services/digestQueue.service.ts` - Added topicId, removed auto-start
+- `backend/src/index.ts` - Parse CORS_ALLOWED_ORIGINS, add auth middleware
+- `src/services/auth.service.ts` - Start/stop polling on login/logout
+
+**Deployment:** February 3, 2026 at 17:45 UTC
 
 ---
 
