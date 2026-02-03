@@ -124,7 +124,7 @@ app.use('/api', versionRoutes);
 // Protected routes (authentication required)
 app.use('/api', authenticate, searchRoutes);
 app.use('/api', authenticate, transcribeRoute);
-app.use('/api', authenticate, digestRoutes);
+app.use('/api/digest', authenticate, digestRoutes);
 app.use('/api', authenticate, agentRoute);
 app.use('/api/chat', authenticate, chatRoutes);
 app.use('/api', authenticate, topicsRoutes);
