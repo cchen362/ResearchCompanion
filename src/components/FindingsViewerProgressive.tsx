@@ -284,7 +284,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
         // Small delay to ensure digest queue has been updated
         setTimeout(async () => {
-          const queueStatus = await digestQueueService.getQueueStatus(topicId);
+          const queueStatus = await digestQueueService.getQueueStatusByTopic(topicId);
           if (queueStatus) {
             console.log('Found queued digest after agent complete:', queueStatus);
             setQueueItem(queueStatus);
@@ -393,7 +393,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         // Don't need to clear loadingDigest since we didn't set it
 
         // Always check for existing queue status first
-        const existingQueue = await digestQueueService.getQueueStatus(topicId);
+        const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
         if (existingQueue) {
           console.log('Found existing digest generation in progress (with cached digest):', existingQueue);
           setQueueItem(existingQueue);
@@ -430,7 +430,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         // Don't need to clear loadingDigest since we didn't set it
 
         // Step 4: Check if there's already a digest being generated
-        const existingQueue = await digestQueueService.getQueueStatus(topicId);
+        const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
         if (existingQueue) {
           console.log('Found existing digest generation in queue:', existingQueue);
           setQueueItem(existingQueue);
