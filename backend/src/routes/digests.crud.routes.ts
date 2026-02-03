@@ -1,8 +1,11 @@
 import express from 'express';
 import { DigestModel } from '../models/digest.model.js';
 import { z } from 'zod';
+import DigestQueueServicePG from '../services/digestQueue.service.pg.js';
+import { pool } from '../db/database.js';
 
 const router = express.Router();
+const queueService = new DigestQueueServicePG(pool);
 
 // Validation schemas
 const CreateDigestSchema = z.object({
@@ -48,12 +51,14 @@ router.get('/digests', async (req, res) => {
   }
 });
 
-// GET /api/digests/latest/:topicId - Get latest digest for a topic
+// GET /api/digests/latest/:topicId - Get latest digest for a topic with queue status
 router.get('/digests/latest/:topicId', async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const { topicId } = req.params;
     const { timeframe } = req.query; // Get timeframe from query params
+
+    console.log(`[DIGEST] Fetching latest digest for topic ${topicId}, timeframe ${timeframe || 'any'}`);
 
     // Get latest digest, optionally filtered by timeframe
     let digest;
@@ -66,21 +71,78 @@ router.get('/digests/latest/:topicId', async (req, res) => {
         d.type === timeframe ||
         d.metadata?.timeframe === timeframe
       );
+
+      if (digest) {
+        console.log(`[DIGEST CACHE] HIT - Found cached ${timeframe} digest: ${digest.id}`);
+      } else {
+        console.log(`[DIGEST CACHE] MISS - No ${timeframe} digest found for topic ${topicId}`);
+      }
     } else {
       // No timeframe specified, get the latest digest regardless of type
       digest = await DigestModel.getLatestByTopicId(userId, topicId);
+
+      if (digest) {
+        console.log(`[DIGEST CACHE] HIT - Found cached digest: ${digest.id}`);
+      } else {
+        console.log(`[DIGEST CACHE] MISS - No digest found for topic ${topicId}`);
+      }
     }
 
-    if (!digest) {
+    // Check for active queue status
+    let queueStatus = null;
+    let isGenerating = false;
+
+    try {
+      if (timeframe) {
+        // Check for active queue with specific timeframe
+        const queueItem = await queueService.getActiveQueueForTopic(userId, topicId, timeframe as string);
+        if (queueItem) {
+          console.log(`[DIGEST QUEUE] Active queue found for topic ${topicId}: ${queueItem.status}`);
+          queueStatus = {
+            queueId: queueItem.id,
+            status: queueItem.status,
+            createdAt: queueItem.createdAt,
+            startedAt: queueItem.startedAt
+          };
+          isGenerating = queueItem.status === 'processing';
+        } else {
+          console.log(`[DIGEST QUEUE] No active queue for topic ${topicId}`);
+        }
+      } else {
+        // Check for any active queue for the topic
+        const queueItem = await queueService.getQueueStatusByTopic(userId, topicId);
+        if (queueItem) {
+          console.log(`[DIGEST QUEUE] Active queue found for topic ${topicId}: ${queueItem.status}`);
+          queueStatus = {
+            queueId: queueItem.id,
+            status: queueItem.status,
+            timeframe: queueItem.timeframe,
+            createdAt: queueItem.createdAt,
+            startedAt: queueItem.startedAt
+          };
+          isGenerating = queueItem.status === 'processing';
+        }
+      }
+    } catch (queueError) {
+      console.error('[DIGEST QUEUE] Error checking queue status:', queueError);
+      // Don't fail the request if queue check fails
+    }
+
+    if (!digest && !queueStatus) {
       return res.status(404).json({
         success: false,
-        error: `No digest found for this topic${timeframe ? ` with timeframe: ${timeframe}` : ''}`
+        error: `No digest found for this topic${timeframe ? ` with timeframe: ${timeframe}` : ''}`,
+        isGenerating: false,
+        queueStatus: null
       });
     }
 
+    // Return digest with queue status included
     res.json({
       success: true,
-      digest
+      digest,
+      isGenerating,
+      queueStatus
     });
   } catch (error) {
     console.error('Error fetching latest digest:', error);

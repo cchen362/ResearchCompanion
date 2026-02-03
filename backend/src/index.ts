@@ -23,11 +23,12 @@ import timelineRoutes from './routes/timeline.routes.js';
 import audioRoutes from './routes/audio.routes.js';
 import versionRoutes from './routes/version.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import createDigestQueueRouter from './routes/digestQueue.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
 import { userDatabase } from './database/users.db.js';
-import { testConnection } from './db/database.js';
+import { testConnection, pool } from './db/database.js';
 
 // Import scheduler for autonomous agents
 import { schedulerService } from './services/scheduler.service.js';
@@ -128,6 +129,8 @@ app.use('/api', authenticate, timelineRoutes);
 app.use('/api', authenticate, audioRoutes);
 // Notifications routes (SSE endpoint needs special handling)
 app.use('/api', authenticate, notificationsRoutes);
+// Digest queue routes for server-side queue management
+app.use('/api/digest-queue', createDigestQueueRouter(pool));
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

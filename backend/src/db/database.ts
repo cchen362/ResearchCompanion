@@ -24,6 +24,9 @@ const poolConfig: PoolConfig = {
 // Create a connection pool
 export const db = new Pool(poolConfig);
 
+// Export alias for backward compatibility (some files import 'pool')
+export const pool = db;
+
 // Test database connection
 export async function testConnection(): Promise<boolean> {
   try {

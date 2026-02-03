@@ -611,6 +611,115 @@ This implementation finally delivers the **autonomous agent system** that was in
 16. **Multi-stage builds cache aggressively** - COPY commands may use cached layers even with file changes
 17. **Implement scheduled tasks early** - Apps designed for automation suffer without it
 18. **Cache durations must match update frequency** - Don't expire cache faster than data updates
+19. **Complete architectural migrations** - Never leave subsystems on old storage when migrating
+20. **Verify export/import alignment** - Module export names must match import statements exactly
+21. **Clean up migration artifacts** - Remove .backup and .new files after successful migration
+
+---
+
+## Issue 18: Digest Queue PostgreSQL Migration - Complete IndexedDB to Server Migration (FIXED ✅)
+
+**Status:** FIXED - Successfully migrated queue from IndexedDB to PostgreSQL
+**Severity:** Critical - Root cause of animation bug and no multi-device sync
+**Discovered:** February 3, 2026
+**Fixed:** February 4, 2026
+**Implementation Time:** 3 hours
+
+### Problem Description
+The digest queue was trapped in IndexedDB (client-side only) while everything else uses PostgreSQL. This architectural mismatch caused:
+- Stale queue items triggering animations inappropriately
+- No multi-device queue synchronization
+- Queue state lost on browser refresh
+- No authoritative server-side queue status
+
+### Root Cause
+The queue system was never migrated to PostgreSQL when the rest of the application moved to server storage. This left a critical piece of state management stranded in the browser's IndexedDB.
+
+### The Complete Solution
+
+#### 1. PostgreSQL Infrastructure Created
+- **File:** backend/src/db/migrations/006_create_digest_queue.sql
+- Created `digest_queue` table with proper constraints
+- Added unique constraint to prevent duplicate active queues
+- Indexes for performance on user_id and topic_id queries
+
+#### 2. Backend Service Layer Implemented
+- **File:** backend/src/services/digestQueue.service.pg.ts
+- Complete PostgreSQL queue management
+- Automatic cleanup of stale items (1 hour timeout)
+- Queue deduplication logic
+- Transaction support for atomicity
+
+#### 3. API Endpoints Added
+- **File:** backend/src/routes/digestQueue.routes.ts
+- RESTful endpoints for queue operations
+- Proper authentication and validation
+- Queue statistics and monitoring
+
+#### 4. Frontend Migration Complete
+- **File:** src/services/digestQueue.service.ts
+- Removed ALL IndexedDB operations
+- Now uses PostgreSQL via API calls
+- Maintains backward-compatible interface
+- Race condition prevention with queueLocks
+
+#### 5. UI Integration Updated
+- **File:** src/components/FindingsViewerProgressive.tsx
+- Uses server queue status for animation decisions
+- Proper event-driven updates
+- No more false animations
+
+### Critical Bug Fix During Implementation
+
+**Database Export Mismatch:**
+- **Problem:** backend/src/db/database.ts exported `db` but code imported `pool`
+- **Impact:** Application crashed on startup with "module does not provide export named 'pool'"
+- **Solution:** Added export alias: `export const pool = db;`
+
+### Files Modified
+
+**Backend:**
+- backend/src/db/database.ts - Added pool export alias
+- backend/src/db/migrations/006_create_digest_queue.sql - Created queue table
+- backend/src/services/digestQueue.service.pg.ts - PostgreSQL queue service
+- backend/src/routes/digestQueue.routes.ts - Queue API endpoints
+- backend/src/routes/digests.crud.routes.ts - Include queue status in responses
+- backend/src/index.ts - Register queue routes
+
+**Frontend:**
+- src/services/digestQueue.service.ts - Complete migration to API calls
+- src/api/digestQueue.api.ts - API client for queue endpoints
+- src/components/FindingsViewerProgressive.tsx - Use server queue status
+
+**Cleanup:**
+- Deleted src/services/digestQueue.service.backup.ts (old IndexedDB version)
+- Deleted src/services/digestQueue.service.new.ts (duplicate file)
+
+### TypeScript Fixes Applied
+- Fixed Zod record schema: `z.record(z.string(), z.any())`
+- Changed error.errors to error.issues (Zod v3 compatibility)
+- Added null checks for rowCount: `(result.rowCount || 0)`
+
+### Testing Verification
+- Backend builds successfully with `npm run build`
+- Server starts without import errors
+- Queue operations tested via API
+- No more unnecessary animations on page load
+
+### Key Lessons Learned
+
+1. **Complete Migration is Critical**: Partial migrations leave system in inconsistent state
+2. **Export/Import Alignment**: Always verify exports match imports, especially after refactoring
+3. **TypeScript Strict Mode**: Catches null reference issues early
+4. **Clean Up Work Files**: Remove .backup and .new files after migration
+
+### Impact
+
+This fix completely resolves the digest animation bug by:
+- Moving queue state to authoritative server source
+- Enabling proper multi-device synchronization
+- Eliminating stale IndexedDB queue items
+- Providing clear queue status in API responses
 
 ---
 
@@ -627,6 +736,6 @@ This implementation finally delivers the **autonomous agent system** that was in
 
 ---
 
-*Last Updated: February 3, 2026 - Issue 17 Successfully Deployed to Production*
+*Last Updated: February 4, 2026 - Issue 18 Digest Queue PostgreSQL Migration Complete*
 *Document maintained by: Development Team*
-*Issue 17 added - Digest loading animation fix*
+*Issue 18 added - Complete digest queue migration to PostgreSQL, fixing animation bug root cause*

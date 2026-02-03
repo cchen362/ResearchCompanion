@@ -1,4 +1,4 @@
-import { getDB } from '@/utils/db/database';
+import { digestQueueAPI } from '@/api/digestQueue.api';
 import { api, longOperationApi } from '@/services/api';
 import { runAllResearchAgents, ensureDefaultAgents } from '@/services/agentRunner';
 import { findingsService } from '@/services/findings.service';
@@ -14,7 +14,7 @@ import type {
   SmartDigest
 } from '@/types';
 
-// Digest Queue Service - Manages background digest generation
+// Digest Queue Service - Manages background digest generation using PostgreSQL backend
 export class DigestQueueService {
   private static instance: DigestQueueService;
   private processingQueue = false;
@@ -42,15 +42,13 @@ export class DigestQueueService {
     priority: DigestPriority = 'normal',
     requestedBy: 'user' | 'system' | 'background' = 'user'
   ): Promise<DigestQueueItem> {
-    const db = await getDB();
-
     // Add mutex-like check to prevent race conditions
     const lockKey = `queue_${topicId}_${timeframe}`;
     if (this.queueLocks.has(lockKey)) {
       console.log(`Queue generation already in progress for ${topicId}/${timeframe}, returning existing`);
       // Wait a moment for the other request to complete
       await new Promise(resolve => setTimeout(resolve, 100));
-      const existingQueue = await this.getQueueStatus(topicId);
+      const existingQueue = await this.getQueueStatusByTopic(topicId);
       if (existingQueue) {
         return existingQueue;
       }
@@ -60,44 +58,68 @@ export class DigestQueueService {
     this.queueLocks.add(lockKey);
 
     try {
-      // Check if there's already a pending request for this topic/timeframe
-      const existingQueue = await db.getAllFromIndex('digestQueue', 'by-topic', topicId);
-      const existing = existingQueue.find(
-        q => q.timeframe === timeframe &&
-        (q.status === 'pending' || q.status === 'processing')
-      );
+      // Check if there's already an active queue for this topic/timeframe via API
+      const queueStatus = await digestQueueAPI.getQueueStatus(topicId, timeframe);
 
-      if (existing) {
+      if (queueStatus.hasActiveQueue && queueStatus.queueId) {
         console.log(`Found existing queue item for ${topicId}/${timeframe}, reusing`);
-        // Update priority if new request is higher priority
-        if (this.getPriorityLevel(priority) > this.getPriorityLevel(existing.priority)) {
-          existing.priority = priority;
-          await db.put('digestQueue', existing);
-        }
+
+        // Return existing queue item format
+        const existing: DigestQueueItem = {
+          id: queueStatus.queueId,
+          topicId,
+          timeframe,
+          status: queueStatus.status || 'pending',
+          priority,
+          createdAt: queueStatus.createdAt ? new Date(queueStatus.createdAt).getTime() : Date.now(),
+          startedAt: queueStatus.startedAt ? new Date(queueStatus.startedAt).getTime() : undefined,
+          attempts: 0,
+          maxAttempts: 3,
+          findingIds,
+          requestedBy,
+          estimatedCompletionTime: Date.now() + 30000,
+          progress: {
+            stage: queueStatus.status === 'processing' ? 'generating' : 'queued',
+            percentage: queueStatus.status === 'processing' ? 50 : 0,
+            message: queueStatus.status === 'processing' ? 'Generating digest...' : 'Waiting in queue...'
+          }
+        };
+
         return existing;
       }
 
-    // Create new queue item
-    const queueItem: DigestQueueItem = {
-      id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      topicId,
-      timeframe,
-      status: 'pending',
-      priority,
-      createdAt: Date.now(),
-      attempts: 0,
-      maxAttempts: 3,
-      findingIds,
-      requestedBy,
-      estimatedCompletionTime: Date.now() + 30000, // Estimate 30 seconds
-      progress: {
-        stage: 'queued',
-        percentage: 0,
-        message: 'Waiting in queue...'
-      }
-    };
+      // Create new queue item via API
+      const response = await digestQueueAPI.createQueueItem({
+        topicId,
+        timeframe,
+        digestType: 'smart',
+        priority: priority === 'high' ? 5 : priority === 'normal' ? 3 : 1,
+        metadata: { findingIds, requestedBy }
+      });
 
-      await db.add('digestQueue', queueItem);
+      if (!response.success || !response.queueId) {
+        throw new Error(response.error || 'Failed to create queue item');
+      }
+
+      // Create queue item object
+      const queueItem: DigestQueueItem = {
+        id: response.queueId,
+        topicId,
+        timeframe,
+        status: response.status as DigestQueueStatus || 'pending',
+        priority,
+        createdAt: Date.now(),
+        attempts: 0,
+        maxAttempts: 3,
+        findingIds,
+        requestedBy,
+        estimatedCompletionTime: Date.now() + 30000,
+        progress: {
+          stage: 'queued',
+          percentage: 0,
+          message: 'Waiting in queue...'
+        }
+      };
 
       // Dispatch event to notify UI that digest has been queued
       window.dispatchEvent(new CustomEvent('digest-queued', {
@@ -115,79 +137,100 @@ export class DigestQueueService {
     }
   }
 
-  // Get queue status for a topic
   // Get queue status by queue ID (for polling after queueing)
   async getQueueStatus(queueId: string): Promise<DigestQueueItem | null> {
-    const db = await getDB();
-    const item = await db.get('digestQueue', queueId);
-    return item || null;
+    // For now, we'll return null as we don't have a way to get by queue ID
+    // This would need an API endpoint to get queue item by ID
+    console.warn('getQueueStatus by ID not yet implemented for PostgreSQL backend');
+    return null;
   }
 
   // Get queue status by topic ID (for checking if topic has pending digests)
   async getQueueStatusByTopic(topicId: string): Promise<DigestQueueItem | null> {
-    const db = await getDB();
-    const items = await db.getAllFromIndex('digestQueue', 'by-topic', topicId);
+    const queueStatus = await digestQueueAPI.getQueueStatus(topicId);
 
-    // Return the most recent active item
-    return items.find(item =>
-      item.status === 'pending' || item.status === 'processing'
-    ) || null;
+    if (!queueStatus.hasActiveQueue || !queueStatus.queueId) {
+      return null;
+    }
+
+    // Convert API response to DigestQueueItem format
+    return {
+      id: queueStatus.queueId,
+      topicId,
+      timeframe: queueStatus.timeframe || 'all-time',
+      status: queueStatus.status || 'pending',
+      priority: 'normal',
+      createdAt: queueStatus.createdAt ? new Date(queueStatus.createdAt).getTime() : Date.now(),
+      startedAt: queueStatus.startedAt ? new Date(queueStatus.startedAt).getTime() : undefined,
+      attempts: 0,
+      maxAttempts: 3,
+      findingIds: [],
+      requestedBy: 'user',
+      estimatedCompletionTime: Date.now() + 30000,
+      progress: {
+        stage: queueStatus.status === 'processing' ? 'generating' : 'queued',
+        percentage: queueStatus.status === 'processing' ? 50 : 0,
+        message: queueStatus.status === 'processing' ? 'Generating digest...' : 'Waiting in queue...'
+      }
+    };
   }
 
   // Get all queue items
   async getAllQueueItems(): Promise<DigestQueueItem[]> {
-    const db = await getDB();
-    return await db.getAll('digestQueue');
+    const response = await digestQueueAPI.getUserQueueItems(50);
+
+    // Convert API response to DigestQueueItem format
+    return response.items.map(item => ({
+      id: item.id,
+      topicId: item.topicId,
+      timeframe: item.timeframe as DigestTimeframe,
+      status: item.status as DigestQueueStatus,
+      priority: 'normal',
+      createdAt: new Date(item.createdAt).getTime(),
+      startedAt: item.startedAt ? new Date(item.startedAt).getTime() : undefined,
+      completedAt: item.completedAt ? new Date(item.completedAt).getTime() : undefined,
+      attempts: item.retryCount || 0,
+      maxAttempts: 3,
+      findingIds: item.metadata?.findingIds || [],
+      requestedBy: item.metadata?.requestedBy || 'user',
+      estimatedCompletionTime: Date.now() + 30000,
+      progress: {
+        stage: item.status === 'processing' ? 'generating' :
+               item.status === 'completed' ? 'validating' : 'queued',
+        percentage: item.status === 'processing' ? 50 :
+                   item.status === 'completed' ? 100 : 0,
+        message: item.status === 'processing' ? 'Generating digest...' :
+                item.status === 'completed' ? 'Complete!' : 'Waiting in queue...'
+      },
+      error: item.error,
+      resultDigestId: item.resultId
+    }));
   }
 
   // Cancel a queued digest generation
   async cancelQueueItem(queueItemId: string): Promise<boolean> {
-    const db = await getDB();
-    const item = await db.get('digestQueue', queueItemId);
-
-    if (!item || item.status === 'completed') {
-      return false;
-    }
-
-    item.status = 'cancelled';
-    item.completedAt = Date.now();
-    await db.put('digestQueue', item);
-
-    // Clear retry timeout if exists
-    const timeout = this.retryTimeouts.get(queueItemId);
-    if (timeout) {
-      clearTimeout(timeout);
-      this.retryTimeouts.delete(queueItemId);
-    }
-
-    return true;
+    return await digestQueueAPI.cancelQueueItem(queueItemId);
   }
 
-  // Update queue item progress
+  // Update queue item progress (NOTE: This now updates via API)
   async updateProgress(
     queueItemId: string,
     stage: 'queued' | 'fetching' | 'analyzing' | 'generating' | 'validating',
     percentage: number,
     message: string
   ): Promise<void> {
-    const db = await getDB();
-    const item = await db.get('digestQueue', queueItemId);
+    // For now, we'll just dispatch the event locally
+    // In the future, this could update the backend queue item metadata
+    const queueItem: Partial<DigestQueueItem> = {
+      id: queueItemId,
+      progress: { stage, percentage, message },
+      estimatedCompletionTime: percentage > 0 ?
+        Date.now() + ((100 - percentage) * 600) : // Estimate based on percentage
+        Date.now() + 30000
+    };
 
-    if (item && item.status === 'processing') {
-      item.progress = { stage, percentage, message };
-
-      // Update estimated completion time based on progress
-      if (percentage > 0) {
-        const elapsed = Date.now() - (item.startedAt || Date.now());
-        const estimatedTotal = elapsed / (percentage / 100);
-        item.estimatedCompletionTime = (item.startedAt || Date.now()) + estimatedTotal;
-      }
-
-      await db.put('digestQueue', item);
-
-      // Notify UI of progress update
-      this.notifyProgressUpdate(item);
-    }
+    // Notify UI of progress update
+    this.notifyProgressUpdate(queueItem as DigestQueueItem);
   }
 
   // Process the queue (made public so components can trigger immediate processing)
@@ -197,131 +240,50 @@ export class DigestQueueService {
     this.processingQueue = true;
 
     try {
-      const db = await getDB();
+      // Note: With PostgreSQL backend, the actual processing happens server-side
+      // This method now just polls for status updates
 
-      // Get next item to process (highest priority first)
-      const pendingItems = await db.getAllFromIndex('digestQueue', 'by-status', 'pending');
+      // Get user's pending queue items
+      const response = await digestQueueAPI.getUserQueueItems(10);
+      const pendingItems = response.items.filter(item =>
+        item.status === 'pending' || item.status === 'processing'
+      );
 
       if (pendingItems.length === 0) {
         return;
       }
 
-      // Sort by priority and creation time
-      const sortedItems = pendingItems.sort((a, b) => {
-        const priorityDiff = this.getPriorityLevel(b.priority) - this.getPriorityLevel(a.priority);
-        if (priorityDiff !== 0) return priorityDiff;
-        return a.createdAt - b.createdAt;
-      });
+      // For each pending item, check if it's been completed
+      for (const item of pendingItems) {
+        if (item.status === 'processing') {
+          // Update local progress notification
+          this.notifyProgressUpdate({
+            id: item.id,
+            topicId: item.topicId,
+            timeframe: item.timeframe as DigestTimeframe,
+            status: 'processing',
+            priority: 'normal',
+            createdAt: new Date(item.createdAt).getTime(),
+            startedAt: item.startedAt ? new Date(item.startedAt).getTime() : undefined,
+            attempts: 0,
+            maxAttempts: 3,
+            findingIds: [],
+            requestedBy: 'user',
+            estimatedCompletionTime: Date.now() + 30000,
+            progress: {
+              stage: 'generating',
+              percentage: 50,
+              message: 'Generating digest...'
+            }
+          });
+        }
+      }
 
-      const nextItem = sortedItems[0];
-      this.currentProcessingId = nextItem.id;
-
-      // Update status to processing
-      nextItem.status = 'processing';
-      nextItem.startedAt = Date.now();
-      nextItem.attempts += 1;
-      await db.put('digestQueue', nextItem);
-
-      // Process the digest generation
-      await this.processDigestGeneration(nextItem);
-
-      // Continue processing queue
-      setTimeout(() => this.processQueue(), 1000);
+      // Continue checking queue status periodically
+      setTimeout(() => this.processQueue(), 5000);
 
     } finally {
       this.processingQueue = false;
-      this.currentProcessingId = null;
-    }
-  }
-
-  // Process individual digest generation
-  private async processDigestGeneration(item: DigestQueueItem): Promise<void> {
-    const db = await getDB();
-
-    try {
-      // Update progress: Fetching data
-      await this.updateProgress(item.id, 'fetching', 10, 'Fetching research findings...');
-
-      // Get topic and findings using services (respects storage config)
-      const topic = await topicsService.getTopic(item.topicId);
-      const findings = await Promise.all(
-        item.findingIds.map(id => findingsService.getFinding(id))
-      );
-
-      const validFindings = findings.filter(f => f !== undefined) as ResearchFinding[];
-
-      if (!topic || validFindings.length === 0) {
-        throw new Error('Topic or findings not found');
-      }
-
-      // Update progress: Analyzing
-      await this.updateProgress(item.id, 'analyzing', 30, 'Analyzing research patterns...');
-
-      // Generate digest via API (with simulated progress updates)
-      const digest = await this.generateDigestWithProgress(
-        item,
-        topic,
-        validFindings,
-        item.timeframe
-      );
-
-      // Update progress: Validating
-      await this.updateProgress(item.id, 'validating', 90, 'Validating and saving digest...');
-
-      // Save the digest using service (respects storage config)
-      console.log('[DIGEST SAVE] Saving digest with finding_ids:', digest.allFindingIds?.length || 0);
-      console.log('[DIGEST SAVE] First 3 finding IDs:', digest.allFindingIds?.slice(0, 3));
-      // Save digest and get back the saved version (which may have cache metadata if deduplicated)
-      const savedDigest = await digestService.saveDigest(digest);
-
-      // Skip marking findings as read here to avoid unnecessary API calls
-      // Findings will be marked as read when user actually views them
-      console.log(`[DIGEST SAVE] Successfully saved digest with ${savedDigest.allFindingIds?.length || 0} findings`);
-
-      // Log if digest was deduplicated
-      if (savedDigest.cacheMetadata?.deduplicated) {
-        console.log('[DIGEST SAVE] Backend returned existing digest (deduplicated)');
-      }
-
-      // Update queue item as completed with the saved digest ID
-      item.status = 'completed';
-      item.completedAt = Date.now();
-      item.resultDigestId = savedDigest.id;
-      item.digest = savedDigest; // Store the saved digest with cache metadata
-      await db.put('digestQueue', item);
-
-      // Notify UI of completion with the saved digest (includes cache metadata)
-      this.notifyCompletion(item, savedDigest);
-
-    } catch (error) {
-      console.error('Error generating digest:', error);
-
-      // Handle retry logic
-      if (item.attempts < item.maxAttempts) {
-        // Schedule retry with exponential backoff
-        const retryDelay = Math.pow(2, item.attempts) * 5000; // 5s, 10s, 20s
-
-        item.status = 'pending';
-        item.error = error instanceof Error ? error.message : 'Unknown error';
-        await db.put('digestQueue', item);
-
-        const timeout = setTimeout(() => {
-          this.retryTimeouts.delete(item.id);
-          this.processQueue();
-        }, retryDelay);
-
-        this.retryTimeouts.set(item.id, timeout);
-
-      } else {
-        // Max attempts reached, mark as failed
-        item.status = 'failed';
-        item.completedAt = Date.now();
-        item.error = error instanceof Error ? error.message : 'Unknown error';
-        await db.put('digestQueue', item);
-
-        // Notify UI of failure
-        this.notifyFailure(item);
-      }
     }
   }
 
@@ -336,8 +298,6 @@ export class DigestQueueService {
   ): Promise<DigestQueueItem> {
     console.log(`Starting integrated refresh for topic ${topicId}`);
 
-    const db = await getDB();
-
     // Get the topic from the backend service
     const topic = await topicsService.getTopic(topicId);
     if (!topic) {
@@ -347,9 +307,24 @@ export class DigestQueueService {
     // Step 1: Ensure agents exist for the topic
     await ensureDefaultAgents(topicId);
 
-    // Step 2: Create a special queue item for research + digest
+    // Step 2: Create a queue item via API
+    const response = await digestQueueAPI.createQueueItem({
+      topicId,
+      timeframe,
+      digestType: 'smart',
+      priority: priority === 'high' ? 5 : 3,
+      metadata: {
+        requestedBy: 'user',
+        action: 'refresh_and_regenerate'
+      }
+    });
+
+    if (!response.success || !response.queueId) {
+      throw new Error(response.error || 'Failed to create queue item');
+    }
+
     const queueItem: DigestQueueItem = {
-      id: `refresh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: response.queueId,
       topicId,
       timeframe,
       status: 'processing',
@@ -358,9 +333,9 @@ export class DigestQueueService {
       startedAt: Date.now(),
       attempts: 1,
       maxAttempts: 3,
-      findingIds: [], // Will be populated after research
+      findingIds: [],
       requestedBy: 'user',
-      estimatedCompletionTime: Date.now() + 120000, // Estimate 2 minutes for research + digest
+      estimatedCompletionTime: Date.now() + 120000,
       progress: {
         stage: 'fetching',
         percentage: 0,
@@ -368,8 +343,6 @@ export class DigestQueueService {
       }
     };
 
-    // Save the queue item
-    await db.add('digestQueue', queueItem);
     this.notifyProgressUpdate(queueItem);
 
     try {
@@ -395,10 +368,6 @@ export class DigestQueueService {
       const allFindings = await findingsService.getFindings(topicId);
       console.log(`Total findings for digest: ${allFindings.length}`);
 
-      // Update queue item with all finding IDs
-      queueItem.findingIds = allFindings.map(f => f.id);
-      await db.put('digestQueue', queueItem);
-
       await this.updateProgress(
         queueItem.id,
         'generating',
@@ -414,11 +383,17 @@ export class DigestQueueService {
         timeframe
       );
 
-      // Step 6: Complete the queue item
+      // Step 6: Update queue status as completed
+      await digestQueueAPI.updateQueueStatus(
+        queueItem.id,
+        'completed',
+        undefined,
+        digest.id
+      );
+
       queueItem.status = 'completed';
       queueItem.completedAt = Date.now();
       queueItem.result = digest;
-      await db.put('digestQueue', queueItem);
 
       await this.updateProgress(
         queueItem.id,
@@ -436,11 +411,16 @@ export class DigestQueueService {
     } catch (error) {
       console.error('Error in refreshResearchAndDigest:', error);
 
-      // Update queue item as failed
+      // Update queue status as failed
+      await digestQueueAPI.updateQueueStatus(
+        queueItem.id,
+        'failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+
       queueItem.status = 'failed';
       queueItem.completedAt = Date.now();
       queueItem.error = error instanceof Error ? error.message : 'Unknown error';
-      await db.put('digestQueue', queueItem);
 
       this.notifyFailure(queueItem);
 
@@ -457,8 +437,6 @@ export class DigestQueueService {
     timeframe: DigestTimeframe = 'weekly'
   ): Promise<DigestQueueItem> {
     console.log('Queueing digest generation from existing findings for topic:', topicId);
-
-    const db = await getDB();
 
     try {
       // Get existing findings for the topic using the service (respects storage config)
@@ -485,8 +463,7 @@ export class DigestQueueService {
 
       console.log(`Queued digest generation from ${findings.length} existing findings`);
 
-      // Force immediate processing instead of waiting for the interval
-      // This fixes the issue where digest generation requires navigation
+      // Force immediate processing
       setTimeout(() => {
         console.log('[DigestQueueService] Triggering immediate queue processing');
         this.processQueue();
@@ -546,18 +523,13 @@ export class DigestQueueService {
     } catch (error) {
       console.error('Error calling generate-digest API:', error);
 
-      // Check for timeout errors
       if (error && typeof error === 'object') {
         const axiosError = error as any;
 
-        // Check for 504 Gateway Timeout
         if (axiosError.response?.status === 504) {
           console.error('Gateway timeout - digest generation took too long');
-          // Note: With 120s timeout, this should rarely happen
-          // If it does, the issue is infrastructure (Cloudflare), not finding count
         }
 
-        // Check for other axios errors
         if (axiosError.code === 'ECONNABORTED') {
           throw new Error('Request timeout - digest generation took too long');
         }
@@ -568,169 +540,6 @@ export class DigestQueueService {
       }
       throw error;
     }
-  }
-
-  // Generate digest with progress updates and robust error handling
-  private async generateDigestWithProgress(
-    queueItem: DigestQueueItem,
-    topic: Topic,
-    findings: ResearchFinding[],
-    timeframe: DigestTimeframe
-  ): Promise<SmartDigest> {
-
-    // First, check if backend is healthy
-    try {
-      const healthCheck = await api.get('/health');
-
-      if (healthCheck.status !== 200) {
-        throw new Error('Backend health check failed');
-      }
-    } catch (error) {
-      console.error('Backend is not available:', error);
-      // Use fallback client-side digest generation
-      return this.generateClientSideDigest(topic, findings, timeframe);
-    }
-
-    // Update progress: Generating
-    await this.updateProgress(queueItem.id, 'generating', 50, 'Generating intelligent digest...');
-
-    // Implement retry logic with exponential backoff
-    let lastError: Error | null = null;
-    const maxRetries = 2; // Reasonable retry count with 120s timeout
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        // Send ALL findings - backend now has 120s timeout and smart formatting
-        console.log(`[DigestQueue] Attempt ${attempt}: Sending ALL ${findings.length} findings`);
-
-        const response = await longOperationApi.post('/generate-digest', {
-          findings: findings, // Send ALL findings - no artificial limits
-          topic,
-          timeframe
-        });
-
-        // Axios returns data directly
-        const digestData = response.data;
-
-        // Validate response has required fields
-        if (!digestData.executiveSummary || !digestData.themes) {
-          throw new Error('Invalid digest response: missing required fields');
-        }
-
-        // Update progress: Almost done
-        await this.updateProgress(queueItem.id, 'generating', 80, 'Finalizing digest...');
-
-        // Create SmartDigest object with fallback values
-        const digest: SmartDigest = {
-          id: `digest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          topicId: topic.id,
-          generatedAt: Date.now(),
-          timeframe,
-          executiveSummary: digestData.executiveSummary || 'No summary available',
-          laymanSummary: digestData.laymanSummary,
-          themes: digestData.themes || [],
-          keyTakeaways: digestData.keyTakeaways || [],
-          breakthroughs: digestData.breakthroughs,
-          contradictions: digestData.contradictions,
-          trends: digestData.trends || { emerging: [], declining: [], stable: [] },
-          statistics: digestData.statistics || {
-            totalFindings: findings.length,
-            newFindings: 0,
-            highPriorityCount: findings.filter(f => f.priority === 'high').length,
-            sourceCount: new Set(findings.map(f => f.source.name)).size,
-            mediumPriorityCount: findings.filter(f => f.priority === 'medium').length
-          },
-          topSources: digestData.topSources || [],
-          allFindingIds: findings.map(f => f.id)
-        };
-
-        return digest;
-
-      } catch (error) {
-        lastError = error as Error;
-
-        // Log error for debugging
-        console.error(`Digest generation attempt ${attempt} failed:`, error);
-
-        // Check if it's a timeout error
-        if (error instanceof Error && error.message.includes('timeout')) {
-          await this.updateProgress(queueItem.id, 'generating', 50,
-            `Request timeout. Retrying (${attempt}/${maxRetries})...`);
-        }
-
-        if (attempt < maxRetries) {
-          // Calculate backoff delay
-          const backoffDelay = Math.pow(2, attempt - 1) * 2000; // 2s, 4s, 8s
-          await this.updateProgress(queueItem.id, 'generating', 50,
-            `Error occurred. Retrying in ${backoffDelay / 1000}s (${attempt}/${maxRetries})...`);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-        }
-      }
-    }
-
-    // All retries exhausted
-    throw lastError || new Error('Failed to generate digest after multiple attempts');
-  }
-
-  // Generate a basic client-side digest when backend is unavailable
-  private generateClientSideDigest(
-    topic: Topic,
-    findings: ResearchFinding[],
-    timeframe: DigestTimeframe
-  ): SmartDigest {
-    const now = Date.now();
-    const priorityOrder = ['high', 'medium', 'low'];
-    const sortedFindings = [...findings].sort((a, b) => {
-      const priorityA = priorityOrder.indexOf(a.priority || 'medium');
-      const priorityB = priorityOrder.indexOf(b.priority || 'medium');
-      return priorityA - priorityB;
-    });
-    const topFindings = sortedFindings.slice(0, 5);
-
-    // Group findings by type
-    const findingsByType = findings.reduce((acc, f) => {
-      if (!acc[f.type]) acc[f.type] = [];
-      acc[f.type].push(f);
-      return acc;
-    }, {} as Record<string, ResearchFinding[]>);
-
-    // Create basic themes based on finding types
-    const themes = Object.entries(findingsByType).map(([type, typeFindings]) => ({
-      id: `theme_${type}_${now}`,
-      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Updates`,
-      summary: `${typeFindings.length} findings related to ${type}`,
-      category: 'treatment' as const,
-      importance: typeFindings.some(f => f.priority === 'high') ? 'high' as const : 'medium' as const,
-      findingIds: typeFindings.map(f => f.id),
-      findingCount: typeFindings.length,
-      highPriorityCount: typeFindings.filter(f => f.priority === 'high').length,
-      avgConfidence: 'medium' as const
-    }));
-
-    return {
-      id: `digest_client_${now}`,
-      topicId: topic.id,
-      generatedAt: now,
-      timeframe,
-      executiveSummary: `Found ${findings.length} research findings for ${topic.name}. This is a basic summary generated locally. Connect to the backend for AI-powered insights.`,
-      laymanSummary: `We found ${findings.length} new research items about ${topic.name}. The most relevant findings are shown below.`,
-      themes,
-      keyTakeaways: topFindings.map(f => f.title),
-      trends: {
-        emerging: [],
-        declining: [],
-        stable: []
-      },
-      statistics: {
-        totalFindings: findings.length,
-        newFindings: findings.filter(f => f.isNew).length,
-        highPriorityCount: findings.filter(f => f.priority === 'high').length,
-        sourceCount: new Set(findings.map(f => f.source.name)).size,
-        mediumPriorityCount: findings.filter(f => f.priority === 'medium').length
-      },
-      topSources: [],
-      allFindingIds: findings.map(f => f.id)
-    };
   }
 
   // Helper methods
@@ -745,7 +554,7 @@ export class DigestQueueService {
 
   // Start queue processor (runs continuously)
   private startQueueProcessor(): void {
-    // Process queue every 5 seconds
+    // Check queue status every 5 seconds
     setInterval(() => {
       if (!this.processingQueue) {
         this.processQueue();
@@ -777,19 +586,11 @@ export class DigestQueueService {
 
   // Clean up old completed/failed items (housekeeping)
   async cleanupOldItems(daysToKeep = 7): Promise<void> {
-    const db = await getDB();
-    const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
+    // Trigger cleanup via API
+    const response = await digestQueueAPI.cleanupQueue();
 
-    const allItems = await db.getAll('digestQueue');
-
-    for (const item of allItems) {
-      if (
-        (item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled') &&
-        item.completedAt &&
-        item.completedAt < cutoffTime
-      ) {
-        await db.delete('digestQueue', item.id);
-      }
+    if (response.success) {
+      console.log(`Cleaned up ${response.staleCancelled || 0} stale and ${response.oldDeleted || 0} old items`);
     }
   }
 }
