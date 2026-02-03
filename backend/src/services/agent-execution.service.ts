@@ -16,7 +16,27 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { FindingModel } from '../models/finding.model.js';
 import { aiService } from './ai.service.js';
-import type { Agent, Finding, FindingSource } from '../../../src/types/index.js';
+import type { Agent } from '../models/agent.model.js';
+import type { Finding } from '../models/finding.model.js';
+
+// Define FindingSource interface locally
+interface FindingSource {
+  name: string;
+  url: string;
+  type: 'pubmed' | 'clinical_trial' | 'web' | 'pdf' | 'local' | 'timeline';
+  publishDate?: string;
+  journal?: string;
+  displayName?: string;
+  authors?: string[];
+  trial?: {
+    id: string;
+    phase?: string;
+    status: string;
+    sponsor?: string;
+    startDate?: string;
+    completionDate?: string;
+  };
+}
 
 // Rate limiting configuration
 const RATE_LIMITS = {
@@ -416,7 +436,7 @@ export class AgentExecutionService {
     const prompt = this.buildAIPrompt(result, agentType);
 
     try {
-      const response = await aiService.complete({
+      const response = await aiService.client.messages.create({
         model: 'claude-3-haiku-20240307', // Use faster model for background processing
         messages: [
           {
@@ -433,11 +453,11 @@ export class AgentExecutionService {
 
       // Parse AI response
       const content = response.content[0]?.text || '';
-      const lines = content.split('\n').filter(l => l.trim());
+      const lines = content.split('\n').filter((l: string) => l.trim());
 
       return {
         summary: lines[0] || this.extractBasicContent(result, agentType),
-        insights: lines.slice(1, 4).map(l => l.replace(/^[-*]\s*/, ''))
+        insights: lines.slice(1, 4).map((l: string) => l.replace(/^[-*]\s*/, ''))
       };
 
     } catch (error) {
@@ -542,7 +562,7 @@ Provide:
   private async storeFindings(findings: Finding[], userId: string): Promise<void> {
     for (const finding of findings) {
       try {
-        await FindingModel.create(finding, userId);
+        await FindingModel.create(userId, finding);
       } catch (error) {
         console.error('[AgentExecution] Error storing finding:', error);
       }

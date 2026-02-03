@@ -3,7 +3,7 @@
  * Handles database operations for user notifications
  */
 
-import { pool } from '../config/database.js';
+import { pool } from '../config/database.config.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface NotificationData {
@@ -66,7 +66,7 @@ export class NotificationModel {
 
     try {
       const result = await pool.query(query, [userId, limit]);
-      return result.rows.map(row => this.mapRowToNotification(row));
+      return result.rows.map((row: any) => this.mapRowToNotification(row));
     } catch (error) {
       console.error('[NotificationModel] Error getting recent notifications:', error);
       throw error;
@@ -85,7 +85,7 @@ export class NotificationModel {
 
     try {
       const result = await pool.query(query, [userId]);
-      return result.rows.map(row => this.mapRowToNotification(row));
+      return result.rows.map((row: any) => this.mapRowToNotification(row));
     } catch (error) {
       console.error('[NotificationModel] Error getting unread notifications:', error);
       throw error;
@@ -222,7 +222,7 @@ export class NotificationModel {
 
     try {
       const result = await pool.query(query, [userId, type, limit]);
-      return result.rows.map(row => this.mapRowToNotification(row));
+      return result.rows.map((row: any) => this.mapRowToNotification(row));
     } catch (error) {
       console.error('[NotificationModel] Error getting notifications by type:', error);
       throw error;
@@ -264,7 +264,7 @@ export class NotificationModel {
 
     try {
       const result = await pool.query(query, values);
-      return result.rows.map(row => this.mapRowToNotification(row));
+      return result.rows.map((row: any) => this.mapRowToNotification(row));
     } catch (error) {
       console.error('[NotificationModel] Error creating batch notifications:', error);
       throw error;

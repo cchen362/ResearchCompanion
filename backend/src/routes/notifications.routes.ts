@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { NotificationModel } from '../models/notification.model.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ const router = express.Router();
  * Server-Sent Events (SSE) endpoint for real-time notifications
  * GET /api/notifications/stream
  */
-router.get('/stream', authenticateToken, async (req, res) => {
+router.get('/stream', authenticate, async (req, res) => {
   // Set up SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -77,7 +77,7 @@ router.get('/stream', authenticateToken, async (req, res) => {
  * Get all notifications for the authenticated user
  * GET /api/notifications
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -104,7 +104,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * Get unread notifications count
  * GET /api/notifications/unread/count
  */
-router.get('/unread/count', authenticateToken, async (req, res) => {
+router.get('/unread/count', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const count = await NotificationModel.getUnreadCount(userId);
@@ -122,7 +122,7 @@ router.get('/unread/count', authenticateToken, async (req, res) => {
  * Get unread notifications
  * GET /api/notifications/unread
  */
-router.get('/unread', authenticateToken, async (req, res) => {
+router.get('/unread', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const notifications = await NotificationModel.getUnread(userId);
@@ -140,7 +140,7 @@ router.get('/unread', authenticateToken, async (req, res) => {
  * Mark notification as read
  * PUT /api/notifications/:id/read
  */
-router.put('/:id/read', authenticateToken, async (req, res) => {
+router.put('/:id/read', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const notificationId = req.params.id;
@@ -167,7 +167,7 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
  * Mark all notifications as read
  * PUT /api/notifications/read-all
  */
-router.put('/read-all', authenticateToken, async (req, res) => {
+router.put('/read-all', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const count = await NotificationModel.markAllAsRead(userId);
@@ -185,7 +185,7 @@ router.put('/read-all', authenticateToken, async (req, res) => {
  * Dismiss notification
  * DELETE /api/notifications/:id
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const userId = req.user!.id;
     const notificationId = req.params.id;
@@ -212,7 +212,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * Create test notification (development only)
  */
 if (process.env.NODE_ENV !== 'production') {
-  router.post('/test', authenticateToken, async (req, res) => {
+  router.post('/test', authenticate, async (req, res) => {
     try {
       const userId = req.user!.id;
       const notification = await NotificationModel.create({
