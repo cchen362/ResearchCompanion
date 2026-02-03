@@ -380,7 +380,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
       // Step 3: Check for cached digest using cache service
       setIsLoadingCachedDigest(true); // Use new state for loading cached digest
-      setLoadingDigest(true);
+      // Don't set loadingDigest here - that's for generating new digests!
       const { digest: cachedDigest, isStale } = await digestCacheService.getCachedDigest(
         topicId,
         digestTimeframe
@@ -390,7 +390,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         setCachedDigest(cachedDigest);
         setDigest(cachedDigest);
         setIsLoadingCachedDigest(false); // Clear cached loading state
-        setLoadingDigest(false);
+        // Don't need to clear loadingDigest since we didn't set it
 
         // Always check for existing queue status first
         const existingQueue = await digestQueueService.getQueueStatus(topicId);
@@ -427,7 +427,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       } else {
         setCachedDigest(null);
         setIsLoadingCachedDigest(false); // Clear cached loading state
-        setLoadingDigest(false);
+        // Don't need to clear loadingDigest since we didn't set it
 
         // Step 4: Check if there's already a digest being generated
         const existingQueue = await digestQueueService.getQueueStatus(topicId);
