@@ -395,7 +395,7 @@ export class DigestQueueService {
               percentage: 100,
               message: 'Digest generated successfully'
             };
-            this.notifyCompletion(queueItem);
+            this.notifyCompletion(queueItem, savedDigest);
 
             console.log(`[DigestQueueService] Successfully completed digest ${savedDigest.id} for queue item ${item.id}`);
 
