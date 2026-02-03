@@ -5,6 +5,7 @@ import { topicsService } from '@/services/topics.service';
 import { digestQueueService } from '@/services/digestQueue.service';
 import { digestCacheService } from '@/services/digestCache.service';
 import { findingsService } from '@/services/findings.service';
+import { useDigestStore } from '@/stores/digestStore';
 import type {
   ResearchFinding,
   Topic,
@@ -118,7 +119,26 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<string>(topicId || '');
   const [currentTopic, setCurrentTopic] = useState<Topic | null>(null);
-  const [digest, setDigest] = useState<SmartDigest | null>(null);
+
+  // Use Zustand store for digest state (persists across navigation)
+  const {
+    hasHydrated,
+    getDigest,
+    setDigest: setDigestInStore,
+    getQueueItem: getQueueFromStore,
+    setQueueItem: setQueueInStore,
+    isLoading: isLoadingFromStore,
+    setLoading: setLoadingInStore
+  } = useDigestStore();
+
+  // Get digest from store for current topic (only after hydration)
+  const digest = hasHydrated && selectedTopicId ? getDigest(selectedTopicId) || null : null;
+  const setDigest = useCallback((newDigest: SmartDigest | null) => {
+    if (selectedTopicId) {
+      setDigestInStore(selectedTopicId, newDigest);
+    }
+  }, [selectedTopicId, setDigestInStore]);
+
   const [cachedDigest, setCachedDigest] = useState<SmartDigest | null>(null);
 
   // Loading states (granular)
@@ -128,8 +148,13 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [isLoadingCachedDigest, setIsLoadingCachedDigest] = useState(false); // New: distinguish cached loading
   const [isGeneratingNewDigest, setIsGeneratingNewDigest] = useState(false); // New: distinguish new generation
 
-  // Queue state
-  const [queueItem, setQueueItem] = useState<DigestQueueItem | null>(null);
+  // Queue state from store (persists across navigation, only after hydration)
+  const queueItem = hasHydrated && selectedTopicId ? getQueueFromStore(selectedTopicId) || null : null;
+  const setQueueItem = useCallback((newQueueItem: DigestQueueItem | null) => {
+    if (selectedTopicId) {
+      setQueueInStore(selectedTopicId, newQueueItem);
+    }
+  }, [selectedTopicId, setQueueInStore]);
   const [digestGeneration, setDigestGeneration] = useState<{
     isGenerating: boolean;
     progress: number;
@@ -169,13 +194,18 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
     loadTopics();
   }, []);
 
-  // Progressive loading when topic changes
+  // Progressive loading when topic changes (wait for hydration)
   useEffect(() => {
+    if (!hasHydrated) {
+      console.log('[HYDRATION FIX] Waiting for store hydration...');
+      return;
+    }
+
     if (selectedTopicId) {
       // Add a flag to track if we're already loading to prevent duplicate calls
       loadTopicDataProgressive(selectedTopicId);
     }
-  }, [selectedTopicId, digestTimeframe]);
+  }, [hasHydrated, selectedTopicId, digestTimeframe]);
 
   // Listen for digest completion events
   useEffect(() => {
@@ -353,6 +383,35 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       return;
     }
 
+    // CRITICAL FIX: Check if store has data BEFORE loading
+    if (hasHydrated) {
+      const existingDigest = getDigest(topicId);
+      const existingQueue = getQueueFromStore(topicId);
+
+      if (existingDigest) {
+        console.log('[HYDRATION FIX] Found existing digest in store, not refetching');
+        // We already have the digest, just load findings if needed
+        if (findings.length === 0) {
+          setLoadingFindings(true);
+          const topicFindings = await findingsService.getFindings(topicId);
+          topicFindings.sort((a, b) => b.timestamp - a.timestamp);
+          setFindings(topicFindings);
+          setVisibleFindings(topicFindings.slice(0, findingsPerPage));
+          setFindingsPage(1);
+          setLoadingFindings(false);
+        }
+        setIsLoadingTopicData(false);
+        return;
+      }
+
+      if (existingQueue && (existingQueue.status === 'pending' || existingQueue.status === 'processing')) {
+        console.log('[HYDRATION FIX] Found active queue in store, not refetching');
+        // Already generating, don't start a new one
+        setIsLoadingTopicData(false);
+        return;
+      }
+    }
+
     setIsLoadingTopicData(true);
 
     try {
@@ -489,23 +548,26 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
               f.agentId
             );
 
+            // AUTO-QUEUE REMOVED: No longer automatically generating digest
+            // Users must explicitly click "Generate Digest" button
             if (hasAgentFindings) {
-              console.log('Found agent findings without digest, auto-queueing digest generation');
-              setLoadingDigest(true); // Prevent race condition
-              try {
-                const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
-                  topicId,
-                  digestTimeframe
-                );
-                setQueueItem(newQueueItem);
-                setDigestGeneration({
-                  isGenerating: true,
-                  progress: 0,
-                  message: 'Starting automatic digest generation...'
-                });
-              } finally {
-                setLoadingDigest(false);
-              }
+              console.log('Found agent findings without digest, user can generate manually');
+              // COMMENTED OUT AUTO-QUEUE TO PREVENT UNWANTED REGENERATION
+              // setLoadingDigest(true);
+              // try {
+              //   const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+              //     topicId,
+              //     digestTimeframe
+              //   );
+              //   setQueueItem(newQueueItem);
+              //   setDigestGeneration({
+              //     isGenerating: true,
+              //     progress: 0,
+              //     message: 'Starting automatic digest generation...'
+              //   });
+              // } finally {
+              //   setLoadingDigest(false);
+              // }
             } else {
               console.log('No agent findings found, showing manual generate button');
             }
@@ -830,7 +892,23 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       )}
 
       {/* Main content area */}
-      {loadingFindings ? (
+      {!hasHydrated ? (
+        // Show loading while store is hydrating from localStorage
+        <Card className="p-12 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="relative">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="absolute inset-0 blur-lg bg-primary/20 animate-pulse"></div>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Loading Saved Data</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Retrieving your research findings and insights...
+              </p>
+            </div>
+          </div>
+        </Card>
+      ) : loadingFindings ? (
         <Card className="p-12 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="relative">

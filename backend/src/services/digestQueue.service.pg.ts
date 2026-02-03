@@ -171,8 +171,20 @@ export class DigestQueueServicePG {
         const existing = existingResult.rows[0];
         console.log('[DigestQueueService] Queue item already exists:', existing.id, 'status:', existing.status);
 
-        // If it's completed or failed, reset it to pending for new generation
+        // If it's completed or failed, check if it's recent before resetting
         if (existing.status === 'completed' || existing.status === 'failed' || existing.status === 'cancelled') {
+          // Don't reset if completed within the last 24 hours
+          if (existing.status === 'completed' && existing.completedAt) {
+            const completedTime = new Date(existing.completedAt).getTime();
+            const now = Date.now();
+            const hoursSinceCompletion = (now - completedTime) / (1000 * 60 * 60);
+
+            if (hoursSinceCompletion < 24) {
+              console.log(`[DigestQueueService] Queue item completed ${hoursSinceCompletion.toFixed(1)} hours ago, not resetting`);
+              return existing; // Return the completed item without resetting
+            }
+          }
+
           const resetQuery = `
             UPDATE digest_queue
             SET status = 'pending',

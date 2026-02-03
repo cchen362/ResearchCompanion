@@ -216,47 +216,75 @@ router.post('/digests', async (req, res) => {
       });
     }
 
-    // DEDUPLICATION CHECK: Check if a recent digest already exists
+    // DEDUPLICATION CHECK: Check queue status FIRST, then check for recent digest
     if (validation.data.topic_id && validation.data.type) {
-      console.log('[DIGEST DEDUP] Checking for existing digest...');
+      console.log('[DIGEST DEDUP] Checking queue status and existing digest...');
 
-      // Get digests for this topic created in the last 7 days
-      const recentDigests = await DigestModel.getByTopicId(
+      // CRITICAL: Check if there's an active queue BEFORE deduplicating
+      const activeQueue = await queueService.getQueueByTopicAndTimeframe(
         userId,
         validation.data.topic_id,
-        10
+        validation.data.type,
+        'smart'
       );
 
-      // Check if there's a digest of the same type created within the timeframe
-      const timeThreshold = {
-        'daily': 24 * 60 * 60 * 1000,    // 24 hours
-        'weekly': 7 * 24 * 60 * 60 * 1000, // 7 days
-        'monthly': 30 * 24 * 60 * 60 * 1000, // 30 days
-        'all-time': 7 * 24 * 60 * 60 * 1000  // Default to 7 days for all-time
-      };
+      // If there's a pending, processing, or RECENTLY completed queue, DON'T deduplicate
+      let skipDeduplication = false;
 
-      const threshold = timeThreshold[validation.data.type as keyof typeof timeThreshold] || timeThreshold['weekly'];
-      const now = Date.now();
+      if (activeQueue && (activeQueue.status === 'pending' || activeQueue.status === 'processing')) {
+        console.log(`[DIGEST DEDUP] Active queue found (${activeQueue.status}), skipping deduplication`);
+        skipDeduplication = true;
+      } else if (activeQueue && activeQueue.status === 'completed' && activeQueue.completedAt) {
+        // Check if completed within last 5 minutes (fresh generation)
+        const completedTime = new Date(activeQueue.completedAt).getTime();
+        const minutesSinceCompletion = (Date.now() - completedTime) / (1000 * 60);
 
-      const existingDigest = recentDigests.find(d => {
-        const digestAge = now - new Date(d.created_at).getTime();
-        return d.type === validation.data.type && digestAge < threshold;
-      });
-
-      if (existingDigest) {
-        console.log('[DIGEST DEDUP] Found existing digest, returning it instead of creating new');
-        console.log(`[DIGEST DEDUP] Existing digest ID: ${existingDigest.id}, created: ${existingDigest.created_at}`);
-
-        // Return the existing digest instead of creating a new one
-        return res.status(200).json({
-          success: true,
-          digest: existingDigest,
-          deduplicated: true,
-          message: `Using existing ${validation.data.type} digest from ${new Date(existingDigest.created_at).toLocaleDateString()}`
-        });
+        if (minutesSinceCompletion < 5) {
+          console.log(`[DIGEST DEDUP] Queue completed ${minutesSinceCompletion.toFixed(1)} minutes ago, skipping deduplication for fresh digest`);
+          skipDeduplication = true;
+        }
       }
 
-      console.log('[DIGEST DEDUP] No recent digest found, creating new one');
+      if (!skipDeduplication) {
+        // Only deduplicate if no active queue
+        // Get digests for this topic created in the last 7 days
+        const recentDigests = await DigestModel.getByTopicId(
+          userId,
+          validation.data.topic_id,
+          10
+        );
+
+        // Check if there's a digest of the same type created within the timeframe
+        const timeThreshold = {
+          'daily': 24 * 60 * 60 * 1000,    // 24 hours
+          'weekly': 7 * 24 * 60 * 60 * 1000, // 7 days
+          'monthly': 30 * 24 * 60 * 60 * 1000, // 30 days
+          'all-time': 7 * 24 * 60 * 60 * 1000  // Default to 7 days for all-time
+        };
+
+        const threshold = timeThreshold[validation.data.type as keyof typeof timeThreshold] || timeThreshold['weekly'];
+        const now = Date.now();
+
+        const existingDigest = recentDigests.find(d => {
+          const digestAge = now - new Date(d.created_at).getTime();
+          return d.type === validation.data.type && digestAge < threshold;
+        });
+
+        if (existingDigest) {
+          console.log('[DIGEST DEDUP] Found existing digest AND no active queue, returning existing');
+          console.log(`[DIGEST DEDUP] Existing digest ID: ${existingDigest.id}, created: ${existingDigest.created_at}`);
+
+          // Return the existing digest instead of creating a new one
+          return res.status(200).json({
+            success: true,
+            digest: existingDigest,
+            deduplicated: true,
+            message: `Using existing ${validation.data.type} digest from ${new Date(existingDigest.created_at).toLocaleDateString()}`
+          });
+        }
+
+        console.log('[DIGEST DEDUP] No recent digest found, creating new one');
+      }
     }
 
     // Ensure timeframe is stored in metadata for filtering
@@ -272,6 +300,31 @@ router.post('/digests', async (req, res) => {
 
     console.log(`[DIGEST CREATE] New digest created with ID: ${digest.id}`);
     console.log(`[DIGEST CREATE] Finding IDs saved: ${digest.finding_ids?.length || 0}`);
+
+    // UPDATE QUEUE with result_id if there's an active queue for this topic
+    if (validation.data.topic_id && validation.data.type) {
+      try {
+        const queueItem = await queueService.getQueueByTopicAndTimeframe(
+          userId,
+          validation.data.topic_id,
+          validation.data.type,
+          'smart'
+        );
+
+        if (queueItem && (queueItem.status === 'processing' || queueItem.status === 'pending')) {
+          console.log(`[DIGEST CREATE] Updating queue ${queueItem.id} with result_id: ${digest.id}`);
+          await queueService.updateQueueStatus(
+            queueItem.id,
+            'completed',
+            undefined,
+            digest.id
+          );
+        }
+      } catch (queueError) {
+        console.error('[DIGEST CREATE] Error updating queue:', queueError);
+        // Don't fail the digest creation if queue update fails
+      }
+    }
 
     res.status(201).json({
       success: true,
