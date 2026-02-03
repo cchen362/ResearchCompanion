@@ -662,7 +662,7 @@ export class DigestQueueService {
     // Call backend to generate digest with ALL findings
     try {
       // Send ALL findings for complete analysis - backend uses smart formatting
-      const response = await longOperationApi.post('/generate-digest', {
+      const response = await longOperationApi.post('/digest/generate-digest', {
         findings: filteredFindings, // Send ALL findings - no artificial limits
         topic,
         timeframe
