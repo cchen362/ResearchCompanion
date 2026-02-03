@@ -377,7 +377,11 @@ export class AgentExecutionService {
         searchQuery: agent.config?.query,
         originalResult: result
       },
-      tags: this.extractTags(result, agent.type)
+      tags: this.extractTags(result, agent.type),
+      is_read: false,
+      is_starred: false,
+      created_at: new Date(),
+      updated_at: new Date()
     };
 
     return finding;
