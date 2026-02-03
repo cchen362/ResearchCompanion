@@ -74,6 +74,16 @@ if (process.env.PRODUCTION_URL) {
   allowedOrigins.push(process.env.PRODUCTION_URL);
 }
 
+// Parse CORS_ALLOWED_ORIGINS environment variable (comma-separated list)
+if (process.env.CORS_ALLOWED_ORIGINS) {
+  const corsOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...corsOrigins);
+}
+
+// Remove duplicates and log configured origins for debugging
+const uniqueOrigins = [...new Set(allowedOrigins)];
+console.log('📍 CORS Allowed Origins:', uniqueOrigins);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
@@ -86,8 +96,8 @@ app.use(cors({
       callback(null, true);
       return;
     }
-    // Allow configured origins
-    if (allowedOrigins.includes(origin)) {
+    // Allow configured origins (use uniqueOrigins which has all sources)
+    if (uniqueOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
@@ -129,8 +139,8 @@ app.use('/api', authenticate, timelineRoutes);
 app.use('/api', authenticate, audioRoutes);
 // Notifications routes (SSE endpoint needs special handling)
 app.use('/api', authenticate, notificationsRoutes);
-// Digest queue routes for server-side queue management
-app.use('/api/digest-queue', createDigestQueueRouter(pool));
+// Digest queue routes for server-side queue management (requires authentication)
+app.use('/api/digest-queue', authenticate, createDigestQueueRouter(pool));
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

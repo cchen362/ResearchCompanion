@@ -24,14 +24,8 @@ export class DigestQueueService {
   private queueProcessorInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
-    // Start processing queue on instantiation
-    this.startQueueProcessor();
-
-    // Immediately check for any pending items on startup
-    setTimeout(() => {
-      console.log('[DigestQueueService] Initial queue check on startup');
-      this.processQueue();
-    }, 1000);
+    // Don't auto-start - wait for explicit startPolling() call after login
+    console.log('[DigestQueueService] Service created - polling not started until login');
   }
 
   static getInstance(): DigestQueueService {
@@ -243,6 +237,13 @@ export class DigestQueueService {
   // Process the queue (made public so components can trigger immediate processing)
   async processQueue(): Promise<void> {
     if (this.processingQueue) return;
+
+    // Don't process queue if user is not logged in
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      console.log('[DigestQueueService] Skipping queue processing - user not logged in');
+      return;
+    }
 
     this.processingQueue = true;
 
@@ -633,7 +634,13 @@ export class DigestQueueService {
         throw new Error('No digest data returned from backend');
       }
 
-      return response.data;
+      // Ensure the digest has the topicId (backend might not include it)
+      const digest = {
+        ...response.data,
+        topicId: topic.id  // Ensure topicId is always present
+      };
+
+      return digest;
     } catch (error) {
       console.error('Error calling generate-digest API:', error);
 
@@ -682,8 +689,26 @@ export class DigestQueueService {
     }, 30000); // 30 seconds instead of 5
   }
 
-  // Stop the queue processor (useful for cleanup)
-  public stopQueueProcessor(): void {
+  // Start polling (call after user logs in)
+  public startPolling(): void {
+    console.log('[DigestQueueService] Starting queue polling after login');
+    this.startQueueProcessor();
+
+    // Check for any pending items immediately
+    setTimeout(() => {
+      console.log('[DigestQueueService] Initial queue check after login');
+      this.processQueue();
+    }, 1000);
+  }
+
+  // Stop polling (call on logout)
+  public stopPolling(): void {
+    console.log('[DigestQueueService] Stopping queue polling on logout');
+    this.stopQueueProcessor();
+  }
+
+  // Stop the queue processor (internal use)
+  private stopQueueProcessor(): void {
     if (this.queueProcessorInterval) {
       clearInterval(this.queueProcessorInterval);
       this.queueProcessorInterval = null;

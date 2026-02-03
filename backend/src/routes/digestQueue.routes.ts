@@ -28,8 +28,8 @@ export function createDigestQueueRouter(pool: Pool) {
   const router = express.Router();
   const queueService = new DigestQueueServicePG(pool);
 
-  // Apply authentication to all routes
-  router.use(authenticate);
+  // Authentication is now applied at mount time in index.ts
+  // router.use(authenticate); // REMOVED - redundant
 
   /**
    * GET /api/digest-queue/status/:topicId

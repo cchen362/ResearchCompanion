@@ -249,7 +249,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       window.removeEventListener('digest-progress', handleDigestProgress as any);
       window.removeEventListener('digest-failed', handleDigestFailed as any);
     };
-  }, [selectedTopicId, activeRefreshQueueId, queueItem, findingsPerPage]);
+  }, [selectedTopicId, activeRefreshQueueId, findingsPerPage]); // REMOVED queueItem from deps - was causing infinite loop!
 
   // Listen for digest-queued and agent-complete events
   useEffect(() => {
