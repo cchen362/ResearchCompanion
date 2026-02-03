@@ -294,8 +294,16 @@ export class DigestQueueService {
             this.currentProcessingId = item.id;
             try {
               await digestQueueAPI.updateQueueStatus(item.id, 'processing');
-            } catch (updateError) {
-              console.error(`[DigestQueueService] Failed to update queue to processing:`, updateError);
+            } catch (updateError: any) {
+              console.error(`[DigestQueueService] QUEUE UPDATE FAILED:`, {
+                queueId: item.id,
+                topicId: item.topicId,
+                endpoint: `/api/digest-queue/${item.id}`,
+                status: updateError.response?.status,
+                statusText: updateError.response?.statusText,
+                errorMessage: updateError.message,
+                errorData: updateError.response?.data
+              });
               // Continue anyway - we'll still try to generate the digest
             }
 
@@ -333,14 +341,24 @@ export class DigestQueueService {
 
             this.notifyProgressUpdate(queueItem);
 
-            // Generate the digest
+            // Generate the digest with timeout protection (5 minutes)
             console.log(`[DigestQueueService] Generating digest from ${findings.length} findings`);
-            const digest = await this.generateDigestFromFindings(
-              queueItem,
-              topic,
-              findings,
-              item.timeframe as DigestTimeframe
-            );
+            const DIGEST_GENERATION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+            const digest = await Promise.race([
+              this.generateDigestFromFindings(
+                queueItem,
+                topic,
+                findings,
+                item.timeframe as DigestTimeframe
+              ),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error('Digest generation timeout after 5 minutes')),
+                  DIGEST_GENERATION_TIMEOUT
+                )
+              )
+            ]);
 
             // Save the digest
             const savedDigest = await digestService.saveDigest(digest);
@@ -354,8 +372,17 @@ export class DigestQueueService {
                 savedDigest.id
               );
               console.log(`[DigestQueueService] Queue ${item.id} marked as completed`);
-            } catch (updateError) {
-              console.error(`[DigestQueueService] Failed to update queue status to completed:`, updateError);
+            } catch (updateError: any) {
+              console.error(`[DigestQueueService] QUEUE COMPLETION UPDATE FAILED:`, {
+                queueId: item.id,
+                topicId: item.topicId,
+                digestId: savedDigest.id,
+                endpoint: `/api/digest-queue/${item.id}`,
+                status: updateError.response?.status,
+                statusText: updateError.response?.statusText,
+                errorMessage: updateError.message,
+                errorData: updateError.response?.data
+              });
               // Continue anyway - digest was saved successfully
             }
 

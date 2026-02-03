@@ -159,6 +159,22 @@ const server = app.listen(PORT, () => {
   console.log('🤖 Starting autonomous agent scheduler...');
   schedulerService.start();
   console.log('✅ Autonomous agents will run on their configured schedules');
+
+  // Clean up stale digest queue items on startup
+  console.log('🧹 Cleaning up stale digest queue items...');
+  import('./services/digestQueue.service.pg.js').then(async (module) => {
+    try {
+      const DigestQueueServicePG = module.default;
+      const queueService = new DigestQueueServicePG(pool);
+      const cleanupCount = await queueService.cleanupStaleItems();
+      console.log(`✅ Cleaned up ${cleanupCount} stale digest queue items`);
+    } catch (cleanupError) {
+      console.error('⚠️ Failed to clean up stale queue items:', cleanupError);
+      // Non-critical error - continue startup
+    }
+  }).catch(err => {
+    console.error('⚠️ Failed to load digest queue service:', err);
+  });
   console.log('\n📡 Auth endpoints (no token required):');
   console.log('  - POST /api/auth/register');
   console.log('  - POST /api/auth/login');

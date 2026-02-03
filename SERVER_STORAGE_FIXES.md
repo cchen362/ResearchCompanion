@@ -943,6 +943,163 @@ ALTER TABLE digest_queue ADD CONSTRAINT unique_active_queue_fixed
 
 ---
 
-*Last Updated: February 3, 2026 - Issue 20 Digest Queue Critical Fixes Deployed*
+### Issue 21: Frontend Polling Digest Queue Every 30-60 Seconds (FIXED)
+
+**Problem:**
+- Frontend was calling `getUserQueueItems` API every 30-60 seconds continuously
+- Production server logs showed repeated "[DigestQueue] Fetching queue items" messages
+- Unnecessary load on server and database
+- Wasteful API calls even when no digests were pending
+
+**Root Cause:**
+- `digestQueue.service.ts` had a `setInterval` that checked queue every 30 seconds
+- This was started on login via `startPolling()` and never stopped
+- Continuous polling regardless of whether any digests were actually queued
+
+**Fix Applied (February 3, 2026 at 20:22 UTC):**
+1. Removed the `setInterval` from `startQueueProcessor()` method
+2. Kept the one-time check on login for pending items
+3. Processing now only happens on-demand when new digest is queued
+4. Immediate processing still triggered via `setTimeout` after queueing
+
+**Files Modified:**
+- `src/services/digestQueue.service.ts` - Removed continuous polling interval
+
+**Verification:**
+- No more "Fetching queue items" messages every 30-60 seconds in logs
+- Queue processing still works when digest is requested
+- One-time check on login still functions
+
+---
+
+### Issue 22: Database Schema Missing Columns (FIXED)
+
+**Problem:**
+- Error: `column "layman_summary" does not exist`
+- Multiple columns expected by backend were missing from digests table
+- Digest retrieval failing with database errors
+
+**Root Cause:**
+- Database schema was outdated/incomplete
+- Backend expecting columns that were never created in initial migration
+
+**Fix Applied (February 3, 2026 at 20:30 UTC):**
+
+Added missing columns to digests table:
+```sql
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS layman_summary TEXT;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS key_takeaways JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS trends JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS clinical_implications JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS lifestyle_considerations JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS questions_for_doctor JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS warning_signs JSONB;
+ALTER TABLE digests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+```
+
+**Files Modified:**
+- `backend/src/db/migration-add-missing-digest-columns.sql` - Created migration script
+- Applied directly to production database via psql
+
+**Verification:**
+- No more "column does not exist" errors
+- Digest table now has 22 columns total
+- Digest retrieval working without database errors
+
+### Issue 23: Complete Database Migration Fix - Missing Columns Root Cause (FIXED)
+
+**Problem:**
+- Digest generation completely broken with 404 errors
+- Error: `column "layman_summary" does not exist` in production
+- Fresh database installations would fail
+- Migration files existed but weren't integrated properly
+
+**Root Cause Analysis (February 4, 2026):**
+
+After thorough investigation, discovered THREE interrelated issues:
+
+1. **Missing Database Columns**:
+   - init.sql defined digests table with only 14 columns
+   - Backend expected 22 columns (8 were missing)
+   - Migration file existed but wasn't numbered/tracked
+
+2. **Incomplete Migration System**:
+   - Migration files scattered and unnumbered
+   - init.sql not updated with cumulative changes
+   - No migration tracking documentation
+
+3. **Poor Error Visibility**:
+   - Queue update failures were silently swallowed
+   - No timeout protection on digest generation
+   - Insufficient logging for 404 debugging
+
+**Comprehensive Fix Applied (February 4, 2026):**
+
+1. **Created Proper Migration 015**:
+   - `backend/src/db/migrations/015_add_digest_columns.sql`
+   - Adds all 8 missing columns with proper defaults
+   - Includes updated_at trigger function
+
+2. **Updated init.sql**:
+   - Added all missing columns to CREATE TABLE statement
+   - Added trigger for updated_at column
+   - Now matches production schema expectations
+
+3. **Created Migration Tracking System**:
+   - `backend/src/db/migrations/README.md` - Documentation
+   - Numbered migration convention established
+   - Rollback instructions included
+
+4. **Added Timeout Protection**:
+   - 5-minute timeout on digest generation
+   - Prevents hanging processes
+   - Proper error handling for timeouts
+
+5. **Added Startup Cleanup**:
+   - Automatically cancels stale queue items on server restart
+   - Prevents zombie queue items from blocking
+
+6. **Enhanced Error Logging**:
+   - Detailed 404 debugging information
+   - Queue ID, endpoint, status codes logged
+   - Better visibility into failure points
+
+**Files Modified:**
+- `backend/src/db/migrations/015_add_digest_columns.sql` - NEW migration
+- `backend/src/db/migrations/README.md` - NEW documentation
+- `backend/src/db/init.sql` - Updated schema (lines 87-110, 264-265)
+- `backend/src/index.ts` - Added startup cleanup (lines 163-177)
+- `src/services/digestQueue.service.ts` - Added timeout & logging (lines 295-387)
+
+**Deployment Steps:**
+1. Build backend: `npm run build`
+2. Commit and push changes
+3. Deploy to production
+4. Apply migration 015 to production database
+5. Restart application containers
+
+**Lessons Learned:**
+1. **Migration files MUST be numbered and tracked**
+2. **init.sql MUST match cumulative migrations**
+3. **Schema changes require 3-part update**: Migration + init.sql + types
+4. **404 errors need context logging**: endpoint, IDs, expected vs actual
+5. **Queue processing needs defensive programming**: timeouts, retries, cleanup
+
+**Verification:**
+- Fresh database has all 22 columns in digests table
+- No more "column does not exist" errors
+- Digest generation completes successfully
+- Queue items process without 404s
+- Stale items auto-cancel after 1 hour
+
+---
+
+## Known Remaining Issues
+
+None at this time - digest generation fully functional!
+
+---
+
+*Last Updated: February 4, 2026 - Issue 23 Fixed (Complete Migration Fix)*
 *Document maintained by: Development Team*
-*Issue 18 added - Complete digest queue migration to PostgreSQL, fixing animation bug root cause*
+*Issue 18-20 added - Complete digest queue migration to PostgreSQL*

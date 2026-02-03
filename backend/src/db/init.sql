@@ -98,7 +98,15 @@ CREATE TABLE IF NOT EXISTS digests (
     next_steps JSONB DEFAULT '[]',
     finding_ids UUID[], -- References to findings used
     metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    layman_summary TEXT, -- Simplified summary for non-medical users
+    key_takeaways JSONB DEFAULT '[]'::jsonb, -- Array of key points
+    trends JSONB DEFAULT '{}'::jsonb, -- Identified trends
+    clinical_implications JSONB DEFAULT '[]'::jsonb, -- Clinical relevance
+    lifestyle_considerations JSONB DEFAULT '[]'::jsonb, -- Lifestyle recommendations
+    questions_for_doctor JSONB DEFAULT '[]'::jsonb, -- Questions for healthcare provider
+    warning_signs JSONB DEFAULT '[]'::jsonb, -- Warning signs to watch for
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Timeline events (appointments, symptoms, treatments)
@@ -251,6 +259,9 @@ CREATE TRIGGER update_chats_updated_at BEFORE UPDATE ON chats
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_preferences_updated_at BEFORE UPDATE ON user_preferences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_digests_updated_at BEFORE UPDATE ON digests
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to update chat's last_message_at when a message is added
