@@ -332,6 +332,97 @@ When making changes, test these critical paths:
 
 ---
 
+## Issue 17: Digest Shows "Generating AI-Powered Insights" Animation on Every Page Load (PENDING)
+
+**Status:** TO BE IMPLEMENTED
+**Severity:** High - Major UX issue affecting every user session
+**Discovered:** February 3, 2026
+
+### Problem Description
+Users see the "Generating AI-Powered Insights" spinning animation EVERY time they visit the Findings page, even when just loading a cached digest that was generated minutes ago. This creates the false impression that AI is processing when it's actually just loading from cache.
+
+### Root Causes
+1. **No Autonomous Agent Scheduling**: App designed for background agent runs that were never implemented
+2. **Aggressive Auto-Refresh**: Component refreshes digest on every page load if "stale"
+3. **Poor Loading State UX**: No distinction between "loading cached digest" vs "generating new digest"
+4. **Mismatched Cache Durations**: Cache expires in 1-6 hours but agents only run manually
+
+### Evidence
+- File: src/components/FindingsViewerProgressive.tsx (lines 910-923)
+- Shows "Generating AI-Powered Insights" even when loadingDigest=true
+- Auto-refresh logic at lines 404-437 triggers on every visit
+- Cache durations in digestCache.service.ts assume frequent updates
+
+### Implementation Requirements
+
+#### Phase 1: Backend - Autonomous Agent Scheduling
+**Files to Create:**
+- backend/src/services/scheduler.service.ts - Cron-based scheduler
+- backend/src/services/agent.execution.service.ts - Agent runner
+
+**Files to Modify:**
+- backend/package.json - Add node-cron dependency
+- backend/src/index.ts - Initialize scheduler on startup
+- backend/src/models/agent.model.ts - Add getAllDueAgents() method
+
+**Key Features:**
+- Hourly cron job checking for due agents
+- Respects user agent schedules
+- Updates last_run/next_run timestamps
+- Queues digest generation after agents complete
+
+#### Phase 2: Frontend - Fix Loading UX
+**Files to Modify:**
+- src/components/FindingsViewerProgressive.tsx
+
+**Changes Required:**
+- Add isLoadingCachedDigest state separate from isGenerating
+- Show "Loading cached digest..." not "Generating AI-Powered Insights"
+- Remove auto-refresh on page load (lines 404-437)
+- Add cache status badge showing age
+- Keep manual refresh button
+
+#### Phase 3: Cache Duration Adjustments
+**Files to Modify:**
+- src/services/digestCache.service.ts
+
+**New Durations:**
+- Daily: 1hr → 3hrs
+- Weekly: 6hrs → 12hrs
+- Monthly: 24hrs → 48hrs
+- Disable autoRefresh flag
+
+### Testing Checklist
+- [ ] Cached digest loads without animation
+- [ ] Shows "Cached Digest" badge with age
+- [ ] Manual refresh works properly
+- [ ] Scheduler runs agents hourly
+- [ ] Digest regenerates after agents complete
+- [ ] No auto-refresh on page visits
+
+### Deployment Notes
+**CRITICAL**: Must use --no-cache flag when building Docker images or changes won't take effect (see Issue 16)
+
+```bash
+docker-compose build --no-cache
+docker-compose up -d
+docker logs medical-companion | grep scheduler
+```
+
+### Success Criteria
+1. NO animation when loading cached digests
+2. Clear "Cached" indicator with timestamp
+3. Agents run automatically on schedule
+4. Digests update in background
+5. Manual refresh still available
+
+### Files Modified Summary
+- 2 NEW backend services
+- 5 MODIFIED files across frontend/backend
+- Total estimated LOC: ~500
+
+---
+
 ## Lessons Learned
 
 1. **Always check Docker logs first** - Most issues visible in container logs
@@ -348,6 +439,9 @@ When making changes, test these critical paths:
 12. **Docker caching can hide changes** - Use `--no-cache` when changes aren't appearing in production
 13. **Verify fixes in build process** - Add grep/test commands in Dockerfile to ensure changes are present
 14. **Multi-stage builds cache aggressively** - COPY commands may use cached layers even with file changes
+15. **Distinguish loading states clearly** - "Loading from cache" vs "Generating new content" need different UX
+16. **Implement scheduled tasks early** - Apps designed for automation suffer without it
+17. **Cache durations must match update frequency** - Don't expire cache faster than data updates
 
 ---
 
@@ -364,5 +458,6 @@ When making changes, test these critical paths:
 
 ---
 
-*Last Updated: February 2, 2026*
+*Last Updated: February 3, 2026*
 *Document maintained by: Development Team*
+*Issue 17 added - Digest loading animation fix*
