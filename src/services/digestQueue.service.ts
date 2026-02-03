@@ -21,6 +21,7 @@ export class DigestQueueService {
   private currentProcessingId: string | null = null;
   private retryTimeouts = new Map<string, NodeJS.Timeout>();
   private queueLocks = new Set<string>();
+  private queueProcessorInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
     // Start processing queue on instantiation
@@ -279,8 +280,9 @@ export class DigestQueueService {
         }
       }
 
-      // Continue checking queue status periodically
-      setTimeout(() => this.processQueue(), 5000);
+      // DON'T RECURSIVELY CALL - let the setInterval handle periodic checks
+      // The startQueueProcessor already runs this every 5 seconds
+      // setTimeout(() => this.processQueue(), 5000);
 
     } finally {
       this.processingQueue = false;
@@ -554,12 +556,26 @@ export class DigestQueueService {
 
   // Start queue processor (runs continuously)
   private startQueueProcessor(): void {
-    // Check queue status every 5 seconds
-    setInterval(() => {
+    // Clear any existing interval
+    if (this.queueProcessorInterval) {
+      clearInterval(this.queueProcessorInterval);
+    }
+
+    // Check queue status every 30 seconds (not 5 seconds - too aggressive!)
+    this.queueProcessorInterval = setInterval(() => {
       if (!this.processingQueue) {
+        console.log('[DigestQueueService] Periodic queue check');
         this.processQueue();
       }
-    }, 5000);
+    }, 30000); // 30 seconds instead of 5
+  }
+
+  // Stop the queue processor (useful for cleanup)
+  public stopQueueProcessor(): void {
+    if (this.queueProcessorInterval) {
+      clearInterval(this.queueProcessorInterval);
+      this.queueProcessorInterval = null;
+    }
   }
 
   // Notification methods (these would trigger UI updates via events or state management)
