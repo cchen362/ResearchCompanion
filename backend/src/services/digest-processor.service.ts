@@ -200,7 +200,7 @@ export class DigestProcessorService {
         digestId,
         item.user_id,
         item.topic_id,
-        item.digest_type || 'smart_digest',
+        item.timeframe || item.digest_type || 'smart_digest',
         (digest as any).title || `${topic.name} Research Digest`,
         (digest as any).executiveSummary,
         (digest as any).laymanSummary,
@@ -220,7 +220,8 @@ export class DigestProcessorService {
           source: 'background-processor',
           queueItemId: item.id,
           findingsCount: findings.length,
-          generatedAt: new Date().toISOString()
+          generatedAt: new Date().toISOString(),
+          timeframe: item.timeframe || 'all-time'
         })
       ]
     );

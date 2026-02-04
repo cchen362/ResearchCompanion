@@ -223,7 +223,7 @@ class SchedulerService {
           await queueService.createQueueItem({
             userId,
             topicId,
-            timeframe: 'all-time',
+            timeframe: 'weekly',  // Match frontend default for seamless display
             digestType: 'smart',
             priority: 5,
             metadata: {
