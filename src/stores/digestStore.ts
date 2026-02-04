@@ -164,23 +164,45 @@ export const useDigestStore = create<DigestState>()(
           if (!str) return null;
 
           const parsed = JSON.parse(str);
+
+          // Convert date strings back to Date objects in queue items
+          const queueItemsArray = parsed.state.queueItemsByTopic || [];
+          const queueItemsWithDates = queueItemsArray.map(([key, item]: [string, any]) => {
+            return [key, {
+              ...item,
+              createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+              startedAt: item.startedAt ? new Date(item.startedAt) : undefined,
+              completedAt: item.completedAt ? new Date(item.completedAt) : undefined
+            }];
+          });
+
           return {
             ...parsed,
             state: {
               ...parsed.state,
               digestsByTopic: new Map(parsed.state.digestsByTopic || []),
-              queueItemsByTopic: new Map(parsed.state.queueItemsByTopic || []),
+              queueItemsByTopic: new Map(queueItemsWithDates),
               loadingDigests: new Set(parsed.state.loadingDigests || [])
             }
           };
         },
         setItem: (name, value) => {
+          // Convert queue items' dates to ISO strings for serialization
+          const queueItemsArray = Array.from(value.state.queueItemsByTopic.entries()).map(([key, item]) => {
+            return [key, {
+              ...item,
+              createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
+              startedAt: item.startedAt instanceof Date ? item.startedAt.toISOString() : item.startedAt,
+              completedAt: item.completedAt instanceof Date ? item.completedAt.toISOString() : item.completedAt
+            }];
+          });
+
           const serialized = {
             ...value,
             state: {
               ...value.state,
               digestsByTopic: Array.from(value.state.digestsByTopic.entries()),
-              queueItemsByTopic: Array.from(value.state.queueItemsByTopic.entries()),
+              queueItemsByTopic: queueItemsArray,
               loadingDigests: Array.from(value.state.loadingDigests)
             }
           };
