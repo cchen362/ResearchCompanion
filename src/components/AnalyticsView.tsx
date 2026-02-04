@@ -1,13 +1,20 @@
+/**
+ * AnalyticsView - Research insights and analytics component
+ *
+ * Phase 4 Refactoring: Updated to use services instead of direct DB access
+ */
+
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart3, Brain, FileText } from 'lucide-react';
+import { BarChart3, Brain } from 'lucide-react';
 import { ResearchInsightsDashboard } from './ResearchInsightsDashboard';
-import { getDB } from '@/utils/db/database';
 import { topicsService } from '@/services/topics.service';
+import { findingsService } from '@/services/findings.service';
+import { digestService } from '@/services/digest.service';
+import { logger } from '@/utils/logger';
 import type { ResearchFinding, SmartDigest, Topic } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
-import { digestService } from '@/services/digest.service';
 
 export function AnalyticsView() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -42,7 +49,7 @@ export function AnalyticsView() {
         setLoading(false);
       }
     } catch (error) {
-      console.error('Error loading topics:', error);
+      logger.error('[AnalyticsView] Error loading topics:', error);
       toast({
         title: 'Error loading topics',
         description: 'Failed to load research topics.',
@@ -55,29 +62,20 @@ export function AnalyticsView() {
   const loadTopicData = async (topicId: string) => {
     try {
       setLoading(true);
-      const db = await getDB();
 
-      // Load topic
+      // Load topic from existing topics array
       const topic = topics.find(t => t.id === topicId) || null;
       setSelectedTopic(topic);
 
-      // Load findings
-      const findingsTx = db.transaction('findings', 'readonly');
-      const findingsStore = findingsTx.objectStore('findings');
-      // Use the correct index name 'by-topic'
-      const findingsIndex = findingsStore.index('by-topic');
-      const loadedFindings = await findingsIndex.getAll(topicId);
+      // Load findings via service
+      const loadedFindings = await findingsService.getFindings(topicId);
       setFindings(loadedFindings);
 
-      // Load all digests (not just for this topic, as we might want cross-topic insights)
-      const digestTx = db.transaction('digests', 'readonly');
-      const digestStore = digestTx.objectStore('digests');
-      const allDigests = await digestStore.getAll();
-      // Filter for this topic's digests
-      const topicDigests = allDigests.filter(d => d.topicId === topicId);
+      // Load digests via service
+      const topicDigests = await digestService.getDigestsForTopic(topicId);
       setDigests(topicDigests);
     } catch (error) {
-      console.error('Error loading topic data:', error);
+      logger.error('[AnalyticsView] Error loading topic data:', error);
       toast({
         title: 'Error loading data',
         description: 'Failed to load analytics data.',
@@ -114,7 +112,7 @@ export function AnalyticsView() {
         description: 'Smart digest has been generated successfully.',
       });
     } catch (error) {
-      console.error('Error generating digest:', error);
+      logger.error('[AnalyticsView] Error generating digest:', error);
       toast({
         title: 'Failed to generate digest',
         description: 'An error occurred while generating the digest.',

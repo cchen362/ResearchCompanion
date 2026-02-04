@@ -4,6 +4,7 @@
  */
 
 import { api } from '../services/api';
+import { logger } from '../utils/logger';
 
 export interface QueueStatus {
   hasActiveQueue: boolean;
@@ -71,7 +72,7 @@ export const digestQueueAPI = {
       const response = await api.get(`/digest-queue/status/${topicId}${params}`);
       return response.data;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error checking queue status:', error);
+      logger.error('[DigestQueueAPI] Error checking queue status:', error);
       return { hasActiveQueue: false };
     }
   },
@@ -90,7 +91,7 @@ export const digestQueueAPI = {
       const response = await api.post('/digest-queue', data);
       return response.data;
     } catch (error: any) {
-      console.error('[DigestQueueAPI] Error creating queue item:', error);
+      logger.error('[DigestQueueAPI] Error creating queue item:', error);
 
       // Handle duplicate queue error
       if (error.response?.status === 409) {
@@ -124,7 +125,7 @@ export const digestQueueAPI = {
       });
       return response.data.success;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error updating queue status:', error);
+      logger.error('[DigestQueueAPI] Error updating queue status:', error);
       return false;
     }
   },
@@ -137,7 +138,7 @@ export const digestQueueAPI = {
       const response = await api.delete(`/digest-queue/${queueId}`);
       return response.data.success;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error cancelling queue item:', error);
+      logger.error('[DigestQueueAPI] Error cancelling queue item:', error);
       return false;
     }
   },
@@ -153,7 +154,7 @@ export const digestQueueAPI = {
       const response = await api.get(`/digest-queue?limit=${limit}`);
       return response.data;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error fetching queue items:', error);
+      logger.error('[DigestQueueAPI] Error fetching queue items:', error);
       return { items: [], count: 0 };
     }
   },
@@ -171,7 +172,7 @@ export const digestQueueAPI = {
       const response = await api.post('/digest-queue/cleanup');
       return response.data;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error during cleanup:', error);
+      logger.error('[DigestQueueAPI] Error during cleanup:', error);
       return {
         success: false,
         message: 'Failed to cleanup queue'
@@ -187,7 +188,7 @@ export const digestQueueAPI = {
       const response = await api.get('/digest-queue/stats');
       return response.data;
     } catch (error) {
-      console.error('[DigestQueueAPI] Error fetching stats:', error);
+      logger.error('[DigestQueueAPI] Error fetching stats:', error);
       return null;
     }
   }

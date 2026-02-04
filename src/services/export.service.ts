@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import type { ResearchFinding, SmartDigest, TimelineEvent, ResearchTopic } from '@/types';
+import type { ResearchFinding, SmartDigest, ResearchTopic } from '@/types';
 import { researchInsightsService } from './researchInsights.service';
 
 /**
@@ -16,8 +16,7 @@ class ExportService {
   async generatePDFReport(
     topic: ResearchTopic,
     findings: ResearchFinding[],
-    digest: SmartDigest | null,
-    timeline: TimelineEvent[] = []
+    digest: SmartDigest | null
   ): Promise<Blob> {
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -296,12 +295,11 @@ class ExportService {
 
   /**
    * Generate CSV/Excel Export
-   * Creates spreadsheet with findings, timeline, and analytics data
+   * Creates spreadsheet with findings and analytics data
    */
   async generateExcelExport(
     topic: ResearchTopic,
     findings: ResearchFinding[],
-    timeline: TimelineEvent[] = [],
     digest: SmartDigest | null = null
   ): Promise<Blob> {
     const workbook = XLSX.utils.book_new();
@@ -322,20 +320,6 @@ class ExportService {
 
     const findingsSheet = XLSX.utils.json_to_sheet(findingsData);
     XLSX.utils.book_append_sheet(workbook, findingsSheet, 'Research Findings');
-
-    // Timeline Sheet
-    if (timeline.length > 0) {
-      const timelineData = timeline.map(event => ({
-        'Date': format(event.date, 'yyyy-MM-dd'),
-        'Type': event.type,
-        'Description': event.description,
-        'Severity': event.severity || '',
-        'Notes': event.notes || ''
-      }));
-
-      const timelineSheet = XLSX.utils.json_to_sheet(timelineData);
-      XLSX.utils.book_append_sheet(workbook, timelineSheet, 'Timeline');
-    }
 
     // Digest Summary Sheet
     if (digest) {
@@ -379,8 +363,7 @@ class ExportService {
    */
   async generateFHIRExport(
     topic: ResearchTopic,
-    findings: ResearchFinding[],
-    timeline: TimelineEvent[] = []
+    findings: ResearchFinding[]
   ): Promise<string> {
     // FHIR Bundle structure
     const fhirBundle = {
@@ -448,62 +431,6 @@ class ExportService {
       });
     });
 
-    // Add timeline events as Condition or Procedure resources
-    timeline.forEach(event => {
-      if (event.type === 'symptom') {
-        const condition = {
-          resourceType: 'Condition',
-          id: event.id,
-          clinicalStatus: {
-            coding: [{
-              system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
-              code: 'active'
-            }]
-          },
-          verificationStatus: {
-            coding: [{
-              system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status',
-              code: 'provisional'
-            }]
-          },
-          code: {
-            text: event.description
-          },
-          subject: {
-            reference: 'Patient/example'
-          },
-          onsetDateTime: event.date.toISOString(),
-          severity: event.severity ? {
-            coding: [{
-              system: 'http://snomed.info/sct',
-              code: event.severity === 'severe' ? '24484000' : event.severity === 'moderate' ? '6736007' : '255604002',
-              display: event.severity
-            }]
-          } : undefined
-        };
-
-        fhirBundle.entry.push({ resource: condition });
-      } else if (event.type === 'treatment') {
-        const procedure = {
-          resourceType: 'Procedure',
-          id: event.id,
-          status: 'completed',
-          code: {
-            text: event.description
-          },
-          subject: {
-            reference: 'Patient/example'
-          },
-          performedDateTime: event.date.toISOString(),
-          note: event.notes ? [{
-            text: event.notes
-          }] : undefined
-        };
-
-        fhirBundle.entry.push({ resource: procedure });
-      }
-    });
-
     return JSON.stringify(fhirBundle, null, 2);
   }
 
@@ -527,10 +454,9 @@ class ExportService {
   async exportAsPDF(
     topic: ResearchTopic,
     findings: ResearchFinding[],
-    digest: SmartDigest | null,
-    timeline: TimelineEvent[] = []
+    digest: SmartDigest | null
   ): Promise<void> {
-    const blob = await this.generatePDFReport(topic, findings, digest, timeline);
+    const blob = await this.generatePDFReport(topic, findings, digest);
     const filename = `${topic.name.replace(/[^a-z0-9]/gi, '_')}_report_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
     this.downloadFile(blob, filename);
   }
@@ -541,10 +467,9 @@ class ExportService {
   async exportAsExcel(
     topic: ResearchTopic,
     findings: ResearchFinding[],
-    timeline: TimelineEvent[] = [],
     digest: SmartDigest | null = null
   ): Promise<void> {
-    const blob = await this.generateExcelExport(topic, findings, timeline, digest);
+    const blob = await this.generateExcelExport(topic, findings, digest);
     const filename = `${topic.name.replace(/[^a-z0-9]/gi, '_')}_data_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
     this.downloadFile(blob, filename);
   }
@@ -554,10 +479,9 @@ class ExportService {
    */
   async exportAsFHIR(
     topic: ResearchTopic,
-    findings: ResearchFinding[],
-    timeline: TimelineEvent[] = []
+    findings: ResearchFinding[]
   ): Promise<void> {
-    const json = await this.generateFHIRExport(topic, findings, timeline);
+    const json = await this.generateFHIRExport(topic, findings);
     const blob = new Blob([json], { type: 'application/json' });
     const filename = `${topic.name.replace(/[^a-z0-9]/gi, '_')}_fhir_${format(new Date(), 'yyyy-MM-dd')}.json`;
     this.downloadFile(blob, filename);

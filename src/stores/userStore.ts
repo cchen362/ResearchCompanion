@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { UserPreferences, FamilyMember } from '../types';
 import { getDB } from '../utils/db/database';
+import { logger } from '../utils/logger';
 
 interface NotificationSettings {
   enabled: boolean;
@@ -201,7 +202,7 @@ export const useUserStore = create<UserStore>()(
             await tx.objectStore('preferences').put({ ...prefs, ...updated }, 'userProfile');
             await tx.done;
           } catch (error) {
-            console.error('Failed to update profile:', error);
+            logger.error('[UserStore] Failed to update profile:', error);
           }
         },
         clearProfile: () => set({ profile: null, isAuthenticated: false }),
@@ -214,7 +215,7 @@ export const useUserStore = create<UserStore>()(
             const prefs = await db.get('preferences', 'user');
             set({ preferences: prefs || null });
           } catch (error) {
-            console.error('Failed to load preferences:', error);
+            logger.error('[UserStore] Failed to load preferences:', error);
           }
         },
         updatePreferences: async (updates) => {
@@ -226,7 +227,7 @@ export const useUserStore = create<UserStore>()(
             const db = await getDB();
             await db.put('preferences', { ...updated, id: 'user' }, 'user');
           } catch (error) {
-            console.error('Failed to save preferences:', error);
+            logger.error('[UserStore] Failed to save preferences:', error);
           }
         },
         resetPreferences: async () => {
@@ -235,7 +236,7 @@ export const useUserStore = create<UserStore>()(
             const db = await getDB();
             await db.delete('preferences', 'user');
           } catch (error) {
-            console.error('Failed to reset preferences:', error);
+            logger.error('[UserStore] Failed to reset preferences:', error);
           }
         },
 
@@ -319,7 +320,7 @@ export const useUserStore = create<UserStore>()(
             const members = await db.getAll('family');
             set({ familyMembers: members });
           } catch (error) {
-            console.error('Failed to load family members:', error);
+            logger.error('[UserStore] Failed to load family members:', error);
           }
         },
         addFamilyMember: async (member) => {
@@ -332,7 +333,7 @@ export const useUserStore = create<UserStore>()(
             const members = get().familyMembers;
             set({ familyMembers: [...members, newMember] });
           } catch (error) {
-            console.error('Failed to add family member:', error);
+            logger.error('[UserStore] Failed to add family member:', error);
             throw error;
           }
         },
@@ -350,7 +351,7 @@ export const useUserStore = create<UserStore>()(
               familyMembers: members.map(m => m.id === id ? updated : m)
             });
           } catch (error) {
-            console.error('Failed to update family member:', error);
+            logger.error('[UserStore] Failed to update family member:', error);
             throw error;
           }
         },
@@ -364,7 +365,7 @@ export const useUserStore = create<UserStore>()(
               familyMembers: members.filter(m => m.id !== id)
             });
           } catch (error) {
-            console.error('Failed to remove family member:', error);
+            logger.error('[UserStore] Failed to remove family member:', error);
             throw error;
           }
         },
@@ -405,7 +406,7 @@ export const useUserStore = create<UserStore>()(
               }
             });
           } catch (error) {
-            console.error('Failed to load API usage:', error);
+            logger.error('[UserStore] Failed to load API usage:', error);
           }
         },
         updateApiUsage: async (service, cost) => {
@@ -435,7 +436,7 @@ export const useUserStore = create<UserStore>()(
               }
             });
           } catch (error) {
-            console.error('Failed to update API usage:', error);
+            logger.error('[UserStore] Failed to update API usage:', error);
           }
         },
         setMonthlyLimit: (limit) => {
@@ -483,7 +484,7 @@ export const useUserStore = create<UserStore>()(
         },
         endSession: () => {
           const sessionDuration = Date.now() - get().sessionStartTime;
-          console.log(`Session ended. Duration: ${Math.round(sessionDuration / 1000)}s`);
+          logger.debug(`[UserStore] Session ended. Duration: ${Math.round(sessionDuration / 1000)}s`);
         },
         updateLastSync: () => {
           set({ lastSyncTime: Date.now() });

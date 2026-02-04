@@ -2,26 +2,28 @@
  * StorageService - Base class for all consolidated services
  *
  * Phase 1 Refactoring: Service Layer Consolidation
+ * Phase 4 Refactoring: Updated to use CacheManager for centralized caching
  *
  * This class provides:
  * - Server-first data access with IndexedDB cache fallback
- * - Unified caching strategy across all services
+ * - Unified caching strategy via CacheManager
  * - Consistent error handling pattern
  *
  * Architecture:
- * Component → service.ts (extends StorageService) → Backend (with IndexedDB cache)
+ * Component → service.ts (extends StorageService) → Backend (with CacheManager)
  */
 
 import { api } from './api';
-import { getDB } from '@/utils/db/database';
-import type { IDBPDatabase } from 'idb';
+import { cacheManager, type CacheOptions } from './cache/CacheManager';
+import { getCacheTTL } from '@/config/storage.config';
+import { logger } from '@/utils/logger';
 
 export interface StorageServiceOptions {
   /** Store name in IndexedDB for caching */
   storeName: string;
   /** API endpoint (e.g., '/findings', '/agents') */
   apiEndpoint: string;
-  /** Cache duration in milliseconds (default: 5 minutes) */
+  /** Cache duration in milliseconds (uses store-specific TTL if not specified) */
   cacheDuration?: number;
 }
 
@@ -33,7 +35,8 @@ export class StorageService<T extends { id: string }> {
   constructor(options: StorageServiceOptions) {
     this.storeName = options.storeName;
     this.apiEndpoint = options.apiEndpoint;
-    this.cacheDuration = options.cacheDuration ?? 5 * 60 * 1000; // 5 minutes default
+    // Use store-specific TTL from config, or provided value
+    this.cacheDuration = options.cacheDuration ?? getCacheTTL(options.storeName);
   }
 
   /**
@@ -48,6 +51,7 @@ export class StorageService<T extends { id: string }> {
     } catch (error) {
       // Fallback to cache if offline
       if (!navigator.onLine) {
+        logger.debug(`[${this.storeName}] Offline, using cache for ${id}`);
         return await this.getCached(id);
       }
       throw error;
@@ -66,6 +70,7 @@ export class StorageService<T extends { id: string }> {
     } catch (error) {
       // Fallback to cache if offline
       if (!navigator.onLine) {
+        logger.debug(`[${this.storeName}] Offline, using cache`);
         return await this.getAllCached(params);
       }
       throw error;
@@ -98,116 +103,79 @@ export class StorageService<T extends { id: string }> {
     await this.removeCached(id);
   }
 
-  // ==================== Cache Helpers ====================
+  // ==================== Cache Helpers (using CacheManager) ====================
 
   /**
-   * Cache a single item in IndexedDB
+   * Cache a single item using CacheManager
    */
-  protected async cacheItem(item: T): Promise<void> {
-    try {
-      const db = await getDB();
-      await db.put(this.storeName as any, {
-        ...item,
-        _cachedAt: Date.now()
-      });
-    } catch (error) {
-      // Cache errors are non-critical, just log
-      console.warn(`Failed to cache item in ${this.storeName}:`, error);
-    }
+  protected async cacheItem(item: T, options?: CacheOptions): Promise<void> {
+    await cacheManager.set(this.storeName, item.id, item, {
+      ttl: options?.ttl ?? this.cacheDuration,
+      ...options
+    });
   }
 
   /**
-   * Get a cached item from IndexedDB
+   * Get a cached item using CacheManager
    */
   protected async getCached(id: string): Promise<T | undefined> {
-    try {
-      const db = await getDB();
-      const item = await db.get(this.storeName as any, id);
-      if (item && this.isCacheValid(item)) {
-        return item;
-      }
-      return undefined;
-    } catch (error) {
-      console.warn(`Failed to get cached item from ${this.storeName}:`, error);
-      return undefined;
-    }
+    const cached = await cacheManager.get<T>(this.storeName, id);
+    return cached ?? undefined;
   }
 
   /**
-   * Cache multiple items in IndexedDB
+   * Cache multiple items using CacheManager
    */
-  protected async cacheAll(items: T[]): Promise<void> {
+  protected async cacheAll(items: T[], options?: CacheOptions): Promise<void> {
     if (!items || items.length === 0) return;
 
-    try {
-      const db = await getDB();
-      const tx = db.transaction(this.storeName as any, 'readwrite');
-      const store = tx.objectStore(this.storeName as any);
-      const timestamp = Date.now();
-
-      for (const item of items) {
-        await store.put({ ...item, _cachedAt: timestamp });
-      }
-
-      await tx.done;
-    } catch (error) {
-      console.warn(`Failed to cache items in ${this.storeName}:`, error);
-    }
+    await cacheManager.setMany(this.storeName, items, {
+      ttl: options?.ttl ?? this.cacheDuration,
+      ...options
+    });
   }
 
   /**
-   * Get all cached items from IndexedDB
+   * Get all cached items using CacheManager
+   * Filters out expired entries automatically
    */
   protected async getAllCached(params?: Record<string, any>): Promise<T[]> {
-    try {
-      const db = await getDB();
-      let items = await db.getAll(this.storeName as any);
+    let items = await cacheManager.getAll<T>(this.storeName);
 
-      // Filter out stale cache entries
-      items = items.filter(item => this.isCacheValid(item));
-
-      // Apply basic filtering if params provided
-      if (params) {
-        items = this.filterCachedItems(items, params);
-      }
-
-      return items;
-    } catch (error) {
-      console.warn(`Failed to get cached items from ${this.storeName}:`, error);
-      return [];
+    // Apply basic filtering if params provided
+    if (params) {
+      items = this.filterCachedItems(items, params);
     }
+
+    return items;
   }
 
   /**
-   * Remove a cached item from IndexedDB
+   * Remove a cached item using CacheManager
    */
   protected async removeCached(id: string): Promise<void> {
-    try {
-      const db = await getDB();
-      await db.delete(this.storeName as any, id);
-    } catch (error) {
-      console.warn(`Failed to remove cached item from ${this.storeName}:`, error);
-    }
+    await cacheManager.delete(this.storeName, id);
   }
 
   /**
    * Clear all cached items for this store
    */
   protected async clearCache(): Promise<void> {
-    try {
-      const db = await getDB();
-      await db.clear(this.storeName as any);
-    } catch (error) {
-      console.warn(`Failed to clear cache for ${this.storeName}:`, error);
-    }
+    await cacheManager.clear(this.storeName);
   }
 
   /**
-   * Check if a cached item is still valid
+   * Clear expired entries from cache
    */
-  protected isCacheValid(item: any): boolean {
-    if (!item._cachedAt) return false;
-    return Date.now() - item._cachedAt < this.cacheDuration;
+  protected async clearExpiredCache(): Promise<number> {
+    return await cacheManager.clearExpired(this.storeName);
+  }
+
+  /**
+   * Check if an item exists in cache
+   */
+  protected async hasCached(id: string): Promise<boolean> {
+    return await cacheManager.has(this.storeName, id);
   }
 
   /**
@@ -228,16 +196,16 @@ export class StorageService<T extends { id: string }> {
   // ==================== Utility Methods ====================
 
   /**
-   * Get database instance for direct access when needed
-   */
-  protected async getDB(): Promise<IDBPDatabase<any>> {
-    return await getDB();
-  }
-
-  /**
    * Check if we're online
    */
   protected isOnline(): boolean {
     return navigator.onLine;
+  }
+
+  /**
+   * Get cache statistics for this store
+   */
+  async getCacheStats() {
+    return await cacheManager.getStats(this.storeName);
   }
 }

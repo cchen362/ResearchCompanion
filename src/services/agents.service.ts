@@ -20,6 +20,7 @@ import * as searchApi from './api';
 import { getDB } from '@/utils/db/database';
 import { findingsService } from './findings.service';
 import { topicsService } from './topics.service';
+import { logger } from '@/utils/logger';
 import type { Agent, AgentConfig, AgentType, Topic, ResearchFinding } from '@/types';
 
 // ==================== API Response Types ====================
@@ -134,7 +135,7 @@ class AgentsService {
       if (!navigator.onLine) {
         return await this.getCachedAgents(topicId);
       }
-      console.error('Error fetching agents:', error);
+      logger.error('[AgentsService] Error fetching agents:', error);
       throw error;
     }
   }
@@ -159,7 +160,7 @@ class AgentsService {
         return await this.getCachedAgent(id);
       }
 
-      console.error('Error fetching agent:', error);
+      logger.error('[AgentsService] Error fetching agent:', error);
       throw error;
     }
   }
@@ -192,7 +193,7 @@ class AgentsService {
 
       throw new Error('Failed to create agent');
     } catch (error) {
-      console.error('Error creating agent:', error);
+      logger.error('[AgentsService] Error creating agent:', error);
       throw error;
     }
   }
@@ -210,7 +211,7 @@ class AgentsService {
 
       throw new Error('Failed to save agent');
     } catch (error) {
-      console.error('Error saving agent:', error);
+      logger.error('[AgentsService] Error saving agent:', error);
       throw error;
     }
   }
@@ -228,7 +229,7 @@ class AgentsService {
 
       throw new Error('Failed to update agent');
     } catch (error) {
-      console.error('Error updating agent:', error);
+      logger.error('[AgentsService] Error updating agent:', error);
       throw error;
     }
   }
@@ -243,7 +244,7 @@ class AgentsService {
 
       await this.removeCachedAgent(id);
     } catch (error) {
-      console.error('Error deleting agent:', error);
+      logger.error('[AgentsService] Error deleting agent:', error);
       throw error;
     }
   }
@@ -260,7 +261,7 @@ class AgentsService {
 
       throw new Error('Failed to create default agents');
     } catch (error) {
-      console.error('Error creating default agents:', error);
+      logger.error('[AgentsService] Error creating default agents:', error);
       throw error;
     }
   }
@@ -277,7 +278,7 @@ class AgentsService {
 
       throw new Error('Failed to toggle agent');
     } catch (error) {
-      console.error('Error toggling agent:', error);
+      logger.error('[AgentsService] Error toggling agent:', error);
       throw error;
     }
   }
@@ -295,7 +296,7 @@ class AgentsService {
         await this.updateAgent(agentId, { status });
       }
     } catch (error) {
-      console.error('Error setting agent status:', error);
+      logger.error('[AgentsService] Error setting agent status:', error);
     }
   }
 
@@ -309,7 +310,7 @@ class AgentsService {
     try {
       await api.post(`${this.baseUrl}/${agentId}/run`);
     } catch (error) {
-      console.error('Error updating agent after run:', error);
+      logger.error('[AgentsService] Error updating agent after run:', error);
     }
   }
 
@@ -341,7 +342,7 @@ class AgentsService {
     topic: Topic,
     options?: { skipDigestGeneration?: boolean }
   ): Promise<ResearchFinding[]> {
-    console.log(`Running agent ${agent.name} for topic ${topic.name}`);
+    logger.debug(`[AgentsService] Running agent ${agent.name} for topic ${topic.name}`);
 
     try {
       await this.setAgentStatus(agent.id, 'running');
@@ -352,11 +353,11 @@ class AgentsService {
       const query = this.buildSearchQuery(topic, agent.type);
 
       // Step 1: Parse the search intent
-      console.log('Parsing search query:', query);
+      logger.debug('[AgentsService] Parsing search query:', query);
       const parsedQuery = await searchApi.parseSearchQuery(query);
 
       if (parsedQuery.needsClarification) {
-        console.log('Query needs clarification:', parsedQuery.suggestions);
+        logger.debug('[AgentsService] Query needs clarification:', parsedQuery.suggestions);
         await this.updateAgentAfterRun(agent.id, 'failed', 0, 0, 'Query needs clarification');
         return [];
       }
@@ -395,7 +396,7 @@ class AgentsService {
           searchResults = [...(generalWeb.results || []), ...(generalPubmed.articles || [])];
       }
 
-      console.log(`Found ${searchResults.length} search results`);
+      logger.debug(`[AgentsService] Found ${searchResults.length} search results`);
 
       // Step 3: Process results
       if (searchResults.length > 0) {
@@ -444,7 +445,7 @@ class AgentsService {
             await findingsService.saveFinding(finding);
           } else {
             duplicatesSkipped++;
-            console.log(`Skipping duplicate finding: ${finding.title}`);
+            logger.debug(`[AgentsService] Skipping duplicate finding: ${finding.title}`);
           }
         }
 
@@ -460,7 +461,7 @@ class AgentsService {
       const actualNewCount = findings.length - duplicatesSkipped;
       await this.updateAgentAfterRun(agent.id, 'success', actualNewCount, apiCost);
 
-      console.log(`Agent run complete. Found ${actualNewCount} new findings (${duplicatesSkipped} duplicates skipped).`);
+      logger.debug(`[AgentsService] Agent run complete. Found ${actualNewCount} new findings (${duplicatesSkipped} duplicates skipped).`);
 
       return findings.filter(f =>
         !existingFindings.some(existing =>
@@ -470,7 +471,7 @@ class AgentsService {
       );
 
     } catch (error) {
-      console.error(`Agent ${agent.id} failed:`, error);
+      logger.error(`[AgentsService] Agent ${agent.id} failed:`, error);
       await this.updateAgentAfterRun(
         agent.id,
         'failed',
@@ -488,7 +489,7 @@ class AgentsService {
    * (This breaks the circular dependency with digestQueueService)
    */
   async runAllAgents(topicId: string): Promise<ResearchFinding[]> {
-    console.log(`Running all research agents for topic ${topicId}`);
+    logger.debug(`[AgentsService] Running all research agents for topic ${topicId}`);
 
     const topic = await topicsService.getTopic(topicId);
     if (!topic) {
@@ -499,7 +500,7 @@ class AgentsService {
     const activeAgents = allAgents.filter(a => a.status !== 'disabled');
 
     if (activeAgents.length === 0) {
-      console.log('No active agents found for topic');
+      logger.debug('[AgentsService] No active agents found for topic');
       return [];
     }
 
@@ -513,7 +514,7 @@ class AgentsService {
       const hoursSinceRun = (now - lastRunTime) / (1000 * 60 * 60);
 
       if (hoursSinceRun < MIN_HOURS_BETWEEN_RUNS) {
-        console.log(`[AGENT SCHEDULE] ${agent.name}: Skipping - ran ${hoursSinceRun.toFixed(1)} hours ago`);
+        logger.debug(`[AgentsService] ${agent.name}: Skipping - ran ${hoursSinceRun.toFixed(1)} hours ago`);
         return false;
       }
 
@@ -521,11 +522,11 @@ class AgentsService {
     });
 
     if (runnableAgents.length === 0) {
-      console.log('[AGENT SCHEDULE] All agents ran recently, skipping research');
+      logger.debug('[AgentsService] All agents ran recently, skipping research');
       return [];
     }
 
-    console.log(`[AGENT SCHEDULE] Running ${runnableAgents.length} of ${activeAgents.length} agents`);
+    logger.debug(`[AgentsService] Running ${runnableAgents.length} of ${activeAgents.length} agents`);
 
     const allFindings: ResearchFinding[] = [];
     const errors: string[] = [];
@@ -543,7 +544,7 @@ class AgentsService {
         return findings;
       } catch (error) {
         const errorMsg = `Agent ${agent.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(errorMsg);
+        logger.error('[AgentsService]', errorMsg);
         errors.push(errorMsg);
         return [];
       }
@@ -555,12 +556,12 @@ class AgentsService {
       allFindings.push(...findings);
     }
 
-    console.log(`Research complete: ${allFindings.length} new findings from ${activeAgents.length} agents`);
+    logger.debug(`[AgentsService] Research complete: ${allFindings.length} new findings from ${activeAgents.length} agents`);
 
     // CRITICAL: Emit event instead of calling digestQueueService directly
     // This breaks the circular dependency!
     if (allFindings.length > 0) {
-      console.log(`Emitting 'agents-complete' event for topic ${topicId} with ${allFindings.length} findings`);
+      logger.debug(`[AgentsService] Emitting 'agents-complete' event for topic ${topicId} with ${allFindings.length} findings`);
       window.dispatchEvent(new CustomEvent('agents-complete', {
         detail: { topicId, findingsCount: allFindings.length }
       }));
@@ -576,7 +577,7 @@ class AgentsService {
     topicId: string,
     agentTypes: AgentType[]
   ): Promise<ResearchFinding[]> {
-    console.log(`Running specific research agents for topic ${topicId}:`, agentTypes);
+    logger.debug(`[AgentsService] Running specific research agents for topic ${topicId}:`, agentTypes);
 
     const topic = await topicsService.getTopic(topicId);
     if (!topic) {
@@ -589,7 +590,7 @@ class AgentsService {
     );
 
     if (requestedAgents.length === 0) {
-      console.log('No matching active agents found');
+      logger.debug('[AgentsService] No matching active agents found');
       return [];
     }
 
@@ -600,7 +601,7 @@ class AgentsService {
         const findings = await this.runAgent(agent, topic, { skipDigestGeneration: true });
         allFindings.push(...findings);
       } catch (error) {
-        console.error(`Agent ${agent.name} failed:`, error);
+        logger.error(`[AgentsService] Agent ${agent.name} failed:`, error);
       }
     }
 
@@ -630,7 +631,7 @@ class AgentsService {
     }
 
     const newAgents = await this.createDefaultAgents(topicId);
-    console.log(`Created ${newAgents.length} default agents for topic ${topicId}`);
+    logger.debug(`[AgentsService] Created ${newAgents.length} default agents for topic ${topicId}`);
     return newAgents;
   }
 
@@ -764,7 +765,7 @@ class AgentsService {
         detail: { topicId: topic.id, findingsCount }
       }));
     } catch (error) {
-      console.error('Error in createNotification:', error);
+      logger.error('[AgentsService] Error in createNotification:', error);
     }
   }
 
@@ -775,7 +776,7 @@ class AgentsService {
       const db = await getDB();
       await db.put('agents', { ...agent, _cachedAt: Date.now() });
     } catch (error) {
-      console.warn('Failed to cache agent:', error);
+      logger.warn('[AgentsService] Failed to cache agent:', error);
     }
   }
 
@@ -791,7 +792,7 @@ class AgentsService {
 
       await tx.done;
     } catch (error) {
-      console.warn('Failed to cache agents:', error);
+      logger.warn('[AgentsService] Failed to cache agents:', error);
     }
   }
 
@@ -800,7 +801,7 @@ class AgentsService {
       const db = await getDB();
       return await db.get('agents', id);
     } catch (error) {
-      console.warn('Failed to get cached agent:', error);
+      logger.warn('[AgentsService] Failed to get cached agent:', error);
       return undefined;
     }
   }
@@ -813,7 +814,7 @@ class AgentsService {
       }
       return await db.getAll('agents');
     } catch (error) {
-      console.warn('Failed to get cached agents:', error);
+      logger.warn('[AgentsService] Failed to get cached agents:', error);
       return [];
     }
   }
@@ -823,7 +824,7 @@ class AgentsService {
       const db = await getDB();
       await db.delete('agents', id);
     } catch (error) {
-      console.warn('Failed to remove cached agent:', error);
+      logger.warn('[AgentsService] Failed to remove cached agent:', error);
     }
   }
 }

@@ -12,6 +12,7 @@ import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { logger } from '../utils/logger';
 import {
   MessageSquare,
   X,
@@ -73,16 +74,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
   // Load chats on mount
   useEffect(() => {
-    console.log('🔄 [ChatPanel] Loading chats for topic:', topicId);
+    logger.debug('[ChatPanel] Loading chats for topic:', topicId);
     loadChats(topicId);
   }, [topicId, loadChats]);
 
   // Auto-load messages if we have an active chat but no messages (e.g., after refresh)
   useEffect(() => {
     if (activeChatId && chatMessages.length === 0) {
-      console.log('📨 [ChatPanel] Active chat found but no messages, loading...');
+      logger.debug('[ChatPanel] Active chat found but no messages, loading...');
       loadMessages(activeChatId).catch(error => {
-        console.error('Failed to load messages for active chat:', error);
+        logger.error('[ChatPanel] Failed to load messages for active chat:', error);
       });
     }
   }, [activeChatId, chatMessages.length, loadMessages]);
@@ -96,7 +97,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         const { findingsService } = await import('../services/findings.service');
         const findings = await findingsService.getFindings(topicId);
         setTopicFindings(findings);
-        console.log(`Loaded ${findings.length} findings for chat context in topic ${topicId}`);
+        logger.debug(`[ChatPanel] Loaded ${findings.length} findings for chat context in topic ${topicId}`);
 
         // Auto-update context with all topic findings
         if (findings.length > 0) {
@@ -105,7 +106,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           });
         }
       } catch (error) {
-        console.error('Failed to load topic findings for chat:', error);
+        logger.error('[ChatPanel] Failed to load topic findings for chat:', error);
         showToast({
           type: 'warning',
           message: 'Could not load all research findings. Chat may have limited context.'
@@ -164,9 +165,9 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       try {
         const newChat = await createChat(topicId, `Chat about ${topicName}`);
         chatId = newChat.id;
-        console.log('Created new chat:', chatId);
+        logger.debug('[ChatPanel] Created new chat:', chatId);
       } catch (error) {
-        console.error('Failed to create chat:', error);
+        logger.error('[ChatPanel] Failed to create chat:', error);
         showToast({
           type: 'error',
           message: 'Failed to create chat. Please try again.'

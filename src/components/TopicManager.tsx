@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { topicsService } from '@/services/topics.service';
 import { agentsService } from '@/services/agents.service';
+import { logger } from '@/utils/logger';
 import type { Topic, DiseaseProfile, PatientContext, AgentType } from '@/types';
 
 interface TopicManagerProps {
@@ -36,7 +37,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
         onTopicsChange();
       }
     } catch (error) {
-      console.error('Error loading topics:', error);
+      logger.error('[TopicManager] Error loading topics:', error);
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
   const handleDeleteTopic = async (id: string) => {
     if (confirm('Are you sure you want to delete this topic and all associated data?\n\nThis will permanently delete:\n• All research findings\n• All digests\n• All agents\n• All chat conversations\n• All associated data\n\nThis action cannot be undone.')) {
       try {
-        console.log(`[TopicManager] Deleting topic ${id}`);
+        logger.debug(`[TopicManager] Deleting topic ${id}`);
         await topicsService.deleteTopic(id);
 
         // Notify other components that the topic was deleted
@@ -60,9 +61,9 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
         }
 
         // Show success message (if you have a toast system)
-        console.log(`[TopicManager] Successfully deleted topic ${id}`);
+        logger.debug(`[TopicManager] Successfully deleted topic ${id}`);
       } catch (error) {
-        console.error('[TopicManager] Failed to delete topic:', error);
+        logger.error('[TopicManager] Failed to delete topic:', error);
         alert('Failed to delete topic. Please try again or check the console for details.');
       }
     }
@@ -258,14 +259,14 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           }
         });
         } catch (agentError) {
-          console.error(`Error creating ${type} agent:`, agentError);
+          logger.error(`[TopicManager] Error creating ${type} agent:`, agentError);
           // Continue with next agent even if one fails
         }
       }
 
       onSuccess();
     } catch (error) {
-      console.error('Error creating topic:', error);
+      logger.error('[TopicManager] Error creating topic:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Failed to create topic: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. You are logged in (if using server storage)\n3. Network connection is working`);
     } finally {
@@ -400,7 +401,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
       await topicsService.updateTopicById(topic.id, updatedTopic);
       onSuccess();
     } catch (error) {
-      console.error('Error updating topic:', error);
+      logger.error('[TopicManager] Error updating topic:', error);
       alert('Failed to update topic. Please try again.');
     } finally {
       setUpdating(false);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '../../services/auth.service';
+import { logger } from '@/utils/logger';
 import { Loader2 } from 'lucide-react';
 
 interface AuthGuardProps {
@@ -29,7 +30,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       const user = await authService.verifyToken();
       setIsAuthenticated(!!user);
     } catch (error) {
-      console.error('Auth check failed:', error);
+      logger.error('Auth check failed:', error);
       setIsAuthenticated(false);
     } finally {
       setLoading(false);

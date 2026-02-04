@@ -6,21 +6,19 @@ import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import NotificationCenter from './components/NotificationCenter';
-import VoiceRecorder from './components/VoiceRecorder';
-import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanelMinimal';
 import { AnalyticsView } from './components/AnalyticsView';
-import { DebugPanel } from './components/DebugPanel';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
 import { notificationStream } from './services/notification-stream.service';
+import { logger } from './utils/logger';
 import type { Topic } from './types';
 import './App.css';
 
 function App() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'timeline' | 'voice' | 'analytics'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'analytics'>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -31,10 +29,10 @@ function App() {
   const refreshTopics = async () => {
     try {
       const allTopics = await topicsService.getTopics();
-      console.log('Refreshed topics:', allTopics.length, 'topics found');
+      logger.debug('[App] Refreshed topics:', allTopics.length, 'topics found');
       setTopics(allTopics);
     } catch (err) {
-      console.error('Failed to refresh topics:', err);
+      logger.error('[App] Failed to refresh topics:', err);
     }
   };
 
@@ -52,26 +50,11 @@ function App() {
         // Connect to notification stream for autonomous agent updates
         const token = localStorage.getItem('token');
         if (token) {
-          console.log('🔔 Connecting to notification stream...');
+          logger.debug('[App] Connecting to notification stream...');
           notificationStream.connect();
         }
-
-        // Service worker disabled - server-first architecture
-        // Per CLAUDE.md: No offline support, service worker removed
-        // try {
-        //   await registerServiceWorker();
-        //   // Listen for PWA install prompt
-        //   listenForInstallPrompt();
-        //   // Schedule agent checks every hour - but don't fail if it times out
-        //   scheduleAgentCheck(60).catch(err => {
-        //     console.warn('Agent scheduling failed (non-critical):', err);
-        //   });
-        // } catch (swError) {
-        //   console.warn('Service worker registration failed (non-critical):', swError);
-        //   // Continue without service worker - app still works
-        // }
       } catch (err) {
-        console.error('Failed to initialize app:', err);
+        logger.error('[App] Failed to initialize app:', err);
         setError('Failed to initialize the application. Please refresh the page.');
       }
     };
@@ -97,17 +80,17 @@ function App() {
   // Listen for agent completion and topic creation events
   useEffect(() => {
     const handleAgentComplete = () => {
-      console.log('Agent complete event received, refreshing topics...');
+      logger.debug('[App] Agent complete event received, refreshing topics...');
       refreshTopics();
     };
 
     const handleTopicCreated = () => {
-      console.log('Topic created event received, refreshing topics...');
+      logger.debug('[App] Topic created event received, refreshing topics...');
       refreshTopics();
     };
 
     const handleDigestCompleted = () => {
-      console.log('Digest completed event received, refreshing topics...');
+      logger.debug('[App] Digest completed event received, refreshing topics...');
       refreshTopics();
     };
 
@@ -118,7 +101,7 @@ function App() {
     // Handle server notifications from autonomous agents
     const handleServerNotification = (event: CustomEvent) => {
       const { notification } = event.detail;
-      console.log('Server notification received:', notification);
+      logger.debug('[App] Server notification received:', notification);
 
       // Refresh topics if autonomous agents found new research
       if (notification.type === 'agent_complete' || notification.type === 'digest_ready') {
@@ -220,26 +203,6 @@ function App() {
                 Findings
               </button>
               <button
-                onClick={() => setCurrentView('timeline')}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentView === 'timeline'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Timeline
-              </button>
-              <button
-                onClick={() => setCurrentView('voice')}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentView === 'voice'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Voice
-              </button>
-              <button
                 onClick={() => setCurrentView('analytics')}
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                   currentView === 'analytics'
@@ -276,7 +239,7 @@ function App() {
               {topics.length > 0 ? (
                 <button
                   onClick={() => {
-                    console.log('Chat button clicked, topics:', topics.length);
+                    logger.debug('[App] Chat button clicked, topics:', topics.length);
                     if (!selectedTopic && topics.length > 0) {
                       setSelectedTopic(topics[0]);
                     }
@@ -317,13 +280,6 @@ function App() {
         )}
         {currentView === 'agents' && <AgentMonitor />}
         {currentView === 'findings' && <ResearchPage />}
-        {currentView === 'timeline' && <Timeline />}
-        {currentView === 'voice' && (
-          <VoiceRecorder
-            topics={topics}
-            onComplete={refreshTopics}
-          />
-        )}
         {currentView === 'analytics' && <AnalyticsView />}
       </main>
 
@@ -339,8 +295,6 @@ function App() {
         </div>
       )}
 
-      {/* Debug Panel - shows actual DB state */}
-      <DebugPanel />
 
       {/* Test element to ensure rendering */}
       <div

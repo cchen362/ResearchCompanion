@@ -2,11 +2,11 @@ import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
 import { DB_VERSION, DB_NAME } from './version';
 import DatabaseMigrationHandler from './migration';
+import { logger } from '@/utils/logger';
 import type {
   Topic,
   Agent,
   ResearchFinding,
-  TimelineEvent,
   AudioRecording,
   Notification,
   ApiUsage,
@@ -44,15 +44,6 @@ interface MedCompanionDB extends DBSchema {
       'by-agent': string;
       'by-date': number;
       'by-relevance': number;
-    };
-  };
-  timeline: {
-    key: string;
-    value: TimelineEvent;
-    indexes: {
-      'by-date': number;
-      'by-type': string;
-      'by-topic': string;
     };
   };
   audio: {
@@ -158,12 +149,10 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
         findingsStore.createIndex('by-relevance', 'relevanceScore');
       }
 
-      // Timeline store
-      if (!db.objectStoreNames.contains('timeline')) {
-        const timelineStore = db.createObjectStore('timeline', { keyPath: 'id' });
-        timelineStore.createIndex('by-date', 'date');
-        timelineStore.createIndex('by-type', 'type');
-        timelineStore.createIndex('by-topic', 'topicId');
+      // Migration v8: Delete deprecated timeline store
+      if (db.objectStoreNames.contains('timeline')) {
+        db.deleteObjectStore('timeline');
+        logger.info('Migration v8: Deleted deprecated timeline store');
       }
 
       // Audio store
@@ -230,12 +219,12 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
 
     return dbInstance;
   } catch (error: any) {
-    console.error('Database initialization error:', error);
+    logger.error('Database initialization error:', error);
 
     // Check for version error and handle it automatically
     if (error.name === 'VersionError') {
-      console.error('IndexedDB version mismatch detected!');
-      console.error(`Attempted to open with version ${DB_VERSION}, but database may have different version`);
+      logger.error('IndexedDB version mismatch detected!');
+      logger.error(`Attempted to open with version ${DB_VERSION}, but database may have different version`);
 
       // Automatically handle the version mismatch
       await DatabaseMigrationHandler.handleVersionMismatch(error);
@@ -260,7 +249,7 @@ export async function getDB(): Promise<IDBPDatabase<MedCompanionDB>> {
 export async function requestPersistentStorage(): Promise<boolean> {
   if (navigator.storage?.persist) {
     const isPersisted = await navigator.storage.persist();
-    console.log(`Persistent storage ${isPersisted ? 'granted' : 'denied'}`);
+    logger.debug(`Persistent storage ${isPersisted ? 'granted' : 'denied'}`);
     return isPersisted;
   }
   return false;
@@ -295,7 +284,7 @@ export async function getStorageEstimate(): Promise<{
 // Clear all data (use with caution)
 export async function clearAllData(): Promise<void> {
   const db = await getDB();
-  const stores = ['topics', 'agents', 'findings', 'timeline', 'audio',
+  const stores = ['topics', 'agents', 'findings', 'audio',
                   'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
 
   const tx = db.transaction(stores, 'readwrite');
@@ -308,7 +297,7 @@ export async function exportAllData(): Promise<Record<string, any[]>> {
   const db = await getDB();
   const data: Record<string, any[]> = {};
 
-  const stores = ['topics', 'agents', 'findings', 'timeline', 'audio',
+  const stores = ['topics', 'agents', 'findings', 'audio',
                   'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
 
   for (const store of stores) {

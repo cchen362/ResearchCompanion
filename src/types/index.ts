@@ -232,53 +232,7 @@ export interface TopicConnection {
   sharedFindings?: string[];
 }
 
-// ============= PATIENT CARE & TIMELINE =============
-
-export type TimelineEventType =
-  | 'symptom'
-  | 'medication_change'
-  | 'appointment'
-  | 'lab_result'
-  | 'milestone'
-  | 'hospitalization'
-  | 'treatment_start'
-  | 'treatment_end'
-  | 'treatment' // Generic treatment event
-  | 'diagnosis' // Diagnosis event
-  | 'medication' // Generic medication event
-  | 'test_result' // Test result (alias for lab_result)
-  | 'procedure' // Medical procedure
-  | 'note' // General note
-  | 'outcome' // Treatment outcome
-  | 'doctor_visit' // Doctor visit (alias for appointment)
-  | 'voice_note' // Voice note recording
-  | 'research_finding'; // Research finding linked to timeline
-
-export interface TimelineEvent {
-  id: string;
-  date: number;
-  type: TimelineEventType;
-  title: string;
-  description?: string;
-  severity?: 'mild' | 'moderate' | 'severe';
-  audioRecordingId?: string;
-  images?: string[];
-  extractedData?: {
-    medications?: MedicationInfo[];
-    labValues?: LabResult[];
-    vitalSigns?: VitalSigns;
-    actionItems?: string[];
-  };
-  linkedTopicId?: string;
-  topicId?: string; // Alternative field name for topic association
-  tags?: string[]; // Tags for categorization
-  data?: any; // Additional data
-  notes?: string; // Additional notes
-  endDate?: number; // End date for treatments
-  timestamp?: number; // Alternative timestamp field
-  createdAt: number;
-  createdBy: string; // User ID
-}
+// ============= PATIENT CARE =============
 
 export interface MedicationInfo {
   name: string;
@@ -477,7 +431,6 @@ export interface DatabaseSchema {
   topics: Topic;
   agents: Agent;
   findings: ResearchFinding;
-  timeline: TimelineEvent;
   audio: AudioRecording;
   notifications: Notification;
   apiUsage: ApiUsage;

@@ -14,6 +14,7 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface DigestSettingsProps {
   topicId?: string;
@@ -52,7 +53,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
       const stats = await digestService.getCacheStats();
       setCacheStats(stats);
     } catch (error) {
-      console.error('Error loading cache stats:', error);
+      logger.error('Error loading cache stats:', error);
       setMessage({ type: 'error', text: 'Failed to load cache statistics' });
     } finally {
       setLoading(false);
@@ -68,7 +69,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
       }
       await loadCacheStats();
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      logger.error('Error clearing cache:', error);
       setMessage({ type: 'error', text: 'Failed to clear cache' });
     } finally {
       setLoading(false);

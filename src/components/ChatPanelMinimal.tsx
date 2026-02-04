@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { FindingDetailModal } from './FindingDetailModal';
 import { SuggestedQuestions } from './chat/SuggestedQuestions';
 import { useToast } from './ui/use-toast';
+import { logger } from '@/utils/logger';
 
 interface ChatPanelProps {
   topicId: string;
@@ -42,7 +43,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   useEffect(() => {
     const loadDependencies = async () => {
       try {
-        console.log('[ChatPanelMinimal] Loading stores dynamically...');
+        logger.debug('[ChatPanelMinimal] Loading stores dynamically...');
 
         // Load stores dynamically to avoid ANY circular dependencies
         const [chatStoreModule, researchStoreModule, uiStoreModule] = await Promise.all([
@@ -57,13 +58,13 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           useUIStore: uiStoreModule.useUIStore
         });
 
-        console.log('[ChatPanelMinimal] All stores loaded successfully');
+        logger.debug('[ChatPanelMinimal] All stores loaded successfully');
 
         // CRITICAL FIX: Wait for store hydration before loading chats
         let chatStore = chatStoreModule.useChatStore.getState();
-        console.log('[ChatPanelMinimal] Waiting for store hydration...');
+        logger.debug('[ChatPanelMinimal] Waiting for store hydration...');
         await chatStore.waitForHydration();
-        console.log('[ChatPanelMinimal] Store hydrated, loading chats...');
+        logger.debug('[ChatPanelMinimal] Store hydrated, loading chats...');
 
         // Now load initial data
         await chatStore.loadChats(topicId);
@@ -72,7 +73,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         chatStore = chatStoreModule.useChatStore.getState();
 
         // CRITICAL FIX: Check for existing chat before creating new one
-        console.log('[ChatPanelMinimal] Checking for existing chat:', {
+        logger.debug('[ChatPanelMinimal] Checking for existing chat:', {
           activeChatId: chatStore.activeChatId,
           activeChat: chatStore.activeChat?.id,
           activeTopicId: chatStore.activeChat?.topicId,
@@ -82,7 +83,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         // IMPORTANT: Check if active chat belongs to current topic
         if (chatStore.activeChat && chatStore.activeChat.topicId !== topicId) {
-          console.log('[ChatPanelMinimal] Active chat belongs to different topic, clearing it');
+          logger.debug('[ChatPanelMinimal] Active chat belongs to different topic, clearing it');
           chatStore.activeChatId = null;
           chatStore.activeChat = null;
           setMessages([]); // Clear messages from old topic
@@ -90,19 +91,19 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         // First, check if we already have an active chat ID from persistence
         if (chatStore.activeChatId && !chatStore.activeChat) {
-          console.log('[ChatPanelMinimal] Rehydrating chat from persisted ID:', chatStore.activeChatId);
+          logger.debug('[ChatPanelMinimal] Rehydrating chat from persisted ID:', chatStore.activeChatId);
           try {
             await chatStore.setActiveChat(chatStore.activeChatId);
 
             // Verify the rehydrated chat belongs to current topic
             if (chatStore.activeChat && chatStore.activeChat.topicId !== topicId) {
-              console.log('[ChatPanelMinimal] Rehydrated chat belongs to different topic, clearing it');
+              logger.debug('[ChatPanelMinimal] Rehydrated chat belongs to different topic, clearing it');
               chatStore.activeChatId = null;
               chatStore.activeChat = null;
               setMessages([]);
             }
           } catch (error) {
-            console.error('[ChatPanelMinimal] Failed to rehydrate chat (likely deleted):', error);
+            logger.error('[ChatPanelMinimal] Failed to rehydrate chat (likely deleted):', error);
             // Clear invalid chat ID
             chatStore.activeChatId = null;
             chatStore.activeChat = null;
@@ -113,22 +114,22 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         if (!chatStore.activeChat) {
           const existingChat = chatStore.getChatByTopicId(topicId);
           if (existingChat) {
-            console.log('[ChatPanelMinimal] Found existing chat for topic:', existingChat.id);
+            logger.debug('[ChatPanelMinimal] Found existing chat for topic:', existingChat.id);
             await chatStore.setActiveChat(existingChat.id);
           } else {
             // Only create new chat if no existing chat for this topic
-            console.log('[ChatPanelMinimal] No existing chat found, creating new one for topic:', topicId);
+            logger.debug('[ChatPanelMinimal] No existing chat found, creating new one for topic:', topicId);
             await chatStore.createChat(topicId);
           }
           // Get fresh state after creating/setting chat
           chatStore = chatStoreModule.useChatStore.getState();
         } else {
-          console.log('[ChatPanelMinimal] Using active chat:', chatStore.activeChat.id);
+          logger.debug('[ChatPanelMinimal] Using active chat:', chatStore.activeChat.id);
         }
 
         // Load messages for the active chat with proper async handling
         if (chatStore.activeChatId) {
-          console.log('[ChatPanelMinimal] Loading messages for chat:', chatStore.activeChatId);
+          logger.debug('[ChatPanelMinimal] Loading messages for chat:', chatStore.activeChatId);
 
           try {
             // Load messages from API/cache
@@ -137,17 +138,17 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             // Get fresh state and then the loaded messages
             const freshState = chatStoreModule.useChatStore.getState();
             const loadedMessages = freshState.messages.get(freshState.activeChatId) || [];
-            console.log('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
+            logger.debug('[ChatPanelMinimal] Messages loaded after API call:', loadedMessages.length);
 
             // Set messages regardless of count (even if 0, it's valid)
             setMessages(loadedMessages);
 
             // If no messages loaded, log for debugging
             if (loadedMessages.length === 0) {
-              console.log('[ChatPanelMinimal] No messages found for chat, this might be a new conversation');
+              logger.debug('[ChatPanelMinimal] No messages found for chat, this might be a new conversation');
             }
           } catch (error) {
-            console.error('[ChatPanelMinimal] Error loading messages:', error);
+            logger.error('[ChatPanelMinimal] Error loading messages:', error);
             // Don't set empty array on error, just keep current state
           }
         }
@@ -156,7 +157,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         const researchStore = researchStoreModule.useResearchStore.getState();
         await researchStore.loadFindings(topicId);
         const findingsForTopic = researchStore.getFindingsForTopic(topicId);
-        console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsForTopic.length);
+        logger.debug('[ChatPanelMinimal] Loaded findings for topic:', findingsForTopic.length);
 
         const unsubscribe = chatStoreModule.useChatStore.subscribe(
           (state) => state.messages,
@@ -169,11 +170,11 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         // Listen for topic deletion to clear stale chat references
         const handleTopicDeleted = (event: any) => {
-          console.log('[ChatPanelMinimal] Topic deleted event received:', event.detail);
+          logger.debug('[ChatPanelMinimal] Topic deleted event received:', event.detail);
           const deletedTopicId = event.detail?.topicId;
 
           if (deletedTopicId === topicId) {
-            console.log('[ChatPanelMinimal] Current topic was deleted, clearing chat');
+            logger.debug('[ChatPanelMinimal] Current topic was deleted, clearing chat');
             // Clear active chat and messages if the current topic was deleted
             const chatStore = chatStoreModule.useChatStore.getState();
             chatStore.activeChatId = null;
@@ -198,7 +199,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           window.removeEventListener('topic-deleted', handleTopicDeleted);
         };
       } catch (error) {
-        console.error('[ChatPanelMinimal] Failed to load dependencies:', error);
+        logger.error('[ChatPanelMinimal] Failed to load dependencies:', error);
       }
     };
 
@@ -206,7 +207,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   }, [topicId]);
 
   const handleCitationClick = async (findingId: string) => {
-    console.log('Citation clicked - Finding ID:', findingId);
+    logger.debug('[ChatPanelMinimal] Citation clicked - Finding ID:', findingId);
 
     // Try to get the finding from the research store
     if (stores) {
@@ -216,7 +217,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Only call if we have very few findings, as the store will handle caching
       const topicFindings = researchStore.getFindingsForTopic(topicId);
       if (topicFindings.length < 5) {
-        console.log('Few findings loaded, checking for more...');
+        logger.debug('[ChatPanelMinimal] Few findings loaded, checking for more...');
         await researchStore.loadFindings(topicId);
       }
 
@@ -225,21 +226,21 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
       // If not found in local store, try fetching from API
       if (!finding) {
-        console.log('Finding not in local store, fetching from API...');
+        logger.debug('[ChatPanelMinimal] Finding not in local store, fetching from API...');
         try {
           // Use loadFindingById which will fetch and cache the finding
           finding = await researchStore.loadFindingById(findingId);
 
           if (finding) {
-            console.log('Found finding from API:', finding);
+            logger.debug('[ChatPanelMinimal] Found finding from API:', finding);
           }
         } catch (error) {
-          console.error('Failed to fetch finding from API:', error);
+          logger.error('[ChatPanelMinimal] Failed to fetch finding from API:', error);
         }
       }
 
       if (finding) {
-        console.log('Found finding to display:', finding);
+        logger.debug('[ChatPanelMinimal] Found finding to display:', finding);
 
         // Open the modal with the finding details
         setSelectedFinding(finding);
@@ -248,9 +249,9 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         // Note: setSelectedFinding doesn't exist in UIStore
         // Modal state is managed locally via setSelectedFinding and setIsModalOpen
       } else {
-        console.log('Finding not found in store or API. Finding ID:', findingId);
+        logger.debug('[ChatPanelMinimal] Finding not found in store or API. Finding ID:', findingId);
         // Could show a toast notification here instead of alert
-        console.warn('Finding details not available. The finding may have been deleted or is not accessible.');
+        logger.warn('[ChatPanelMinimal] Finding details not available. The finding may have been deleted or is not accessible.');
       }
     }
   };
@@ -264,7 +265,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       const chatStore = stores.useChatStore.getState();
 
       if (!chatStore.activeChatId) {
-        console.error('No active chat to export');
+        logger.error('[ChatPanelMinimal] No active chat to export');
         return;
       }
 
@@ -284,7 +285,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('[ChatPanelMinimal] Export failed:', error);
       alert('Failed to export chat. Please try again.');
     }
   };
@@ -300,7 +301,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       const chatStore = stores.useChatStore.getState();
 
       if (!chatStore.activeChatId) {
-        console.error('No active chat to clear');
+        logger.error('[ChatPanelMinimal] No active chat to clear');
         return;
       }
 
@@ -312,7 +313,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Reload chat to reset state
       await chatStore.loadChats(topicId);
     } catch (error) {
-      console.error('Clear failed:', error);
+      logger.error('[ChatPanelMinimal] Clear failed:', error);
       alert('Failed to clear chat. Please try again.');
     }
   };
@@ -329,7 +330,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
       // Load findings directly from API to ensure we have server data
       const { findingsService } = await import('../services/findings.service');
-      console.log('[ChatPanel] Loading findings for topic from API...');
+      logger.debug('[ChatPanel] Loading findings for topic from API...');
 
       let topicFindings: any[] = [];
       try {
@@ -337,18 +338,18 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         // Get up to 50 findings for context to match backend's limit
         // This ensures all cited findings are available for citation extraction
         topicFindings = allFindings.slice(0, 50); // Increased from 20 to 50 to match backend
-        console.log('[ChatPanel] Loaded findings from API:', {
+        logger.debug('[ChatPanel] Loaded findings from API:', {
           totalCount: allFindings.length,
           usingCount: topicFindings.length,
           note: 'Using 50 findings to match backend citation extraction limit'
         });
       } catch (error) {
-        console.error('[ChatPanel] Failed to load findings:', error);
+        logger.error('[ChatPanel] Failed to load findings:', error);
         // Fall back to empty array if loading fails
         topicFindings = [];
       }
 
-      console.log('[ChatPanel] Sending findings context:', {
+      logger.debug('[ChatPanel] Sending findings context:', {
         count: topicFindings.length,
         findingIds: topicFindings.map((f: any) => f.id)
       });
@@ -412,7 +413,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       };
 
       // Debug logging for citations
-      console.log('📚 [ChatPanel] AI Response Citations:', {
+      logger.debug('[ChatPanel] AI Response Citations:', {
         totalCitations: response.data.citations?.length || 0,
         citations: response.data.citations,
         contentPreview: response.data.content.substring(0, 200)
@@ -426,7 +427,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         mentionedCitations.add(parseInt(match[1]));
       }
 
-      console.log('🔍 [ChatPanel] Citation Analysis:', {
+      logger.debug('[ChatPanel] Citation Analysis:', {
         mentionedInText: Array.from(mentionedCitations).sort((a, b) => a - b),
         providedInArray: response.data.citations?.map((c: any) => c.citationNumber).sort((a: any, b: any) => a - b) || [],
         missing: Array.from(mentionedCitations).filter(num =>
@@ -439,7 +440,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       // Update citation map if returned by backend
       if (response.data.citationMap) {
         setCitationMap(response.data.citationMap);
-        console.log('🗺️ [ChatPanel] Updated citation map:', response.data.citationMap);
+        logger.debug('[ChatPanel] Updated citation map:', response.data.citationMap);
       }
 
       // Set suggested questions if available
@@ -448,7 +449,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       }
 
       // Save to store if needed
-      console.log('💾 [ChatPanelMinimal] Attempting to save messages to store...', {
+      logger.debug('[ChatPanelMinimal] Attempting to save messages to store...', {
         hasStores: !!stores,
         activeChatId: stores?.useChatStore.getState().activeChatId,
         userMessageId: userMessage.id,
@@ -457,7 +458,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
       if (stores) {
         const chatStore = stores.useChatStore.getState();
-        console.log('💾 [ChatPanelMinimal] Chat store state:', {
+        logger.debug('[ChatPanelMinimal] Chat store state:', {
           hasAddMessage: !!chatStore.addMessage,
           activeChatId: chatStore.activeChatId,
           messageCount: chatStore.messages.get(chatStore.activeChatId!)?.length || 0
@@ -465,17 +466,17 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
         if (chatStore.addMessage && chatStore.activeChatId) {
           try {
-            console.log('💾 [ChatPanelMinimal] Saving user message...');
+            logger.debug('[ChatPanelMinimal] Saving user message...');
             await chatStore.addMessage(chatStore.activeChatId, userMessage);
-            console.log('✅ [ChatPanelMinimal] User message saved successfully');
+            logger.debug('[ChatPanelMinimal] User message saved successfully');
 
-            console.log('💾 [ChatPanelMinimal] Saving AI message...');
+            logger.debug('[ChatPanelMinimal] Saving AI message...');
             await chatStore.addMessage(chatStore.activeChatId, aiMessage);
-            console.log('✅ [ChatPanelMinimal] AI message saved successfully');
+            logger.debug('[ChatPanelMinimal] AI message saved successfully');
 
             // Verify messages were saved
             const savedMessages = chatStore.messages.get(chatStore.activeChatId);
-            console.log('🔍 [ChatPanelMinimal] Messages after save:', {
+            logger.debug('[ChatPanelMinimal] Messages after save:', {
               count: savedMessages?.length || 0,
               lastTwo: savedMessages?.slice(-2).map(m => ({
                 id: m.id,
@@ -485,7 +486,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
               }))
             });
           } catch (saveError) {
-            console.error('❌ [ChatPanelMinimal] Failed to save messages:', saveError);
+            logger.error('[ChatPanelMinimal] Failed to save messages:', saveError);
 
             // Show toast notification for save failure
             toast({
@@ -503,7 +504,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
                       description: 'Your conversation has been saved successfully.'
                     });
                   } catch (retryError) {
-                    console.error('❌ Retry failed:', retryError);
+                    logger.error('[ChatPanelMinimal] Retry failed:', retryError);
                   }
                 }
               }
@@ -512,16 +513,16 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
             // Don't re-throw, let the user continue chatting
           }
         } else {
-          console.warn('⚠️ [ChatPanelMinimal] Cannot save messages:', {
+          logger.warn('[ChatPanelMinimal] Cannot save messages:', {
             hasAddMessage: !!chatStore.addMessage,
             activeChatId: chatStore.activeChatId
           });
         }
       } else {
-        console.warn('⚠️ [ChatPanelMinimal] Stores not available, messages not saved to backend');
+        logger.warn('[ChatPanelMinimal] Stores not available, messages not saved to backend');
       }
     } catch (error: any) {
-      console.error('Failed to send message:', error);
+      logger.error('[ChatPanelMinimal] Failed to send message:', error);
       setIsLoading(false);
 
       // Show error message to user

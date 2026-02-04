@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { ChatMessage as ChatMessageType, SourceCitation } from '../types';
 import { format } from 'date-fns';
+import { logger } from '@/utils/logger';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -39,7 +40,7 @@ export function ChatMessage({
     if (!message.content) return '';
 
     // Debug logging to trace citation issue
-    console.log('📝 [ChatMessage] Rendering message with citations:', {
+    logger.debug('[ChatMessage] Rendering message with citations:', {
       citationsArray: message.citations,
       citationCount: message.citations?.length || 0,
       firstCitation: message.citations?.[0]
@@ -59,7 +60,7 @@ export function ChatMessage({
         const citationNum = parseInt(num);
         const citation = message.citations?.find(c => c.citationNumber === citationNum);
 
-        console.log(`🔍 [ChatMessage] Looking for citation [${num}]:`, {
+        logger.debug(`[ChatMessage] Looking for citation [${num}]:`, {
           searchingFor: citationNum,
           found: !!citation,
           citationObject: citation
@@ -196,7 +197,7 @@ export function ChatMessage({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      logger.error('Failed to copy:', error);
     }
   };
 

@@ -12,6 +12,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useResearchStore } from '../stores/researchStore';
+import { logger } from '@/utils/logger';
 import type { Finding, SourceCitation } from '../types';
 import { format } from 'date-fns';
 
@@ -36,7 +37,7 @@ export function CitationLink({ citation, onClose, className = '' }: CitationLink
         const data = await loadFindingById(citation.findingId);
         setFinding(data);
       } catch (error) {
-        console.error('Failed to load finding:', error);
+        logger.error('Failed to load finding:', error);
       } finally {
         setIsLoading(false);
       }

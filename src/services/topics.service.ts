@@ -13,6 +13,7 @@
 import { api } from '@/services/api';
 import { getDB } from '@/utils/db/database';
 import { storageConfig } from '@/config/storage.config';
+import { logger } from '@/utils/logger';
 import type { Topic, DiseaseProfile, PatientContext } from '@/types';
 
 // ============================================================================
@@ -131,7 +132,7 @@ class TopicsService {
       }
       await tx.done;
     } catch (error) {
-      console.warn('[TopicsService] Failed to cache topics:', error);
+      logger.warn('[TopicsService] Failed to cache topics:', error);
     }
   }
 
@@ -140,7 +141,7 @@ class TopicsService {
       const db = await getDB();
       await db.put('topics', { ...topic, _cachedAt: Date.now() });
     } catch (error) {
-      console.warn('[TopicsService] Failed to cache topic:', error);
+      logger.warn('[TopicsService] Failed to cache topic:', error);
     }
   }
 
@@ -149,7 +150,7 @@ class TopicsService {
       const db = await getDB();
       return await db.getAllFromIndex('topics', 'by-date');
     } catch (error) {
-      console.warn('[TopicsService] Failed to get cached topics:', error);
+      logger.warn('[TopicsService] Failed to get cached topics:', error);
       return [];
     }
   }
@@ -159,7 +160,7 @@ class TopicsService {
       const db = await getDB();
       return await db.get('topics', id);
     } catch (error) {
-      console.warn('[TopicsService] Failed to get cached topic:', error);
+      logger.warn('[TopicsService] Failed to get cached topic:', error);
       return undefined;
     }
   }
@@ -169,7 +170,7 @@ class TopicsService {
       const db = await getDB();
       await db.delete('topics', id);
     } catch (error) {
-      console.warn('[TopicsService] Failed to remove cached topic:', error);
+      logger.warn('[TopicsService] Failed to remove cached topic:', error);
     }
   }
 
@@ -197,10 +198,10 @@ class TopicsService {
       } catch (error) {
         // Fallback to cache if offline
         if (!navigator.onLine) {
-          console.log('[TopicsService] Offline - using cached topics');
+          logger.debug('[TopicsService] Offline - using cached topics');
           return await this.getCachedTopics();
         }
-        console.error('[TopicsService] Error fetching topics:', error);
+        logger.error('[TopicsService] Error fetching topics:', error);
         throw error;
       }
     }
@@ -232,10 +233,10 @@ class TopicsService {
         }
         // Fallback to cache if offline
         if (!navigator.onLine) {
-          console.log('[TopicsService] Offline - using cached topic');
+          logger.debug('[TopicsService] Offline - using cached topic');
           return await this.getCachedTopic(id);
         }
-        console.error('[TopicsService] Error fetching topic:', error);
+        logger.error('[TopicsService] Error fetching topic:', error);
         throw error;
       }
     }
@@ -287,7 +288,7 @@ class TopicsService {
 
         throw new Error('Failed to create topic');
       } catch (error) {
-        console.error('[TopicsService] Error creating topic:', error);
+        logger.error('[TopicsService] Error creating topic:', error);
         throw error;
       }
     }
@@ -343,7 +344,7 @@ class TopicsService {
 
         throw new Error('Failed to update topic');
       } catch (error) {
-        console.error('[TopicsService] Error updating topic:', error);
+        logger.error('[TopicsService] Error updating topic:', error);
         throw error;
       }
     }
@@ -368,7 +369,7 @@ class TopicsService {
    * Delete a topic and all associated data
    */
   async deleteTopic(id: string): Promise<void> {
-    console.log(`[TopicsService] Deleting topic ${id}`);
+    logger.debug(`[TopicsService] Deleting topic ${id}`);
 
     if (this.useServerStorage) {
       try {
@@ -386,10 +387,10 @@ class TopicsService {
           detail: { topicId: id }
         }));
 
-        console.log(`[TopicsService] Successfully deleted topic ${id}`);
+        logger.debug(`[TopicsService] Successfully deleted topic ${id}`);
         return;
       } catch (error) {
-        console.error(`[TopicsService] Failed to delete topic ${id}:`, error);
+        logger.error(`[TopicsService] Failed to delete topic ${id}:`, error);
         throw error;
       }
     }
@@ -402,7 +403,6 @@ class TopicsService {
     const findings = await db.getAllFromIndex('findings', 'by-topic', id);
     const digests = await db.getAllFromIndex('digests', 'by-topic', id);
     const chats = await db.getAllFromIndex('chats', 'by-topic', id);
-    const timeline = await db.getAllFromIndex('timeline', 'by-topic', id);
 
     // Get all notifications (filter for topic-related ones)
     const allNotifications = await db.getAll('notifications');
@@ -415,7 +415,7 @@ class TopicsService {
     // Delete everything in a transaction
     const tx = db.transaction([
       'topics', 'agents', 'findings', 'digests',
-      'chats', 'timeline', 'notifications'
+      'chats', 'notifications'
     ], 'readwrite');
 
     // Delete the topic itself
@@ -441,11 +441,6 @@ class TopicsService {
       await tx.objectStore('chats').delete(chat.id);
     }
 
-    // Delete associated timeline events
-    for (const event of timeline) {
-      await tx.objectStore('timeline').delete(event.id);
-    }
-
     // Delete associated notifications
     for (const notification of topicNotifications) {
       await tx.objectStore('notifications').delete(notification.id);
@@ -453,12 +448,11 @@ class TopicsService {
 
     await tx.done;
 
-    console.log(`[TopicsService] Deleted topic ${id} and all associated data:`, {
+    logger.debug(`[TopicsService] Deleted topic ${id} and all associated data:`, {
       agents: agents.length,
       findings: findings.length,
       digests: digests.length,
       chats: chats.length,
-      timeline: timeline.length,
       notifications: topicNotifications.length
     });
 
@@ -552,7 +546,7 @@ class TopicsService {
 
         throw new Error('Failed to archive topic');
       } catch (error) {
-        console.error('[TopicsService] Error archiving topic:', error);
+        logger.error('[TopicsService] Error archiving topic:', error);
         throw error;
       }
     }
@@ -576,7 +570,7 @@ class TopicsService {
           throw new Error('Failed to reorder topics');
         }
       } catch (error) {
-        console.error('[TopicsService] Error reordering topics:', error);
+        logger.error('[TopicsService] Error reordering topics:', error);
         throw error;
       }
     }

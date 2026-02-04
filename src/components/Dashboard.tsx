@@ -6,6 +6,7 @@ import { FileText, Bot, MessageSquare, TrendingUp, Plus, X } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore';
 import { findingsService } from '@/services/findings.service';
 import { digestService } from '@/services/digest.service';
+import { logger } from '@/utils/logger';
 
 interface DashboardProps {
   setCurrentView?: (view: string) => void;
@@ -28,7 +29,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
 
     // Initialize digest service to ensure it starts processing
     // This fixes the issue where digest generation requires navigation to Findings page
-    console.log('[Dashboard] Initializing digest service');
+    logger.debug('[Dashboard] Initializing digest service');
     // Simply importing the service ensures the singleton is created and queue processor starts
     const queueService = digestService;
   }, []);
@@ -43,11 +44,11 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
 
       // Warm digest cache for all topics in background
       if (allTopics.length > 0) {
-        console.log('[Dashboard] Warming digest cache for', allTopics.length, 'topics');
+        logger.debug('[Dashboard] Warming digest cache for', allTopics.length, 'topics');
         const topicIds = allTopics.map(t => t.id);
         // Fire and forget - don't await this as it runs in background
         digestService.warmCache(topicIds).catch(err => {
-          console.log('[Dashboard] Cache warming failed (non-critical):', err);
+          logger.debug('[Dashboard] Cache warming failed (non-critical):', err);
         });
       }
 
@@ -74,7 +75,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       const cost = await agentsService.getMonthlyApiCost();
       setMonthlyCost(cost);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      logger.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }

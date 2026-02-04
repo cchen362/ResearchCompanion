@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { agentsService } from '@/services/agents.service';
+import { logger } from '@/utils/logger';
 import type { Agent } from '@/types';
 
 interface AgentConfigModalProps {
@@ -25,7 +26,7 @@ export default function AgentConfigModal({ agent, onClose, onUpdate }: AgentConf
       onUpdate();
       onClose();
     } catch (error) {
-      console.error('Error updating agent config:', error);
+      logger.error('Error updating agent config:', error);
       alert('Failed to update agent configuration');
     } finally {
       setSaving(false);

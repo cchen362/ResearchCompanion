@@ -1,9 +1,19 @@
+/**
+ * Chat Store - Zustand state management for chat functionality
+ *
+ * Phase 4 Refactoring: Updated to use logger instead of console.log
+ *
+ * This store uses a hybrid storage pattern:
+ * - Server storage (PostgreSQL) when useServerStorage is true
+ * - Local storage (IndexedDB) when useServerStorage is false
+ */
+
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { FindingsChat, ChatMessage, ChatContext, SourceCitation } from '../types';
 import { getDB } from '../utils/db/database';
-// Removed chatAPIService import to avoid circular dependency
 import { storageConfig } from '../config/storage.config';
+import { logger } from '../utils/logger';
 
 interface ChatStore {
   // State
@@ -105,7 +115,7 @@ export const useChatStore = create<ChatStore>()(
 
             set({ chats });
           } catch (error) {
-            console.error('Failed to load chats:', error);
+            logger.error('[chatStore] Failed to load chats:', error);
             throw error;
           }
         },
@@ -169,7 +179,7 @@ export const useChatStore = create<ChatStore>()(
 
             return newChat;
           } catch (error) {
-            console.error('Failed to create chat:', error);
+            logger.error('[chatStore] Failed to create chat:', error);
             throw error;
           }
         },
@@ -180,14 +190,14 @@ export const useChatStore = create<ChatStore>()(
         },
 
         setActiveChat: async (chatId: string) => {
-          console.log('🔄 [chatStore] Setting active chat:', chatId);
+          logger.debug('[chatStore] Setting active chat:', chatId);
           try {
             const { chats } = get();
             let chat = chats.find(c => c.id === chatId);
 
             // If chat not in memory, try to load from server
             if (!chat && storageConfig.useServerStorage) {
-              console.log('🌐 [chatStore] Chat not in memory, loading from server...');
+              logger.debug('[chatStore] Chat not in memory, loading from server...');
               const { chatAPIService } = await import('../services/chat.api.service');
               const topicChats = await chatAPIService.getChats(undefined); // Get all chats
               chat = topicChats.find(c => c.id === chatId);
@@ -199,11 +209,11 @@ export const useChatStore = create<ChatStore>()(
             }
 
             if (!chat) {
-              console.error(`❌ [chatStore] Chat ${chatId} not found`);
+              logger.error(`[chatStore] Chat ${chatId} not found`);
               throw new Error(`Chat ${chatId} not found`);
             }
 
-            console.log('✅ [chatStore] Active chat set:', chat.title);
+            logger.debug('[chatStore] Active chat set:', chat.title);
             set({ activeChat: chat, activeChatId: chatId });
 
             // Load messages if not already loaded
@@ -217,7 +227,7 @@ export const useChatStore = create<ChatStore>()(
               set({ context: chat.context });
             }
           } catch (error) {
-            console.error('Failed to set active chat:', error);
+            logger.error('[chatStore] Failed to set active chat:', error);
             throw error;
           }
         },
@@ -256,7 +266,7 @@ export const useChatStore = create<ChatStore>()(
               activeChat: activeChat?.id === chatId ? updatedChat : activeChat
             });
           } catch (error) {
-            console.error('Failed to update chat:', error);
+            logger.error('[chatStore] Failed to update chat:', error);
             throw error;
           }
         },
@@ -289,7 +299,7 @@ export const useChatStore = create<ChatStore>()(
               messages: messagesMap
             });
           } catch (error) {
-            console.error('Failed to delete chat:', error);
+            logger.error('[chatStore] Failed to delete chat:', error);
             throw error;
           }
         },
@@ -309,23 +319,23 @@ export const useChatStore = create<ChatStore>()(
               context: initialContext
             });
           } catch (error) {
-            console.error('Failed to clear chats:', error);
+            logger.error('[chatStore] Failed to clear chats:', error);
             throw error;
           }
         },
 
         // Message Management
         loadMessages: async (chatId: string) => {
-          console.log('📨 [chatStore] Loading messages for chat:', chatId);
+          logger.debug('[chatStore] Loading messages for chat:', chatId);
           try {
             let messages: ChatMessage[];
 
             if (storageConfig.useServerStorage) {
               // Use API when server storage is enabled
-              console.log('📡 [chatStore] Fetching messages from API...');
+              logger.debug('[chatStore] Fetching messages from API...');
               const { chatAPIService } = await import('../services/chat.api.service');
               messages = await chatAPIService.getMessages(chatId);
-              console.log('✅ [chatStore] Loaded messages from API:', {
+              logger.debug('[chatStore] Loaded messages from API:', {
                 count: messages.length,
                 hasMessages: messages.length > 0,
                 firstMessageCitations: messages[0]?.citations?.length || 0
@@ -348,7 +358,7 @@ export const useChatStore = create<ChatStore>()(
             messagesMap.set(chatId, messages);
             set({ messages: new Map(messagesMap) });
           } catch (error) {
-            console.error('❌ [chatStore] Failed to load messages:', error);
+            logger.error('[chatStore] Failed to load messages:', error);
             // Initialize with empty array on error
             const messagesMap = get().messages;
             messagesMap.set(chatId, []);
@@ -357,7 +367,7 @@ export const useChatStore = create<ChatStore>()(
         },
 
         addMessage: async (chatId: string, messageData: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-          console.log('📨 [chatStore] addMessage called:', {
+          logger.debug('[chatStore] addMessage called:', {
             chatId,
             role: messageData.role,
             contentLength: messageData.content.length,
@@ -369,10 +379,10 @@ export const useChatStore = create<ChatStore>()(
             let newMessage: ChatMessage;
 
             if (storageConfig.useServerStorage) {
-              console.log('🌐 [chatStore] Using server storage, calling API...');
+              logger.debug('[chatStore] Using server storage, calling API...');
               // Use API when server storage is enabled
               const { chatAPIService } = await import('../services/chat.api.service');
-              console.log('🌐 [chatStore] Calling chatAPIService.addMessage...');
+              logger.debug('[chatStore] Calling chatAPIService.addMessage...');
               newMessage = await chatAPIService.addMessage(
                 chatId,
                 messageData.role,
@@ -380,12 +390,12 @@ export const useChatStore = create<ChatStore>()(
                 messageData.citations,
                 messageData.metadata
               );
-              console.log('✅ [chatStore] Message saved to server:', {
+              logger.debug('[chatStore] Message saved to server:', {
                 messageId: newMessage.id,
                 timestamp: newMessage.timestamp
               });
             } else {
-              console.log('💾 [chatStore] Using local IndexedDB storage...');
+              logger.debug('[chatStore] Using local IndexedDB storage...');
               // Fall back to IndexedDB for local storage
               const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
               const timestamp = new Date().toISOString();
@@ -439,7 +449,7 @@ export const useChatStore = create<ChatStore>()(
 
             return newMessage;
           } catch (error) {
-            console.error('Failed to add message:', error);
+            logger.error('[chatStore] Failed to add message:', error);
             throw error;
           }
         },
@@ -472,7 +482,7 @@ export const useChatStore = create<ChatStore>()(
             }
             // For server storage, we would need to implement an API endpoint to update messages
           } catch (error) {
-            console.error('Failed to update message:', error);
+            logger.error('[chatStore] Failed to update message:', error);
             throw error;
           }
         },
@@ -518,7 +528,7 @@ export const useChatStore = create<ChatStore>()(
             }
             // For server storage, we would need to implement an API endpoint to delete messages
           } catch (error) {
-            console.error('Failed to delete message:', error);
+            logger.error('[chatStore] Failed to delete message:', error);
             throw error;
           }
         },
@@ -619,23 +629,23 @@ export const useChatStore = create<ChatStore>()(
 
           // If already hydrated, return immediately
           if (state.isHydrated) {
-            console.log('✅ [chatStore] Already hydrated');
+            logger.debug('[chatStore] Already hydrated');
             return;
           }
 
           // If hydration promise exists, wait for it
           if (state.hydrationPromise) {
-            console.log('⏳ [chatStore] Waiting for existing hydration...');
+            logger.debug('[chatStore] Waiting for existing hydration...');
             return state.hydrationPromise;
           }
 
           // Create new hydration promise
-          console.log('🔄 [chatStore] Creating hydration promise...');
+          logger.debug('[chatStore] Creating hydration promise...');
           const promise = new Promise<void>((resolve) => {
             const checkHydration = setInterval(() => {
               if (get().isHydrated) {
                 clearInterval(checkHydration);
-                console.log('✅ [chatStore] Hydration complete!');
+                logger.debug('[chatStore] Hydration complete!');
                 resolve();
               }
             }, 50);
@@ -643,7 +653,7 @@ export const useChatStore = create<ChatStore>()(
             // Timeout after 3 seconds
             setTimeout(() => {
               clearInterval(checkHydration);
-              console.warn('⚠️ [chatStore] Hydration timeout - proceeding anyway');
+              logger.warn('[chatStore] Hydration timeout - proceeding anyway');
               set({ isHydrated: true });
               resolve();
             }, 3000);
@@ -665,18 +675,18 @@ export const useChatStore = create<ChatStore>()(
 
               // Handle Map deserialization properly
               if (parsed.state?.messages && Array.isArray(parsed.state.messages)) {
-                console.log('🔄 [chatStore] Deserializing messages Map from localStorage:', {
+                logger.debug('[chatStore] Deserializing messages Map from localStorage:', {
                   entriesCount: parsed.state.messages.length
                 });
                 parsed.state.messages = new Map(parsed.state.messages);
               } else if (parsed.state?.messages && !(parsed.state.messages instanceof Map)) {
-                console.warn('⚠️ [chatStore] Messages in unexpected format, creating new Map');
+                logger.warn('[chatStore] Messages in unexpected format, creating new Map');
                 parsed.state.messages = new Map();
               }
 
               return parsed;
             } catch (error) {
-              console.error('❌ [chatStore] Error deserializing from localStorage:', error);
+              logger.error('[chatStore] Error deserializing from localStorage:', error);
               return null;
             }
           },
@@ -694,14 +704,14 @@ export const useChatStore = create<ChatStore>()(
               }));
 
               const serialized = JSON.stringify(toStore);
-              console.log('💾 [chatStore] Serializing to localStorage:', {
+              logger.debug('[chatStore] Serializing to localStorage:', {
                 messageMapSize: value.state?.messages?.size || 0,
                 serializedLength: serialized.length
               });
 
               localStorage.setItem(name, serialized);
             } catch (error) {
-              console.error('❌ [chatStore] Error serializing to localStorage:', error);
+              logger.error('[chatStore] Error serializing to localStorage:', error);
             }
           },
           removeItem: async (name) => {
@@ -717,11 +727,11 @@ export const useChatStore = create<ChatStore>()(
         }),
         onRehydrateStorage: () => (state, error) => {
           if (error) {
-            console.error('❌ [chatStore] Rehydration error:', error);
+            logger.error('[chatStore] Rehydration error:', error);
             // Set hydrated to true even on error to prevent infinite waiting
             useChatStore.setState({ isHydrated: true });
           } else {
-            console.log('🔄 [chatStore] Rehydrated from localStorage:', {
+            logger.debug('[chatStore] Rehydrated from localStorage:', {
               chatsCount: state?.chats?.length || 0,
               hasActiveChat: !!state?.activeChat,
               activeChatId: state?.activeChatId,
@@ -733,12 +743,12 @@ export const useChatStore = create<ChatStore>()(
 
             // If we have a persisted activeChatId, load messages for it
             if (state?.activeChatId && !state?.messages?.has(state.activeChatId)) {
-              console.log('📨 [chatStore] Auto-loading messages for persisted chat:', state.activeChatId);
+              logger.debug('[chatStore] Auto-loading messages for persisted chat:', state.activeChatId);
               // Messages will be loaded by ChatPanelMinimal
             }
 
             // Mark as hydrated - this is the crucial fix!
-            console.log('✅ [chatStore] Setting isHydrated to true');
+            logger.debug('[chatStore] Setting isHydrated to true');
             useChatStore.setState({ isHydrated: true });
           }
         }

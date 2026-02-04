@@ -18,6 +18,7 @@ import { findingsService } from '@/services/findings.service';
 import { topicsService } from '@/services/topics.service';
 import { digestService } from '@/services/digest.service';
 import { agentsService } from '@/services/agents.service';
+import { logger } from '@/utils/logger';
 
 interface ResearchStore {
   // ============================================
@@ -122,7 +123,7 @@ export const useResearchStore = create<ResearchStore>()(
             set({ selectedTopicId: topics[0].id });
           }
         } catch (error) {
-          console.error('[ResearchStore] Error loading topics:', error);
+          logger.error('[ResearchStore] Error loading topics:', error);
         }
       },
 
@@ -139,7 +140,7 @@ export const useResearchStore = create<ResearchStore>()(
           // Mark findings as read
           await findingsService.markFindingsAsRead(topicId);
         } catch (error) {
-          console.error('[ResearchStore] Error loading findings:', error);
+          logger.error('[ResearchStore] Error loading findings:', error);
         }
       },
 
@@ -167,7 +168,7 @@ export const useResearchStore = create<ResearchStore>()(
             await digestService.saveDigest(digest);
           }
         } catch (error) {
-          console.error('[ResearchStore] Error loading digest:', error);
+          logger.error('[ResearchStore] Error loading digest:', error);
         }
       },
 
@@ -178,7 +179,7 @@ export const useResearchStore = create<ResearchStore>()(
             agents: new Map(state.agents).set(topicId, agents)
           }));
         } catch (error) {
-          console.error('[ResearchStore] Error loading agents:', error);
+          logger.error('[ResearchStore] Error loading agents:', error);
         }
       },
 
@@ -284,7 +285,7 @@ export const useResearchStore = create<ResearchStore>()(
           }
           return digest;
         } catch (error) {
-          console.error('[ResearchStore] Error generating digest:', error);
+          logger.error('[ResearchStore] Error generating digest:', error);
           return null;
         }
       },
@@ -344,7 +345,7 @@ export const useResearchStore = create<ResearchStore>()(
           }
           return finding;
         } catch (error) {
-          console.error('[ResearchStore] Error loading finding by ID:', error);
+          logger.error('[ResearchStore] Error loading finding by ID:', error);
           return null;
         }
       },

@@ -20,6 +20,7 @@ import { api, longOperationApi } from './api';
 import { getDB } from '@/utils/db/database';
 import { findingsService } from './findings.service';
 import { topicsService } from './topics.service';
+import { logger } from '@/utils/logger';
 import type {
   SmartDigest,
   DigestQueueItem,
@@ -240,7 +241,7 @@ class DigestService {
       if (!navigator.onLine) {
         return await this.getCachedDigests(topicId);
       }
-      console.error('Error fetching digests:', error);
+      logger.error('[DigestService] Error fetching digests:', error);
       throw error;
     }
   }
@@ -273,7 +274,7 @@ class DigestService {
         return cached.digest || undefined;
       }
 
-      console.error('Error fetching digest:', error);
+      logger.error('[DigestService] Error fetching digest:', error);
       throw error;
     }
   }
@@ -293,7 +294,7 @@ class DigestService {
       if (error.response?.status === 404) {
         return undefined;
       }
-      console.error('Error fetching digest by ID:', error);
+      logger.error('[DigestService] Error fetching digest by ID:', error);
       throw error;
     }
   }
@@ -318,7 +319,7 @@ class DigestService {
 
       throw new Error('Failed to save digest');
     } catch (error) {
-      console.error('Error saving digest:', error);
+      logger.error('[DigestService] Error saving digest:', error);
       throw error;
     }
   }
@@ -336,7 +337,7 @@ class DigestService {
 
       throw new Error('Failed to update digest');
     } catch (error) {
-      console.error('Error updating digest:', error);
+      logger.error('[DigestService] Error updating digest:', error);
       throw error;
     }
   }
@@ -351,7 +352,7 @@ class DigestService {
 
       await this.removeCachedDigest(id);
     } catch (error) {
-      console.error('Error deleting digest:', error);
+      logger.error('[DigestService] Error deleting digest:', error);
       throw error;
     }
   }
@@ -366,9 +367,61 @@ class DigestService {
 
       throw new Error('Failed to get stats');
     } catch (error) {
-      console.error('Error getting stats:', error);
+      logger.error('[DigestService] Error getting stats:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get all digests for a specific topic
+   * Convenience method for AnalyticsView
+   */
+  async getDigestsForTopic(topicId: string): Promise<SmartDigest[]> {
+    return this.getDigests(topicId);
+  }
+
+  /**
+   * Generate a smart digest from topic and findings
+   * This is a convenience method that queues digest generation and returns the result
+   */
+  async generateSmartDigest(topic: Topic, findings: ResearchFinding[]): Promise<SmartDigest> {
+    const queueItem = await this.queueDigestGeneration(
+      topic.id,
+      'all-time',
+      findings.map(f => f.id),
+      'high',
+      'user'
+    );
+
+    // Process the queue
+    await this.processQueue();
+
+    // Wait for digest to be generated (up to 2 minutes)
+    const maxWaitTime = 120000;
+    const startTime = Date.now();
+    const pollInterval = 2000;
+
+    while (Date.now() - startTime < maxWaitTime) {
+      const status = await this.getQueueStatusByTopic(topic.id);
+
+      if (!status || status.status === 'completed') {
+        // Fetch the latest digest
+        const digest = await this.getDigest(topic.id, 'all-time');
+        if (digest) {
+          return digest;
+        }
+        break;
+      }
+
+      if (status.status === 'failed') {
+        throw new Error(status.error || 'Digest generation failed');
+      }
+
+      // Wait before polling again
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error('Digest generation timed out');
   }
 
   // ==================== Queue Operations ====================
@@ -461,7 +514,7 @@ class DigestService {
   }
 
   async getQueueStatus(queueId: string): Promise<DigestQueueItem | null> {
-    console.warn('getQueueStatus by ID not yet implemented');
+    logger.warn('[DigestService] getQueueStatus by ID not yet implemented');
     return null;
   }
 
@@ -498,7 +551,7 @@ class DigestService {
       const response = await api.delete(`${this.queueBaseUrl}/${queueItemId}`);
       return response.data.success;
     } catch (error) {
-      console.error('Error cancelling queue item:', error);
+      logger.error('[DigestService] Error cancelling queue item:', error);
       return false;
     }
   }
@@ -542,8 +595,8 @@ class DigestService {
     // This method now just queues a digest from existing findings
     // To get new findings, the caller should first call agentsService.runAllAgents()
     // which will trigger 'agents-complete' event -> auto-queue digest
-    console.log(`[DigestService] refreshResearchAndDigest called for topic ${topicId}`);
-    console.log('[DigestService] NOTE: To fetch new findings, call agentsService.runAllAgents() first');
+    logger.debug(`[DigestService] refreshResearchAndDigest called for topic ${topicId}`);
+    logger.debug('[DigestService] NOTE: To fetch new findings, call agentsService.runAllAgents() first');
 
     return await this.queueDigestFromExistingFindings(topicId, timeframe);
   }
@@ -632,7 +685,7 @@ class DigestService {
       this.notifyCompletion(queueItem, savedDigest);
 
     } catch (error) {
-      console.error(`Failed to process queue item ${item.id}:`, error);
+      logger.error(`[DigestService] Failed to process queue item ${item.id}:`, error);
 
       await api.patch(`${this.queueBaseUrl}/${item.id}`, {
         status: 'failed',
@@ -725,7 +778,7 @@ class DigestService {
 
       return { digest: latestDigest, isStale };
     } catch (error) {
-      console.error('Error getting cached digest:', error);
+      logger.error('[DigestService] Error getting cached digest:', error);
       return { digest: null, isStale: false };
     }
   }
@@ -783,7 +836,7 @@ class DigestService {
 
       await this.cleanupOldVersions(digest.topicId, digest.timeframe);
     } catch (error) {
-      console.warn('Failed to cache digest:', error);
+      logger.warn('[DigestService] Failed to cache digest:', error);
     }
   }
 
@@ -801,7 +854,7 @@ class DigestService {
       }
       return await db.getAll('digests');
     } catch (error) {
-      console.warn('Failed to get cached digests:', error);
+      logger.warn('[DigestService] Failed to get cached digests:', error);
       return [];
     }
   }
@@ -811,7 +864,7 @@ class DigestService {
       const db = await getDB();
       await db.delete('digests', id);
     } catch (error) {
-      console.warn('Failed to remove cached digest:', error);
+      logger.warn('[DigestService] Failed to remove cached digest:', error);
     }
   }
 
@@ -834,7 +887,7 @@ class DigestService {
         }
       }
     } catch (error) {
-      console.warn('Failed to cleanup old versions:', error);
+      logger.warn('[DigestService] Failed to cleanup old versions:', error);
     }
   }
 
@@ -862,11 +915,11 @@ class DigestService {
   private async handleAgentsComplete(event: Event): Promise<void> {
     const { topicId, findingsCount } = (event as CustomEvent).detail;
     if (findingsCount > 0) {
-      console.log(`[DigestService] Agents completed for topic ${topicId} with ${findingsCount} findings, queueing digest...`);
+      logger.debug(`[DigestService] Agents completed for topic ${topicId} with ${findingsCount} findings, queueing digest...`);
       try {
         await this.queueDigestFromExistingFindings(topicId, 'weekly');
       } catch (error) {
-        console.error('[DigestService] Failed to queue digest after agent completion:', error);
+        logger.error('[DigestService] Failed to queue digest after agent completion:', error);
       }
     }
   }
@@ -888,12 +941,12 @@ class DigestService {
   // ==================== Lifecycle Methods ====================
 
   public startPolling(): void {
-    console.log('[DigestService] Initializing queue service after login');
+    logger.debug('[DigestService] Initializing queue service after login');
     setTimeout(() => this.processQueue(), 1000);
   }
 
   public stopPolling(): void {
-    console.log('[DigestService] Stopping queue polling on logout');
+    logger.debug('[DigestService] Stopping queue polling on logout');
     if (this.queueProcessorInterval) {
       clearInterval(this.queueProcessorInterval);
       this.queueProcessorInterval = null;

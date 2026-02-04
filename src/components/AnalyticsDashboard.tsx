@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { analyticsService } from '@/services/analytics.service';
-import type { ResearchFinding, TimelineEvent, SmartDigest } from '@/types';
+import type { ResearchFinding, SmartDigest } from '@/types';
 import type {
   SymptomCorrelation,
   TreatmentEffectiveness,
@@ -31,14 +31,12 @@ import { format } from 'date-fns';
 
 interface AnalyticsDashboardProps {
   findings: ResearchFinding[];
-  timeline: TimelineEvent[];
   digest?: SmartDigest;
   className?: string;
 }
 
 export function AnalyticsDashboard({
   findings,
-  timeline,
   digest,
   className
 }: AnalyticsDashboardProps) {
@@ -52,11 +50,11 @@ export function AnalyticsDashboard({
 
   useEffect(() => {
     // Generate analytics when data changes
-    if (timeline.length > 0) {
-      const summary = analyticsService.generateAnalyticsSummary(timeline, findings, digest);
+    if (findings.length > 0) {
+      const summary = analyticsService.generateAnalyticsSummary(findings, digest);
       setAnalytics(summary);
     }
-  }, [findings, timeline, digest]);
+  }, [findings, digest]);
 
   // Calculate key metrics
   const metrics = useMemo(() => {
@@ -84,7 +82,7 @@ export function AnalyticsDashboard({
       <div className={cn("p-6 text-center text-muted-foreground", className)}>
         <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
         <p>No analytics data available yet.</p>
-        <p className="text-sm mt-1">Add timeline events to see patterns and insights.</p>
+        <p className="text-sm mt-1">Add research findings to see patterns and insights.</p>
       </div>
     );
   }
@@ -122,7 +120,7 @@ export function AnalyticsDashboard({
           <CardContent>
             <div className="text-2xl font-bold">{metrics.patternCount}</div>
             <p className="text-xs text-muted-foreground">
-              In your timeline
+              In your research
             </p>
           </CardContent>
         </Card>
@@ -158,7 +156,7 @@ export function AnalyticsDashboard({
                 Pattern Analysis
               </CardTitle>
               <CardDescription>
-                Identified patterns in your health timeline
+                Identified patterns in your research findings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -296,7 +294,7 @@ export function AnalyticsDashboard({
             <CardHeader>
               <CardTitle>Treatment Effectiveness</CardTitle>
               <CardDescription>
-                Analysis of treatment outcomes based on your timeline
+                Analysis of treatment outcomes based on your research
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -393,7 +391,7 @@ export function AnalyticsDashboard({
             <CardHeader>
               <CardTitle>Research Insights</CardTitle>
               <CardDescription>
-                Key insights from your research and timeline
+                Key insights from your research findings
               </CardDescription>
             </CardHeader>
             <CardContent>

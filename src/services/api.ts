@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import type { VoiceTranscriptionResult } from '@/types';
+import { logger } from '@/utils/logger';
 
 // Fix for Git Bash path conversion issue - ensure we always get '/api' not Windows paths
 const API_URL = import.meta.env.VITE_API_BASE_URL?.startsWith('C:')
@@ -63,11 +64,11 @@ function applyInterceptors(instance: AxiosInstance) {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url} (timeout: ${config.timeout}ms)`);
+      logger.debug(`[API] Request: ${config.method?.toUpperCase()} ${config.url} (timeout: ${config.timeout}ms)`);
       return config;
     },
     (error) => {
-      console.error('API Request Error:', error);
+      logger.error('[API] Request Error:', error);
       return Promise.reject(error);
     }
   );
@@ -78,14 +79,14 @@ function applyInterceptors(instance: AxiosInstance) {
       return response;
     },
     (error) => {
-      console.error('API Response Error:', error);
+      logger.error('[API] Response Error:', error);
       if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
+        logger.error('[API] Response data:', error.response.data);
+        logger.error('[API] Response status:', error.response.status);
       } else if (error.request) {
-        console.error('No response received:', error.request);
+        logger.error('[API] No response received:', error.request);
       } else {
-        console.error('Error message:', error.message);
+        logger.error('[API] Error message:', error.message);
       }
       return Promise.reject(error);
     }

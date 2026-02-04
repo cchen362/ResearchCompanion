@@ -10,18 +10,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Download, FileText, FileSpreadsheet, FileJson, Loader2 } from 'lucide-react';
 import { exportService } from '@/services/export.service';
-import type { ResearchTopic, ResearchFinding, SmartDigest, TimelineEvent } from '@/types';
+import { logger } from '@/utils/logger';
+import type { ResearchTopic, ResearchFinding, SmartDigest } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 
 interface ExportMenuProps {
   topic: ResearchTopic;
   findings: ResearchFinding[];
   digest: SmartDigest | null;
-  timeline?: TimelineEvent[];
   className?: string;
 }
 
-export function ExportMenu({ topic, findings, digest, timeline = [], className }: ExportMenuProps) {
+export function ExportMenu({ topic, findings, digest, className }: ExportMenuProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const { toast } = useToast();
@@ -33,7 +33,7 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
     try {
       switch (format) {
         case 'pdf':
-          await exportService.exportAsPDF(topic, findings, digest, timeline);
+          await exportService.exportAsPDF(topic, findings, digest);
           toast({
             title: 'PDF exported successfully',
             description: 'Your medical research report has been downloaded.',
@@ -41,7 +41,7 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
           break;
 
         case 'excel':
-          await exportService.exportAsExcel(topic, findings, timeline, digest);
+          await exportService.exportAsExcel(topic, findings, digest);
           toast({
             title: 'Excel file exported successfully',
             description: 'Your research data has been downloaded.',
@@ -49,7 +49,7 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
           break;
 
         case 'fhir':
-          await exportService.exportAsFHIR(topic, findings, timeline);
+          await exportService.exportAsFHIR(topic, findings);
           toast({
             title: 'FHIR JSON exported successfully',
             description: 'Your medical data has been exported in FHIR format.',
@@ -57,7 +57,7 @@ export function ExportMenu({ topic, findings, digest, timeline = [], className }
           break;
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed:', error);
       toast({
         title: 'Export failed',
         description: 'There was an error exporting your data. Please try again.',

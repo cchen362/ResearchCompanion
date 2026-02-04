@@ -12,6 +12,7 @@
 
 import { api } from './api';
 import { getDB } from '@/utils/db/database';
+import { logger } from '@/utils/logger';
 import type { ResearchFinding } from '@/types';
 
 // API Response types
@@ -163,7 +164,7 @@ class FindingsService {
       if (!navigator.onLine) {
         return await this.getCachedFindings(topicId, options);
       }
-      console.error('Error fetching findings:', error);
+      logger.error('[FindingsService] Error fetching findings:', error);
       throw error;
     }
   }
@@ -192,7 +193,7 @@ class FindingsService {
         return await this.getCachedFinding(id);
       }
 
-      console.error('Error fetching finding:', error);
+      logger.error('[FindingsService] Error fetching finding:', error);
       throw error;
     }
   }
@@ -221,7 +222,7 @@ class FindingsService {
 
       throw new Error('Failed to save finding');
     } catch (error) {
-      console.error('Error saving finding:', error);
+      logger.error('[FindingsService] Error saving finding:', error);
       throw error;
     }
   }
@@ -246,7 +247,7 @@ class FindingsService {
 
       throw new Error('Failed to save findings');
     } catch (error) {
-      console.error('Error saving findings:', error);
+      logger.error('[FindingsService] Error saving findings:', error);
       throw error;
     }
   }
@@ -270,7 +271,7 @@ class FindingsService {
 
       throw new Error('Failed to update finding');
     } catch (error) {
-      console.error('Error updating finding:', error);
+      logger.error('[FindingsService] Error updating finding:', error);
       throw error;
     }
   }
@@ -288,7 +289,7 @@ class FindingsService {
 
       await this.removeCachedFinding(id);
     } catch (error) {
-      console.error('Error deleting finding:', error);
+      logger.error('[FindingsService] Error deleting finding:', error);
       throw error;
     }
   }
@@ -313,7 +314,7 @@ class FindingsService {
 
       throw new Error('Failed to delete findings');
     } catch (error) {
-      console.error('Error deleting findings:', error);
+      logger.error('[FindingsService] Error deleting findings:', error);
       throw error;
     }
   }
@@ -338,7 +339,7 @@ class FindingsService {
 
       throw new Error('Failed to mark finding as read');
     } catch (error) {
-      console.error('Error marking finding as read:', error);
+      logger.error('[FindingsService] Error marking finding as read:', error);
       throw error;
     }
   }
@@ -356,7 +357,7 @@ class FindingsService {
         unreadFindings.map(f => this.markFindingAsRead(f.id))
       );
     } catch (error) {
-      console.error('Error marking findings as read:', error);
+      logger.error('[FindingsService] Error marking findings as read:', error);
       throw error;
     }
   }
@@ -378,7 +379,7 @@ class FindingsService {
 
       throw new Error('Failed to toggle star');
     } catch (error) {
-      console.error('Error toggling star:', error);
+      logger.error('[FindingsService] Error toggling star:', error);
       throw error;
     }
   }
@@ -407,7 +408,7 @@ class FindingsService {
       if (!navigator.onLine) {
         return await this.searchCachedFindings(query, topicId);
       }
-      console.error('Error searching findings:', error);
+      logger.error('[FindingsService] Error searching findings:', error);
       throw error;
     }
   }
@@ -433,7 +434,7 @@ class FindingsService {
       if (!navigator.onLine) {
         return await this.getCachedStats(topicId);
       }
-      console.error('Error getting stats:', error);
+      logger.error('[FindingsService] Error getting stats:', error);
       throw error;
     }
   }
@@ -451,7 +452,7 @@ class FindingsService {
         _cachedAt: Date.now()
       });
     } catch (error) {
-      console.warn('Failed to cache finding:', error);
+      logger.warn('[FindingsService] Failed to cache finding:', error);
     }
   }
 
@@ -472,7 +473,7 @@ class FindingsService {
 
       await tx.done;
     } catch (error) {
-      console.warn('Failed to cache findings:', error);
+      logger.warn('[FindingsService] Failed to cache findings:', error);
     }
   }
 
@@ -484,7 +485,7 @@ class FindingsService {
       const db = await getDB();
       return await db.get('findings', id);
     } catch (error) {
-      console.warn('Failed to get cached finding:', error);
+      logger.warn('[FindingsService] Failed to get cached finding:', error);
       return undefined;
     }
   }
@@ -514,7 +515,7 @@ class FindingsService {
 
       return findings;
     } catch (error) {
-      console.warn('Failed to get cached findings:', error);
+      logger.warn('[FindingsService] Failed to get cached findings:', error);
       return [];
     }
   }
@@ -527,7 +528,7 @@ class FindingsService {
       const db = await getDB();
       await db.delete('findings', id);
     } catch (error) {
-      console.warn('Failed to remove cached finding:', error);
+      logger.warn('[FindingsService] Failed to remove cached finding:', error);
     }
   }
 

@@ -1,4 +1,5 @@
 import { api } from './api';
+import { logger } from '@/utils/logger';
 import type {
   ChatMessage,
   FindingsChat,
@@ -79,7 +80,7 @@ class ChatService {
         return response.data;
       }
     } catch (error) {
-      console.error('Failed to send chat message:', error);
+      logger.error('[ChatService] Failed to send chat message:', error);
       throw error;
     }
   }
@@ -130,7 +131,7 @@ class ChatService {
             });
           }
         } catch (error) {
-          console.error('Error parsing stream chunk:', error);
+          logger.error('[ChatService] Error parsing stream chunk:', error);
         }
       };
 
@@ -149,7 +150,7 @@ class ChatService {
       const response = await api.get(`/topics/${topicId}/chats`);
       return response.data || [];
     } catch (error) {
-      console.error('Failed to get chats:', error);
+      logger.error('[ChatService] Failed to get chats:', error);
       return [];
     }
   }
@@ -162,7 +163,7 @@ class ChatService {
       const response = await api.get(`/topics/${topicId}/chats/${chatId}`);
       return response.data;
     } catch (error) {
-      console.error('Failed to get chat:', error);
+      logger.error('[ChatService] Failed to get chat:', error);
       return null;
     }
   }
@@ -181,7 +182,7 @@ class ChatService {
       });
       return response.data;
     } catch (error) {
-      console.error('Failed to create chat:', error);
+      logger.error('[ChatService] Failed to create chat:', error);
       throw error;
     }
   }
@@ -198,7 +199,7 @@ class ChatService {
       const response = await api.put(`/topics/${topicId}/chats/${chatId}`, updates);
       return response.data;
     } catch (error) {
-      console.error('Failed to update chat:', error);
+      logger.error('[ChatService] Failed to update chat:', error);
       throw error;
     }
   }
@@ -210,7 +211,7 @@ class ChatService {
     try {
       await api.delete(`/topics/${topicId}/chats/${chatId}`);
     } catch (error) {
-      console.error('Failed to delete chat:', error);
+      logger.error('[ChatService] Failed to delete chat:', error);
       throw error;
     }
   }
@@ -232,7 +233,7 @@ class ChatService {
 
       return messages;
     } catch (error) {
-      console.error('Failed to get messages:', error);
+      logger.error('[ChatService] Failed to get messages:', error);
       return [];
     }
   }
@@ -252,7 +253,7 @@ class ChatService {
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to save message:', error);
+      logger.error('[ChatService] Failed to save message:', error);
       throw error;
     }
   }
@@ -268,7 +269,7 @@ class ChatService {
     try {
       await api.delete(`/topics/${topicId}/chats/${chatId}/messages/${messageId}`);
     } catch (error) {
-      console.error('Failed to delete message:', error);
+      logger.error('[ChatService] Failed to delete message:', error);
       throw error;
     }
   }
@@ -280,7 +281,7 @@ class ChatService {
     try {
       await api.delete(`/topics/${topicId}/chats/${chatId}/messages`);
     } catch (error) {
-      console.error('Failed to clear messages:', error);
+      logger.error('[ChatService] Failed to clear messages:', error);
       throw error;
     }
   }
@@ -304,7 +305,7 @@ class ChatService {
 
       return messages;
     } catch (error) {
-      console.error('Failed to search messages:', error);
+      logger.error('[ChatService] Failed to search messages:', error);
       return [];
     }
   }
@@ -323,7 +324,7 @@ class ChatService {
       });
       return response.data;
     } catch (error) {
-      console.error('Failed to export chat:', error);
+      logger.error('[ChatService] Failed to export chat:', error);
       throw error;
     }
   }
@@ -341,7 +342,7 @@ class ChatService {
       });
       return response.data || [];
     } catch (error) {
-      console.error('Failed to get suggestions:', error);
+      logger.error('[ChatService] Failed to get suggestions:', error);
       return [];
     }
   }
@@ -362,7 +363,7 @@ class ChatService {
       const allTopicFindings = await findingsService.getFindings(topicId);
 
       if (!allTopicFindings || allTopicFindings.length === 0) {
-        console.log(`No findings found for topic ${topicId}`);
+        logger.debug(`[ChatService] No findings found for topic ${topicId}`);
         return [];
       }
 
@@ -391,7 +392,7 @@ class ChatService {
                 addUnique(individualFinding);
               }
             } catch (err) {
-              console.warn(`Could not fetch individual finding ${citationId}:`, err);
+              logger.warn(`[ChatService] Could not fetch individual finding ${citationId}:`, err);
             }
           }
         }
@@ -429,10 +430,10 @@ class ChatService {
         addUnique(finding);
       }
 
-      console.log(`Loaded ${findings.length} findings for chat context from topic ${topicId}`);
+      logger.debug(`[ChatService] Loaded ${findings.length} findings for chat context from topic ${topicId}`);
       return findings;
     } catch (error) {
-      console.error('Failed to get context findings:', error);
+      logger.error('[ChatService] Failed to get context findings:', error);
       // Return empty array on error to allow chat to continue
       return [];
     }
@@ -458,7 +459,7 @@ class ChatService {
           content: m.content.substring(0, 1000) // Truncate for context
         }));
     } catch (error) {
-      console.error('Failed to get recent messages:', error);
+      logger.error('[ChatService] Failed to get recent messages:', error);
       // Return empty array on error
       return [];
     }
@@ -491,13 +492,13 @@ class ChatService {
             });
           }
         } catch (err) {
-          console.warn(`Could not process citation for finding ${raw.findingId}:`, err);
+          logger.warn(`[ChatService] Could not process citation for finding ${raw.findingId}:`, err);
         }
       }
 
       return processed;
     } catch (error) {
-      console.error('Failed to process citations:', error);
+      logger.error('[ChatService] Failed to process citations:', error);
       return [];
     }
   }

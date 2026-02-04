@@ -3,6 +3,7 @@ import { agentsService, runAgentWithAPI, runAllResearchAgents } from '@/services
 import { topicsService } from '@/services/topics.service';
 import AgentConfigModal from './AgentConfigModal';
 import { useUIStore } from '@/stores/uiStore';
+import { logger } from '@/utils/logger';
 import type { Agent } from '@/types';
 
 export default function AgentMonitor() {
@@ -38,13 +39,13 @@ export default function AgentMonitor() {
             topicMap.set(topicId, topic.name);
           }
         } catch (error) {
-          console.error(`Error loading topic ${topicId}:`, error);
+          logger.error(`Error loading topic ${topicId}:`, error);
         }
       }
 
       setTopics(topicMap);
     } catch (error) {
-      console.error('Error loading agents:', error);
+      logger.error('Error loading agents:', error);
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,7 @@ export default function AgentMonitor() {
 
       await loadAgents();
     } catch (error) {
-      console.error('Error running agent:', error);
+      logger.error('Error running agent:', error);
       showToast({
         type: 'error',
         message: 'Failed to run agent. Check console for details.',
@@ -168,7 +169,7 @@ export default function AgentMonitor() {
       });
 
     } catch (error) {
-      console.error('Error running agents:', error);
+      logger.error('Error running agents:', error);
       setIsRunningAll(false);
       setRunningAllProgress({ current: 0, total: 0 });
 

@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { initDB, requestPersistentStorage } from './utils/db/database';
 import { topicsService } from './services/topics.service';
-import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } from './utils/serviceWorker';
+import { logger } from '@/utils/logger';
 import { authService } from './services/auth.service';
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
-import VoiceRecorder from './components/VoiceRecorder';
-import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanelMinimal';
 import { AnalyticsView } from './components/AnalyticsView';
@@ -25,7 +23,7 @@ import './App.css';
 
 function MainApp() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'timeline' | 'voice' | 'research'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'research'>('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -45,7 +43,7 @@ function MainApp() {
         setSelectedTopic(allTopics[0]);
       }
     } catch (err) {
-      console.error('Failed to refresh topics:', err);
+      logger.error('Failed to refresh topics:', err);
     }
   };
 
@@ -65,20 +63,8 @@ function MainApp() {
 
         // Load topics
         await refreshTopics();
-
-        // Service worker disabled - server-first architecture
-        // Per CLAUDE.md: No offline support, service worker removed
-        // try {
-        //   await registerServiceWorker();
-        //   listenForInstallPrompt();
-        //   scheduleAgentCheck(60).catch(err => {
-        //     console.warn('Agent scheduling failed (non-critical):', err);
-        //   });
-        // } catch (swError) {
-        //   console.warn('Service worker registration failed (non-critical):', swError);
-        // }
       } catch (err) {
-        console.error('Failed to initialize app:', err);
+        logger.error('Failed to initialize app:', err);
         setError('Failed to initialize the application. Please refresh the page.');
       }
     };
@@ -208,26 +194,6 @@ function MainApp() {
                 Findings
               </button>
               <button
-                onClick={() => setCurrentView('timeline')}
-                className={`hidden lg:block px-2 py-1 rounded-md text-sm font-medium ${
-                  currentView === 'timeline'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Timeline
-              </button>
-              <button
-                onClick={() => setCurrentView('voice')}
-                className={`hidden lg:block px-2 py-1 rounded-md text-sm font-medium ${
-                  currentView === 'voice'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Voice
-              </button>
-              <button
                 onClick={() => setCurrentView('research')}
                 className={`hidden md:block px-2 py-1 rounded-md text-sm font-medium ${
                   currentView === 'research'
@@ -345,32 +311,6 @@ function MainApp() {
             </button>
             <button
               onClick={() => {
-                setCurrentView('timeline');
-                setMobileMenuOpen(false);
-              }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
-                currentView === 'timeline'
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Timeline
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView('voice');
-                setMobileMenuOpen(false);
-              }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
-                currentView === 'voice'
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Voice
-            </button>
-            <button
-              onClick={() => {
                 setCurrentView('research');
                 setMobileMenuOpen(false);
               }}
@@ -424,15 +364,6 @@ function MainApp() {
           {currentView === 'findings' && (
             <ResearchPage
               topicId={selectedTopic?.id}
-            />
-          )}
-          {currentView === 'timeline' && (
-            <Timeline topicId={selectedTopic?.id} />
-          )}
-          {currentView === 'voice' && (
-            <VoiceRecorder
-              topicId={selectedTopic?.id}
-              topics={topics}
             />
           )}
           {currentView === 'research' && (

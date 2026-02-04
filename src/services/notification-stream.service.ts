@@ -5,6 +5,7 @@
 
 import { api } from './api';
 import { toast } from '@/components/ui/use-toast';
+import { logger } from '@/utils/logger';
 
 export interface ServerNotification {
   id: string;
@@ -38,14 +39,14 @@ class NotificationStreamService {
    */
   connect(): void {
     if (this.eventSource) {
-      console.log('[NotificationStream] Already connected');
+      logger.debug('[NotificationStream] Already connected');
       return;
     }
 
     // Get auth token
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('[NotificationStream] No auth token, skipping connection');
+      logger.warn('[NotificationStream] No auth token, skipping connection');
       return;
     }
 
@@ -61,7 +62,7 @@ class NotificationStreamService {
       this.setupEventHandlers();
 
     } catch (error) {
-      console.error('[NotificationStream] Failed to connect:', error);
+      logger.error('[NotificationStream] Failed to connect:', error);
       this.scheduleReconnect();
     }
   }
@@ -74,7 +75,7 @@ class NotificationStreamService {
 
     // Connection opened
     this.eventSource.onopen = () => {
-      console.log('[NotificationStream] Connected to notification stream');
+      logger.debug('[NotificationStream] Connected to notification stream');
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.reconnectDelay = 5000; // Reset delay
@@ -86,13 +87,13 @@ class NotificationStreamService {
         const data: NotificationEvent = JSON.parse(event.data);
         this.handleNotificationEvent(data);
       } catch (error) {
-        console.error('[NotificationStream] Error parsing message:', error);
+        logger.error('[NotificationStream] Error parsing message:', error);
       }
     };
 
     // Handle errors
     this.eventSource.onerror = (error) => {
-      console.error('[NotificationStream] Connection error:', error);
+      logger.error('[NotificationStream] Connection error:', error);
       this.isConnected = false;
       this.eventSource?.close();
       this.eventSource = null;
@@ -106,12 +107,12 @@ class NotificationStreamService {
   private handleNotificationEvent(event: NotificationEvent): void {
     switch (event.type) {
       case 'connected':
-        console.log('[NotificationStream] Connection confirmed at', event.timestamp);
+        logger.debug('[NotificationStream] Connection confirmed at', event.timestamp);
         break;
 
       case 'initial':
         if (event.notifications && event.notifications.length > 0) {
-          console.log(`[NotificationStream] Received ${event.notifications.length} initial notifications`);
+          logger.debug(`[NotificationStream] Received ${event.notifications.length} initial notifications`);
           event.notifications.forEach(notification => {
             this.processNotification(notification, false); // Don't show toasts for initial load
           });
@@ -120,7 +121,7 @@ class NotificationStreamService {
 
       case 'new':
         if (event.notifications && event.notifications.length > 0) {
-          console.log(`[NotificationStream] Received ${event.notifications.length} new notifications`);
+          logger.debug(`[NotificationStream] Received ${event.notifications.length} new notifications`);
           event.notifications.forEach(notification => {
             this.processNotification(notification, true); // Show toasts for new notifications
           });
@@ -128,7 +129,7 @@ class NotificationStreamService {
         break;
 
       default:
-        console.warn('[NotificationStream] Unknown event type:', event.type);
+        logger.warn('[NotificationStream] Unknown event type:', event.type);
     }
   }
 
@@ -212,14 +213,14 @@ class NotificationStreamService {
     }
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[NotificationStream] Max reconnection attempts reached');
+      logger.error('[NotificationStream] Max reconnection attempts reached');
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000); // Cap at 1 minute
 
-    console.log(`[NotificationStream] Reconnecting in ${delay / 1000} seconds (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    logger.debug(`[NotificationStream] Reconnecting in ${delay / 1000} seconds (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     this.reconnectTimer = setTimeout(() => {
       this.connect();
@@ -239,7 +240,7 @@ class NotificationStreamService {
       this.eventSource.close();
       this.eventSource = null;
       this.isConnected = false;
-      console.log('[NotificationStream] Disconnected from notification stream');
+      logger.debug('[NotificationStream] Disconnected from notification stream');
     }
   }
 
@@ -271,7 +272,7 @@ class NotificationStreamService {
     try {
       await api.put(`/notifications/${notificationId}/read`);
     } catch (error) {
-      console.error('[NotificationStream] Failed to mark notification as read:', error);
+      logger.error('[NotificationStream] Failed to mark notification as read:', error);
     }
   }
 
@@ -282,7 +283,7 @@ class NotificationStreamService {
     try {
       await api.put('/notifications/read-all');
     } catch (error) {
-      console.error('[NotificationStream] Failed to mark all notifications as read:', error);
+      logger.error('[NotificationStream] Failed to mark all notifications as read:', error);
     }
   }
 
@@ -294,7 +295,7 @@ class NotificationStreamService {
       const response = await api.get('/notifications/unread/count');
       return response.data.count || 0;
     } catch (error) {
-      console.error('[NotificationStream] Failed to get unread count:', error);
+      logger.error('[NotificationStream] Failed to get unread count:', error);
       return 0;
     }
   }

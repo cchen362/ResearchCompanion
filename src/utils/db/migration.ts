@@ -8,30 +8,32 @@
  * TODO: Review in Phase 4 (Storage Architecture)
  */
 
+import { logger } from '@/utils/logger';
+
 class DatabaseMigrationHandler {
   static async handleVersionMismatch(error: Error): Promise<void> {
-    console.warn('[DatabaseMigrationHandler] Version mismatch detected:', error.message);
-    console.warn('[DatabaseMigrationHandler] Clearing IndexedDB to resolve...');
+    logger.warn('[DatabaseMigrationHandler] Version mismatch detected:', error.message);
+    logger.warn('[DatabaseMigrationHandler] Clearing IndexedDB to resolve...');
 
     try {
       // Delete the database to force recreation with correct version
       await new Promise<void>((resolve, reject) => {
         const deleteRequest = indexedDB.deleteDatabase('MedCompanionDB');
         deleteRequest.onsuccess = () => {
-          console.log('[DatabaseMigrationHandler] Database cleared successfully');
+          logger.debug('[DatabaseMigrationHandler] Database cleared successfully');
           resolve();
         };
         deleteRequest.onerror = () => {
-          console.error('[DatabaseMigrationHandler] Failed to clear database');
+          logger.error('[DatabaseMigrationHandler] Failed to clear database');
           reject(deleteRequest.error);
         };
       });
 
       // Reload the page to reinitialize
-      console.log('[DatabaseMigrationHandler] Reloading page...');
+      logger.debug('[DatabaseMigrationHandler] Reloading page...');
       window.location.reload();
     } catch (e) {
-      console.error('[DatabaseMigrationHandler] Migration failed:', e);
+      logger.error('[DatabaseMigrationHandler] Migration failed:', e);
       throw e;
     }
   }

@@ -36,6 +36,7 @@ import { useResearchStore } from '@/stores/researchStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useStoreHydration } from './useStoreHydration';
 import { topicsService } from '@/services/topics.service';
+import { logger } from '@/utils/logger';
 import type { Topic } from '@/types';
 
 interface UseTopicsReturn {
@@ -113,7 +114,7 @@ export function useTopics(autoLoad = true): UseTopicsReturn {
       }
       return newTopic;
     } catch (error) {
-      console.error('[useTopics] Error creating topic:', error);
+      logger.error('[useTopics] Error creating topic:', error);
       return null;
     }
   }, [loadTopicsFromStore]);
@@ -133,7 +134,7 @@ export function useTopics(autoLoad = true): UseTopicsReturn {
       }
       return updatedTopic;
     } catch (error) {
-      console.error('[useTopics] Error updating topic:', error);
+      logger.error('[useTopics] Error updating topic:', error);
       return null;
     }
   }, [loadTopicsFromStore]);
@@ -154,7 +155,7 @@ export function useTopics(autoLoad = true): UseTopicsReturn {
       }
       return success;
     } catch (error) {
-      console.error('[useTopics] Error deleting topic:', error);
+      logger.error('[useTopics] Error deleting topic:', error);
       return false;
     }
   }, [selectedTopicId, selectTopic, loadTopicsFromStore]);

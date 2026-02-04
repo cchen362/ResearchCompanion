@@ -10,6 +10,7 @@
  */
 
 import { api } from './api';
+import { logger } from '@/utils/logger';
 import type { FindingsChat, ChatMessage, ChatContext } from '@/types';
 
 interface ChatsResponse {
@@ -73,7 +74,7 @@ class ChatAPIService {
       }
       return [];
     } catch (error) {
-      console.error('[ChatAPIService] Error fetching chats:', error);
+      logger.error('[ChatAPIService] Error fetching chats:', error);
       return [];
     }
   }
@@ -86,7 +87,7 @@ class ChatAPIService {
       }
       return null;
     } catch (error) {
-      console.error('[ChatAPIService] Error fetching chat:', error);
+      logger.error('[ChatAPIService] Error fetching chat:', error);
       return null;
     }
   }
@@ -109,7 +110,7 @@ class ChatAPIService {
 
       throw new Error('Failed to create chat');
     } catch (error) {
-      console.error('[ChatAPIService] Error creating chat:', error);
+      logger.error('[ChatAPIService] Error creating chat:', error);
       throw error;
     }
   }
@@ -134,7 +135,7 @@ class ChatAPIService {
 
       throw new Error('Failed to add message');
     } catch (error) {
-      console.error('[ChatAPIService] Error adding message:', error);
+      logger.error('[ChatAPIService] Error adding message:', error);
       throw error;
     }
   }
@@ -152,7 +153,7 @@ class ChatAPIService {
 
       throw new Error('Failed to update chat');
     } catch (error) {
-      console.error('[ChatAPIService] Error updating chat:', error);
+      logger.error('[ChatAPIService] Error updating chat:', error);
       throw error;
     }
   }
@@ -161,7 +162,7 @@ class ChatAPIService {
     try {
       await api.delete(`${this.baseUrl}/${chatId}`);
     } catch (error) {
-      console.error('[ChatAPIService] Error deleting chat:', error);
+      logger.error('[ChatAPIService] Error deleting chat:', error);
       throw error;
     }
   }
@@ -170,7 +171,7 @@ class ChatAPIService {
     try {
       await api.put(`${this.baseUrl}/${chatId}/context`, { context });
     } catch (error) {
-      console.error('[ChatAPIService] Error updating context:', error);
+      logger.error('[ChatAPIService] Error updating context:', error);
       throw error;
     }
   }

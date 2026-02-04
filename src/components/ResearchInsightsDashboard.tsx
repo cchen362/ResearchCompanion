@@ -24,6 +24,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { researchInsightsService } from '@/services/researchInsights.service';
+import { logger } from '@/utils/logger';
 import type { ResearchFinding, SmartDigest, Topic } from '@/types';
 import type {
   ResearchMetrics,
@@ -52,7 +53,7 @@ function safeFormatDistanceToNow(date: Date | string | number | undefined | null
     }
     return formatDistanceToNow(dateObj, { addSuffix: true });
   } catch (error) {
-    console.warn('Invalid date for formatting:', date);
+    logger.warn('Invalid date for formatting:', date);
     return 'recently';
   }
 }
@@ -68,7 +69,7 @@ function safeFormatDate(date: Date | string | number | undefined | null, formatS
     }
     return format(dateObj, formatString);
   } catch (error) {
-    console.warn('Invalid date for formatting:', date);
+    logger.warn('Invalid date for formatting:', date);
     return '';
   }
 }
@@ -97,7 +98,7 @@ export function ResearchInsightsDashboard({
         const researchActivity = researchInsightsService.getResearchActivity(findings);
         setActivity(researchActivity);
       } catch (error) {
-        console.error('Error calculating research insights:', error);
+        logger.error('Error calculating research insights:', error);
         setMetrics(null);
         setDigestInsights(null);
         setActivity(null);

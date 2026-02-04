@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { api } from './api';
 import { digestService } from './digest.service';
+import { logger } from '@/utils/logger';
 
 export interface LoginCredentials {
   email: string;
@@ -106,7 +107,7 @@ class AuthService {
 
       return null;
     } catch (error) {
-      console.error('Token verification failed:', error);
+      logger.error('Token verification failed:', error);
       this.logout();
       return null;
     }

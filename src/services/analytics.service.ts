@@ -3,12 +3,12 @@
  *
  * This service was deprecated in Phase 1 Service Layer Consolidation.
  * This stub exists only to prevent build errors.
- * Components using this service will be refactored in Phase 3.
  *
- * TODO: Remove in Phase 3 (Component Decomposition)
+ * TODO: Remove this file entirely when dependent components are updated
  */
 
-import type { ResearchFinding, TimelineEvent, SmartDigest } from '@/types';
+import type { ResearchFinding, SmartDigest } from '@/types';
+import { logger } from '@/utils/logger';
 
 // Type exports for backward compatibility
 export interface SymptomCorrelation {
@@ -54,11 +54,10 @@ class AnalyticsService {
    * This stub returns empty data to prevent build errors.
    */
   generateAnalyticsSummary(
-    _timeline: TimelineEvent[],
     _findings: ResearchFinding[],
     _digest?: SmartDigest
   ): AnalyticsSummary {
-    console.warn('[AnalyticsService] This service is deprecated. Use researchInsightsService instead.');
+    logger.warn('[AnalyticsService] This service is deprecated. Use researchInsightsService instead.');
 
     return {
       correlations: [],
