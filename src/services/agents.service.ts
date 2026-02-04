@@ -188,6 +188,28 @@ class AgentsService {
     await updateLocalAgentConfig(agentId, config);
   }
 
+  async updateAgent(id: string, updates: Partial<Agent>): Promise<Agent> {
+    if (this.isUsingAPI) {
+      return await agentsAPIService.updateAgent(id, updates);
+    }
+
+    // For local storage, update the agent in IndexedDB
+    const db = await getDB();
+    const tx = db.transaction('agents', 'readwrite');
+    const store = tx.objectStore('agents');
+    const agent = await store.get(id);
+
+    if (!agent) {
+      throw new Error(`Agent ${id} not found`);
+    }
+
+    const updated = { ...agent, ...updates };
+    await store.put(updated);
+    await tx.done;
+
+    return updated;
+  }
+
   async getAgentsToRun(): Promise<Agent[]> {
     if (this.isUsingAPI) {
       // For API, we'd need a server-side endpoint for this

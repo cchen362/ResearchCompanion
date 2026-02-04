@@ -337,4 +337,107 @@ try {
 
 ---
 
-*Last Updated: February 3, 2026*
+## Issue 22: Digest Showing Only 10 of 20 Findings (FIXED)
+**Date**: February 4, 2026
+**Status**: FIXED
+
+### Problem
+Digest displayed "20 findings / 20 in period" in the header but only showed 10 findings in the metrics section.
+
+### Root Cause
+The `digestQueue.service.ts` was calling `findingsService.getFindings(topicId)` without specifying a limit parameter, which defaulted to 10 findings somewhere in the backend chain. This happened even though all 20 findings from 2 agents (Treatment Breakthrough + Clinical Trial, 10 findings each) were successfully saved to the database.
+
+### The Fix
+
+**1. Added explicit limit to digest queue service** (`src/services/digestQueue.service.ts`):
+```typescript
+// Changed from:
+const findings = await findingsService.getFindings(topicId);
+
+// To:
+const findings = await findingsService.getFindings(topicId, { limit: 100 });
+```
+
+**2. Updated findings service to accept options** (`src/services/findings.service.ts`):
+```typescript
+async getFindings(topicId?: string, options?: { limit?: number }): Promise<ResearchFinding[]> {
+  if (this.isUsingAPI) {
+    return await findingsAPIService.getFindings(topicId, options);
+  }
+  // IndexedDB path remains unchanged
+}
+```
+
+**3. Added logging for debugging**:
+```typescript
+console.log(`[DigestQueue] Fetched ${findings.length} findings for digest generation`);
+if (findings.length < 15) {
+  console.warn(`[DigestQueue] Only ${findings.length} findings found - expected ~20 from 2 agents`);
+}
+```
+
+### Files Modified
+- `src/services/digestQueue.service.ts` - Added explicit limit of 100 and logging
+- `src/services/findings.service.ts` - Added options parameter to getFindings method
+
+### Deployment
+Deployed to production at 100.94.82.35 on February 4, 2026
+
+### Result
+✅ Digest now correctly shows all 20 findings in both header and metrics
+✅ Clear logging shows how many findings are being fetched for digest
+✅ No more mismatch between actual findings and digest statistics
+
+---
+
+## Issue 23: Agent Update Error - "updateAgent is not a function" (FIXED)
+**Date**: February 4, 2026
+**Status**: FIXED
+
+### Problem
+Console showed error "oc.updateAgent is not a function" after agents completed successfully. The error didn't prevent findings from being created but prevented updating agent's lastRun and nextRun timestamps.
+
+### Root Cause
+`agentRunner.ts` (line 491) was calling `agentsService.updateAgent()` but this method didn't exist in `agents.service.ts`. The method existed in `agents.api.service.ts` but was missing from the service wrapper.
+
+### The Fix
+
+**Added missing updateAgent method** to `src/services/agents.service.ts`:
+```typescript
+async updateAgent(id: string, updates: Partial<Agent>): Promise<Agent> {
+  if (this.isUsingAPI) {
+    return await agentsAPIService.updateAgent(id, updates);
+  }
+
+  // For local storage, update the agent in IndexedDB
+  const db = await getDB();
+  const tx = db.transaction('agents', 'readwrite');
+  const store = tx.objectStore('agents');
+  const agent = await store.get(id);
+
+  if (!agent) {
+    throw new Error(`Agent ${id} not found`);
+  }
+
+  const updated = { ...agent, ...updates };
+  await store.put(updated);
+  await tx.done;
+
+  return updated;
+}
+```
+
+### Files Modified
+- `src/services/agents.service.ts` - Added updateAgent method
+
+### Deployment
+Deployed to production at 100.94.82.35 on February 4, 2026
+
+### Result
+✅ No more "updateAgent is not a function" errors in console
+✅ Agent lastRun and nextRun timestamps now update correctly
+✅ Agents continue to create findings successfully
+
+---
+
+*Last Updated: February 4, 2026*

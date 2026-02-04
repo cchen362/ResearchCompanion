@@ -1,5 +1,19 @@
 # Medical Companion PWA - Development Guide
 
+## 🚨 CRITICAL: FOUNDATION REFACTORING IN PROGRESS 🚨
+
+**ALL DEVELOPMENT IS PAUSED FOR ARCHITECTURAL REFACTORING**
+- **Duration**: 4 weeks (February 4 - March 4, 2026)
+- **Current Phase**: 1 - Service Layer Consolidation
+- **Status**: Week 1 of 4
+- **MANDATORY**: Read `/REFACTORING/README.md` before ANY work
+- **NO FEATURES**: Zero feature work until refactoring complete
+- **NO BAND-AIDS**: Only architectural fixes allowed
+
+**All agents MUST follow the refactoring plan in `/REFACTORING/` directory. This is not optional.**
+
+---
+
 ## Project Overview
 
 The Medical Companion PWA is a research-focused medical information companion that helps users explore, understand, and track medical conditions through AI-powered research agents, smart digests, and conversational interfaces. This document captures architectural decisions, development best practices, and implementation guidelines established during the project's evolution.

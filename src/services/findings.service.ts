@@ -8,9 +8,9 @@ class FindingsService {
     return storageConfig.useServerStorage;
   }
 
-  async getFindings(topicId?: string): Promise<ResearchFinding[]> {
+  async getFindings(topicId?: string, options?: { limit?: number }): Promise<ResearchFinding[]> {
     if (this.isUsingAPI) {
-      return await findingsAPIService.getFindings(topicId);
+      return await findingsAPIService.getFindings(topicId, options);
     }
 
     const db = await getDB();

@@ -594,10 +594,18 @@ export class DigestQueueService {
 
     try {
       // Get existing findings for the topic using the service (respects storage config)
-      const findings = await findingsService.getFindings(topicId);
+      // Explicitly request up to 100 findings to ensure we get all findings from multiple agents
+      const findings = await findingsService.getFindings(topicId, { limit: 100 });
+
+      console.log(`[DigestQueue] Fetched ${findings.length} findings for digest generation`);
 
       if (findings.length === 0) {
         throw new Error('No findings available to generate digest');
+      }
+
+      // Warn if we have fewer findings than expected from 2 agents
+      if (findings.length < 15) {
+        console.warn(`[DigestQueue] Only ${findings.length} findings found - expected ~20 from 2 agents`);
       }
 
       // Sort findings by timestamp (newest first)
