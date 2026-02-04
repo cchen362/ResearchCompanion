@@ -20,6 +20,31 @@
 
 ---
 
+## 📋 IMPLEMENTATION PLANS
+
+**Feature implementation guides are available in `/IMPLEMENTATION_PLANS/`**
+
+These documents are **strict actionable blueprints** that agents MUST follow exactly - similar to the refactoring guides that successfully completed the 4-phase architectural cleanup.
+
+### Current Plans
+
+| # | Name | Status | Description |
+|---|------|--------|-------------|
+| 001 | Autonomous Agents & Digest | Ready | Enable autonomous agent scheduling and seamless digest integration |
+
+### Agent Instructions
+
+⛔ **CRITICAL**: Before implementing ANY feature from this list:
+1. **Read the entire plan document** in `/IMPLEMENTATION_PLANS/`
+2. **Follow steps IN ORDER** - No skipping, no creative improvements
+3. **Run build verification** after each file change
+4. **Mark checkboxes** as you complete each step
+5. **Deploy and test** on production server (Debian with Docker)
+
+**Reference**: See `/IMPLEMENTATION_PLANS/README.md` for format details and how to add new plans.
+
+---
+
 ## Project Overview
 
 The Medical Companion PWA is a research-focused medical information companion that helps users explore, understand, and track medical conditions through AI-powered research agents, smart digests, and conversational interfaces. This document captures architectural decisions, development best practices, and implementation guidelines established during the project's evolution.
