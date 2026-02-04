@@ -45,15 +45,15 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         console.log('[ChatPanelMinimal] Loading stores dynamically...');
 
         // Load stores dynamically to avoid ANY circular dependencies
-        const [chatStoreModule, findingsStoreModule, uiStoreModule] = await Promise.all([
+        const [chatStoreModule, researchStoreModule, uiStoreModule] = await Promise.all([
           import('../stores/chatStore'),
-          import('../stores/findingsStore'),
+          import('../stores/researchStore'),
           import('../stores/uiStore')
         ]);
 
         setStores({
           useChatStore: chatStoreModule.useChatStore,
-          useFindingsStore: findingsStoreModule.useFindingsStore,
+          useResearchStore: researchStoreModule.useResearchStore,
           useUIStore: uiStoreModule.useUIStore
         });
 
@@ -153,9 +153,10 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
         }
 
         // Load findings for the topic so citations can be resolved
-        const findingsStore = findingsStoreModule.useFindingsStore.getState();
-        await findingsStore.loadFindings(topicId);
-        console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsStore.findings.length);
+        const researchStore = researchStoreModule.useResearchStore.getState();
+        await researchStore.loadFindings(topicId);
+        const findingsForTopic = researchStore.getFindingsForTopic(topicId);
+        console.log('[ChatPanelMinimal] Loaded findings for topic:', findingsForTopic.length);
 
         const unsubscribe = chatStoreModule.useChatStore.subscribe(
           (state) => state.messages,
@@ -207,43 +208,30 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const handleCitationClick = async (findingId: string) => {
     console.log('Citation clicked - Finding ID:', findingId);
 
-    // Try to get the finding from the findings store
+    // Try to get the finding from the research store
     if (stores) {
-      const findingsStore = stores.useFindingsStore.getState();
+      const researchStore = stores.useResearchStore.getState();
 
       // First, check if we need to load findings (loadFindings has built-in cache check)
       // Only call if we have very few findings, as the store will handle caching
-      if (findingsStore.findings.length < 5) {
+      const topicFindings = researchStore.getFindingsForTopic(topicId);
+      if (topicFindings.length < 5) {
         console.log('Few findings loaded, checking for more...');
-        await findingsStore.loadFindings(topicId);
+        await researchStore.loadFindings(topicId);
       }
 
-      let finding = findingsStore.findings.find((f: any) => f.id === findingId);
+      // Try to find the finding - first in topic findings, then by ID across all topics
+      let finding = researchStore.getFindingById(findingId);
 
       // If not found in local store, try fetching from API
       if (!finding) {
         console.log('Finding not in local store, fetching from API...');
         try {
-          const { findingsService } = await import('../services/findings.service');
-          const apiFindings = await findingsService.getFindings(topicId);
-
-          // Find the specific finding from the API response
-          finding = apiFindings.find((f: any) => f.id === findingId);
+          // Use loadFindingById which will fetch and cache the finding
+          finding = await researchStore.loadFindingById(findingId);
 
           if (finding) {
             console.log('Found finding from API:', finding);
-
-            // Optionally add to store for future use
-            // Check if the method exists before calling
-            if (findingsStore && typeof findingsStore.addFindingToCache === 'function') {
-              findingsStore.addFindingToCache(finding);
-            } else {
-              console.warn('addFindingToCache method not available on findingsStore:', {
-                hasStore: !!findingsStore,
-                storeKeys: findingsStore ? Object.keys(findingsStore) : [],
-                typeOfMethod: typeof findingsStore?.addFindingToCache
-              });
-            }
           }
         } catch (error) {
           console.error('Failed to fetch finding from API:', error);

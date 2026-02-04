@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react';
 import { initDB, requestPersistentStorage } from './utils/db/database';
 import { topicsService } from './services/topics.service';
-import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } from './utils/serviceWorker';
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
-import FindingsViewerProgressive from './components/FindingsViewerProgressive';
+import { ResearchPage } from './components/research';
 import NotificationCenter from './components/NotificationCenter';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanelLazy';
+import { ChatPanel } from './components/ChatPanelMinimal';
 import { AnalyticsView } from './components/AnalyticsView';
 import { DebugPanel } from './components/DebugPanel';
-import { UpdateNotification } from './components/UpdateNotification';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
 import { notificationStream } from './services/notification-stream.service';
@@ -169,9 +167,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Update notification banner */}
-      <UpdateNotification />
-
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -321,7 +316,7 @@ function App() {
           />
         )}
         {currentView === 'agents' && <AgentMonitor />}
-        {currentView === 'findings' && <FindingsViewerProgressive />}
+        {currentView === 'findings' && <ResearchPage />}
         {currentView === 'timeline' && <Timeline />}
         {currentView === 'voice' && (
           <VoiceRecorder

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
-import { Card, CardContent } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Input } from './ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search,
   ExternalLink,
@@ -22,9 +22,9 @@ import {
   Download,
   Star
 } from 'lucide-react';
-import type { ResearchFinding, ResearchSource } from '../types';
+import type { ResearchFinding, ResearchSource } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
-import { cn } from '../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface SourceDrawerProps {
   isOpen: boolean;

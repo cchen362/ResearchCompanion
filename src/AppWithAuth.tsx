@@ -7,11 +7,11 @@ import { authService } from './services/auth.service';
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
-import FindingsViewerProgressive from './components/FindingsViewerProgressive';
+import { ResearchPage } from './components/research';
 import VoiceRecorder from './components/VoiceRecorder';
 import Timeline from './components/Timeline';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanelLazy';
+import { ChatPanel } from './components/ChatPanelMinimal';
 import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
@@ -422,9 +422,8 @@ function MainApp() {
             />
           )}
           {currentView === 'findings' && (
-            <FindingsViewerProgressive
+            <ResearchPage
               topicId={selectedTopic?.id}
-              topicName={selectedTopic?.name}
             />
           )}
           {currentView === 'timeline' && (

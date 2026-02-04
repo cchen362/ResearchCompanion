@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../stores/chatStore';
-import { useFindingsStore } from '../stores/findingsStore';
+import { useResearchStore } from '../stores/researchStore';
 import { useUIStore } from '../stores/uiStore';
 // Removed ALL direct imports of services to avoid circular dependency
 // import { chatService } from '../services/chat.service';
@@ -55,7 +55,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
   const {
     selectedFindings,
     getSelectedFindings
-  } = useFindingsStore();
+  } = useResearchStore();
 
   const {
     showToast

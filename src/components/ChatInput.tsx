@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
   AlertCircle
 } from 'lucide-react';
-import { useFindingsStore } from '../stores/findingsStore';
+import { useResearchStore } from '../stores/researchStore';
 import { useUIStore } from '../stores/uiStore';
 
 interface ChatInputProps {
@@ -42,7 +42,7 @@ export function ChatInput({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const { selectedFindings, getSelectedFindings } = useFindingsStore();
+  const { selectedFindings, getSelectedFindings } = useResearchStore();
   const { showToast } = useUIStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);

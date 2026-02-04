@@ -11,7 +11,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { useFindingsStore } from '../stores/findingsStore';
+import { useResearchStore } from '../stores/researchStore';
 import type { Finding, SourceCitation } from '../types';
 import { format } from 'date-fns';
 
@@ -26,7 +26,7 @@ export function CitationLink({ citation, onClose, className = '' }: CitationLink
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { loadFindingById } = useFindingsStore();
+  const { loadFindingById } = useResearchStore();
 
   // Load the finding data
   useEffect(() => {
