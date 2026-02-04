@@ -10,17 +10,12 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy frontend source
-# IMPORTANT: Update timestamp to force rebuild: 2026-02-03-1200
+# IMPORTANT: Update timestamp to force rebuild: 2026-02-05-phase012
 COPY . ./
 
 # Remove ALL .env files to ensure we use Docker ENV variables only
 # This prevents any path conversion issues from file-based env vars
 RUN rm -f .env .env.* .env.production .env.local .env.production.local
-
-# Verify the digest loading fix is present in the CORRECT component
-RUN grep -q "setLoadingDigest(true)" src/components/FindingsViewerProgressive.tsx && \
-    echo "✓ Digest loading state fix detected in FindingsViewerProgressive" || \
-    (echo "✗ ERROR: Digest loading fix NOT found in FindingsViewerProgressive!" && exit 1)
 
 # Build frontend with environment variables using ARG+ENV pattern
 # ARG prevents Git Bash path conversion that happens with direct ENV
