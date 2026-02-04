@@ -249,9 +249,9 @@ export class AgentExecutionService {
   private async searchWeb(query: string, maxResults: number): Promise<any[]> {
     await this.enforceRateLimit('web');
 
-    const braveApiKey = process.env.BRAVE_SEARCH_API_KEY;
+    const braveApiKey = process.env.BRAVE_API_KEY;
     if (!braveApiKey) {
-      console.warn('[AgentExecution] Brave Search API key not configured');
+      console.warn('[AgentExecution] Brave Search API key not configured (BRAVE_API_KEY)');
       return [];
     }
 
