@@ -263,6 +263,68 @@ export function useDigest(
     setDigestTimeframe(newTimeframe);
   }, [setDigestTimeframe]);
 
+  /**
+   * PHASE 0 FIX: Check for active digest queue on mount.
+   * This ensures UI shows "Generating..." even if generation was started
+   * elsewhere (scheduler, another page, after agent completion).
+   */
+  useEffect(() => {
+    if (!topicId) return;
+
+    let isMounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
+
+    const checkQueueStatus = async () => {
+      setLoading('digest', true);
+      try {
+        logger.debug(`[useDigest] Checking queue status for topic ${topicId}...`);
+        const status = await digestService.getQueueStatusByTopic(topicId);
+
+        if (!isMounted) return;
+
+        if (status && (status.status === 'pending' || status.status === 'processing')) {
+          // Active queue found! Show generation progress
+          logger.debug(`[useDigest] Active queue found:`, status);
+          const percentage = status.status === 'processing' ? 50 : 10;
+          const message = status.status === 'processing'
+            ? 'Generating digest...'
+            : 'Queued for generation...';
+
+          setDigestProgress(percentage, message);
+
+          // Continue polling until complete
+          pollTimer = setTimeout(checkQueueStatus, 2000);
+        } else if (status?.status === 'completed') {
+          // Just completed - load the digest
+          logger.debug(`[useDigest] Queue completed, loading digest...`);
+          await loadDigestFromStore(topicId, timeframe);
+          setDigestProgress(0, '');
+          setLoading('digest', false);
+        } else {
+          // No active queue
+          logger.debug(`[useDigest] No active queue for topic ${topicId}`);
+          // Only reset if not in user-initiated generation
+          const currentProgress = useUIStore.getState().digestProgress;
+          if (currentProgress === 0 || currentProgress >= 100) {
+            setDigestProgress(0, '');
+          }
+          setLoading('digest', false);
+        }
+      } catch (error) {
+        logger.error('[useDigest] Error checking queue status:', error);
+        setLoading('digest', false);
+      }
+    };
+
+    // Check immediately on mount
+    checkQueueStatus();
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
+  }, [topicId, timeframe, setDigestProgress, loadDigestFromStore, setLoading]);
+
   return {
     // Data
     digest,

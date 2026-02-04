@@ -87,8 +87,7 @@ class SchedulerService {
       console.log('[Scheduler] Checking for agents due to run...');
 
       // Get all active topics with enabled auto-refresh
-      // TODO: Implement getAllActive method in TopicModel
-      const activeTopics: any[] = []; // await TopicModel.getAllActive();
+      const activeTopics = await TopicModel.getAllActive();
 
       if (!activeTopics || activeTopics.length === 0) {
         console.log('[Scheduler] No active topics found');
@@ -193,60 +192,58 @@ class SchedulerService {
     agents: Agent[]
   ) {
     const startTime = Date.now();
+    const AGENT_TIMEOUT = 5 * 60 * 1000; // 5 minutes max
+
+    console.log(`[Scheduler] Starting background execution for topic "${topicName}"`);
 
     try {
-      console.log(`[Scheduler] Starting background execution for topic "${topicName}" with ${agents.length} agents`);
+      // Wrap execution with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Agent execution timed out')), AGENT_TIMEOUT);
+      });
 
-      // Execute agents and get findings
-      const findings = await this.executionService.runAgentsForTopic(
+      const executionPromise = this.executionService.runAgentsForTopic(
         topicId,
         userId,
         agents
       );
 
-      console.log(`[Scheduler] Agents completed for topic "${topicName}": ${findings.length} new findings`);
-
-      if (findings.length > 0) {
-        // Queue digest generation for the new findings
-        // TODO: Implement digestQueueService when available
-        // await digestQueueService.queueDigestGeneration(
-        //   topicId,
-        //   userId,
-        //   'all-time', // Generate comprehensive digest
-        //   'scheduled' // Source type for tracking
-        // );
-
-        // Create notification for the user
-        await this.createBackgroundNotification(
-          userId,
-          topicId,
-          topicName,
-          findings.length,
-          agents.length
-        );
-      }
-
-      // Update agent last_run times
-      const now = new Date();
-      for (const agent of agents) {
-        await AgentModel.update(agent.id, userId, {
-          last_run: now,
-          next_run: this.calculateNextRun(agent.schedule || 'daily', now)
-        });
-      }
+      const findings = await Promise.race([executionPromise, timeoutPromise]);
 
       const duration = Date.now() - startTime;
-      console.log(`[Scheduler] Background execution complete for topic "${topicName}" (${duration}ms)`);
+      console.log(`[Scheduler] Topic "${topicName}": Found ${findings.length} findings in ${duration}ms`);
 
-    } catch (error) {
-      console.error(`[Scheduler] Error executing agents for topic ${topicId}:`, error);
+      if (findings.length > 0) {
+        // PHASE 1: Queue digest generation directly in backend
+        try {
+          const { pool } = await import('../db/database.js');
+          const DigestQueueServicePG = (await import('./digestQueue.service.pg.js')).default;
+          const queueService = new DigestQueueServicePG(pool);
 
-      // Still update agent status to prevent infinite retries
-      for (const agent of agents) {
-        await AgentModel.update(agent.id, userId, {
-          // TODO: Add error field to agent model or handle errors differently
-          // status: 'error',
-        });
+          await queueService.createQueueItem({
+            userId,
+            topicId,
+            timeframe: 'all-time',
+            digestType: 'smart',
+            priority: 5,
+            metadata: {
+              source: 'scheduled-agent-run',
+              findingsCount: findings.length
+            }
+          });
+          console.log(`[Scheduler] Queued digest generation for topic "${topicName}"`);
+        } catch (queueError) {
+          console.error(`[Scheduler] Failed to queue digest for topic "${topicName}":`, queueError);
+        }
+
+        // Create notification
+        await this.createBackgroundNotification(userId, topicId, topicName, findings.length, agents.length);
+      }
+    } catch (error: any) {
+      if (error.message === 'Agent execution timed out') {
+        console.log(`[Scheduler] Topic "${topicName}": Timed out after 5 minutes`);
+      } else {
+        console.error(`[Scheduler] Error executing agents for topic "${topicName}":`, error);
       }
     }
   }

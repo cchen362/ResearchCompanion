@@ -158,4 +158,24 @@ export class TopicModel {
       timeline_count: timelineCount?.count || 0
     };
   }
+
+  /**
+   * Get all active topics across all users that have enabled agents.
+   * Used by the scheduler service for autonomous execution.
+   *
+   * PHASE 1: This method enables the scheduler to find topics to process.
+   */
+  static async getAllActive(): Promise<(Topic & { user_id: string })[]> {
+    return query<Topic & { user_id: string }>(
+      `SELECT DISTINCT t.*, t.user_id
+       FROM topics t
+       INNER JOIN agents a ON a.topic_id = t.id
+       WHERE t.archived = false
+         AND a.enabled = true
+         AND a.schedule IS NOT NULL
+         AND a.schedule != 'manual'
+       ORDER BY t.updated_at DESC`,
+      []
+    );
+  }
 }

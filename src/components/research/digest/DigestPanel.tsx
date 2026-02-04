@@ -94,6 +94,17 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick }: DigestPane
     );
   }
 
+  // PHASE 0 FIX: Show brief loading while checking queue status
+  // This prevents "Ready to Generate" flash during queue check
+  if (isLoading && !digest && !isGenerating) {
+    return (
+      <Card className="p-8 text-center">
+        <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
+        <p className="text-muted-foreground">Loading digest...</p>
+      </Card>
+    );
+  }
+
   // Show digest if available
   if (digest && !isLoading) {
     return (

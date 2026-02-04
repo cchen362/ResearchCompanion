@@ -142,6 +142,19 @@ class NotificationStreamService {
       detail: { notification }
     }));
 
+    // PHASE 2: Bridge backend notifications to frontend event system
+    // This triggers digest auto-generation when scheduler completes agents
+    if (notification.type === 'agent_complete' && notification.data?.topicId) {
+      console.log('[NotificationStream] Bridging agent_complete to agents-complete event');
+      window.dispatchEvent(new CustomEvent('agents-complete', {
+        detail: {
+          topicId: notification.data.topicId,
+          findingsCount: notification.data.findingsCount || 0,
+          source: 'server-scheduler'
+        }
+      }));
+    }
+
     // Notify listeners
     this.listeners.forEach(listener => listener(notification));
 
