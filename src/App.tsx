@@ -296,22 +296,6 @@ function App() {
       )}
 
 
-      {/* Test element to ensure rendering */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '4px',
-          right: '4px',
-          backgroundColor: 'red',
-          color: 'white',
-          padding: '10px',
-          zIndex: 999999,
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}
-      >
-        TEST: App is rendering
-      </div>
     </div>
   );
 }
