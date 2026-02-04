@@ -160,6 +160,16 @@ const server = app.listen(PORT, () => {
   schedulerService.start();
   console.log('✅ Autonomous agents will run on their configured schedules');
 
+  // Start background digest processor
+  import('./services/digest-processor.service.js').then((module) => {
+    const { DigestProcessorService } = module;
+    const digestProcessor = new DigestProcessorService(pool);
+    digestProcessor.start();
+    console.log('🔄 Background digest processor started');
+  }).catch(err => {
+    console.error('⚠️ Failed to start digest processor:', err);
+  });
+
   // Clean up stale digest queue items on startup
   console.log('🧹 Cleaning up stale digest queue items...');
   import('./services/digestQueue.service.pg.js').then(async (module) => {

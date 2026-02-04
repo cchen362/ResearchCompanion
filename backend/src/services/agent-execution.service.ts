@@ -114,14 +114,17 @@ export class AgentExecutionService {
 
     switch (agent.type) {
       case 'pubmed':
+      case 'medical_literature':  // Frontend type → maps to PubMed search
         searchResults = await this.searchPubMed(searchQuery, agent.config?.maxResults || 10);
         break;
 
       case 'clinical_trials':
+      case 'clinical_trial':  // Frontend type (singular) → maps to Clinical Trials API
         searchResults = await this.searchClinicalTrials(searchQuery, agent.config?.maxResults || 10);
         break;
 
       case 'web':
+      case 'treatment_breakthrough':  // Frontend type → maps to Web (Brave) search
         searchResults = await this.searchWeb(searchQuery, agent.config?.maxResults || 10);
         break;
 
