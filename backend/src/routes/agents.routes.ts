@@ -15,8 +15,8 @@ const CreateAgentSchema = z.object({
 });
 
 const UpdateAgentSchema = CreateAgentSchema.partial().extend({
-  last_run: z.date().optional(),
-  next_run: z.date().optional()
+  last_run: z.coerce.date().optional(),
+  next_run: z.coerce.date().optional()
 });
 
 // GET /api/agents - Get all agents for the authenticated user
