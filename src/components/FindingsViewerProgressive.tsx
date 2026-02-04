@@ -5,7 +5,7 @@ import { topicsService } from '@/services/topics.service';
 import { digestQueueService } from '@/services/digestQueue.service';
 import { digestCacheService } from '@/services/digestCache.service';
 import { findingsService } from '@/services/findings.service';
-import { useDigestStore } from '@/stores/digestStore';
+import { useDigestStore, useDigestHydrated } from '@/stores/digestStore';
 import type {
   ResearchFinding,
   Topic,
@@ -120,9 +120,11 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
   const [selectedTopicId, setSelectedTopicId] = useState<string>(topicId || '');
   const [currentTopic, setCurrentTopic] = useState<Topic | null>(null);
 
+  // Get hydration status separately to avoid issues
+  const hasHydrated = useDigestHydrated();
+
   // Use Zustand store for digest state (persists across navigation)
   const {
-    hasHydrated,
     getDigest,
     setDigest: setDigestInStore,
     getQueueItem: getQueueFromStore,

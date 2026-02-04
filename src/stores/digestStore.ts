@@ -193,3 +193,9 @@ export const useDigestStore = create<DigestState>()(
     }
   )
 );
+
+// Export a separate hook for hydration status
+export const useDigestHydrated = () => {
+  const hasHydrated = useDigestStore((state) => state.hasHydrated);
+  return hasHydrated;
+};
