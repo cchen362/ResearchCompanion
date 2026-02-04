@@ -297,6 +297,44 @@ if (hasHydrated && getDigest(topicId)) {
 ### Deployment
 Deployed to production on February 3, 2026
 
+### Update: Date Serialization Fix
+After initial deployment, discovered "RangeError: Invalid time value" errors due to improper date handling in localStorage serialization.
+
+**Additional Issues Found:**
+1. **Date parsing without validation** - `new Date(invalidValue)` threw errors
+2. **No error handling in storage operations** - Crashes when parsing fails
+3. **Missing null checks** - Attempted to parse undefined dates
+
+**Complete Fix Applied:**
+```typescript
+// Safe date parsing with validation
+const parseDate = (dateValue: any) => {
+  if (!dateValue) return undefined;
+  const date = new Date(dateValue);
+  return isNaN(date.getTime()) ? undefined : date;
+};
+
+// Wrap storage operations in try-catch
+try {
+  const parsed = JSON.parse(str);
+  // ... process data
+} catch (error) {
+  console.error('Failed to parse digest store:', error);
+  return null;
+}
+```
+
+**Files Updated:**
+- `src/stores/digestStore.ts` - Added safe date parsing and error handling
+- `public/clear-digest-store.html` - Created utility to clear corrupt localStorage
+
+**Result:**
+✅ No more "Invalid time value" errors
+✅ Graceful handling of corrupt localStorage data
+✅ Recovery utility available at /clear-digest-store.html
+
+**Redeployed:** February 4, 2026
+
 ---
 
 *Last Updated: February 3, 2026*

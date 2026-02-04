@@ -163,50 +163,88 @@ export const useDigestStore = create<DigestState>()(
           const str = localStorage.getItem(name);
           if (!str) return null;
 
-          const parsed = JSON.parse(str);
+          try {
+            const parsed = JSON.parse(str);
 
-          // Convert date strings back to Date objects in queue items
-          const queueItemsArray = parsed.state.queueItemsByTopic || [];
-          const queueItemsWithDates = queueItemsArray.map(([key, item]: [string, any]) => {
-            return [key, {
-              ...item,
-              createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-              startedAt: item.startedAt ? new Date(item.startedAt) : undefined,
-              completedAt: item.completedAt ? new Date(item.completedAt) : undefined
-            }];
-          });
+            // Convert date strings back to Date objects in queue items
+            const queueItemsArray = parsed.state.queueItemsByTopic || [];
+            const queueItemsWithDates = queueItemsArray.map(([key, item]: [string, any]) => {
+              if (!item) return [key, item];
 
-          return {
-            ...parsed,
-            state: {
-              ...parsed.state,
-              digestsByTopic: new Map(parsed.state.digestsByTopic || []),
-              queueItemsByTopic: new Map(queueItemsWithDates),
-              loadingDigests: new Set(parsed.state.loadingDigests || [])
-            }
-          };
+              // Safely parse dates with validation
+              const parseDate = (dateValue: any) => {
+                if (!dateValue) return undefined;
+                const date = new Date(dateValue);
+                return isNaN(date.getTime()) ? undefined : date;
+              };
+
+              return [key, {
+                ...item,
+                createdAt: parseDate(item.createdAt) || new Date(),
+                startedAt: parseDate(item.startedAt),
+                completedAt: parseDate(item.completedAt)
+              }];
+            });
+
+            // No need to convert dates in digests - they use number timestamps
+            // SmartDigest.generatedAt and Breakthrough.date are numbers, not Date objects
+
+            return {
+              ...parsed,
+              state: {
+                ...parsed.state,
+                digestsByTopic: new Map(parsed.state.digestsByTopic || []),
+                queueItemsByTopic: new Map(queueItemsWithDates),
+                loadingDigests: new Set(parsed.state.loadingDigests || [])
+              }
+            };
+          } catch (error) {
+            console.error('Failed to parse digest store from localStorage:', error);
+            return null;
+          }
         },
         setItem: (name, value) => {
-          // Convert queue items' dates to ISO strings for serialization
-          const queueItemsArray = Array.from(value.state.queueItemsByTopic.entries()).map(([key, item]) => {
-            return [key, {
-              ...item,
-              createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
-              startedAt: item.startedAt instanceof Date ? item.startedAt.toISOString() : item.startedAt,
-              completedAt: item.completedAt instanceof Date ? item.completedAt.toISOString() : item.completedAt
-            }];
-          });
+          try {
+            // Convert queue items' dates to ISO strings for serialization
+            const queueItemsArray = Array.from(value.state.queueItemsByTopic.entries()).map(([key, item]) => {
+              if (!item) return [key, item];
 
-          const serialized = {
-            ...value,
-            state: {
-              ...value.state,
-              digestsByTopic: Array.from(value.state.digestsByTopic.entries()),
-              queueItemsByTopic: queueItemsArray,
-              loadingDigests: Array.from(value.state.loadingDigests)
-            }
-          };
-          localStorage.setItem(name, JSON.stringify(serialized));
+              // Safely serialize dates
+              const serializeDate = (date: any) => {
+                if (!date) return undefined;
+                if (date instanceof Date && !isNaN(date.getTime())) {
+                  return date.toISOString();
+                }
+                if (typeof date === 'string' || typeof date === 'number') {
+                  const parsed = new Date(date);
+                  if (!isNaN(parsed.getTime())) {
+                    return parsed.toISOString();
+                  }
+                }
+                return undefined;
+              };
+
+              return [key, {
+                ...item,
+                createdAt: serializeDate(item.createdAt),
+                startedAt: serializeDate(item.startedAt),
+                completedAt: serializeDate(item.completedAt)
+              }];
+            });
+
+            const serialized = {
+              ...value,
+              state: {
+                ...value.state,
+                digestsByTopic: Array.from(value.state.digestsByTopic.entries()),
+                queueItemsByTopic: queueItemsArray,
+                loadingDigests: Array.from(value.state.loadingDigests)
+              }
+            };
+            localStorage.setItem(name, JSON.stringify(serialized));
+          } catch (error) {
+            console.error('Failed to serialize digest store to localStorage:', error);
+          }
         },
         removeItem: (name) => {
           localStorage.removeItem(name);
@@ -218,6 +256,7 @@ export const useDigestStore = create<DigestState>()(
 
 // Export a separate hook for hydration status
 export const useDigestHydrated = () => {
-  const hasHydrated = useDigestStore((state) => state.hasHydrated);
+  // Access the store safely with a fallback
+  const hasHydrated = useDigestStore((state) => state?.hasHydrated ?? false);
   return hasHydrated;
 };
