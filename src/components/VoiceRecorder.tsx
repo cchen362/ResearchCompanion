@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/services/api';
 import { createTimelineEvent, getTimelineForTopic } from '@/utils/db/timeline';
-import { getAllTopics } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 import { TranscriptionSummary } from './TranscriptionSummary';
 import { ChevronDown, ChevronRight, Mic, MicOff, Clock, Calendar, FileText, Eye, Settings, Info } from 'lucide-react';
 import { audioCompressionService, type RecordingType, type RecordingPreset } from '@/services/audioCompression.service';
@@ -46,7 +46,7 @@ export default function VoiceRecorder({ topicId, topics: propsTopics, onComplete
     const loadTopics = async () => {
       setIsLoadingTopics(true);
       try {
-        const allTopics = await getAllTopics();
+        const allTopics = await topicsService.getTopics();
         setTopics(allTopics);
 
         // Set selected topic if not already set

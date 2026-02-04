@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { initDB, requestPersistentStorage } from './utils/db/database';
-import { getAllTopics } from './utils/db/topics';
+import { topicsService } from './services/topics.service';
 import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } from './utils/serviceWorker';
 import Dashboard from './components/Dashboard';
 import TopicManager from './components/TopicManager';
@@ -32,7 +32,7 @@ function App() {
   // Function to refresh topics from database
   const refreshTopics = async () => {
     try {
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       console.log('Refreshed topics:', allTopics.length, 'topics found');
       setTopics(allTopics);
     } catch (err) {

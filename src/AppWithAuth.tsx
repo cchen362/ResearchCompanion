@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { initDB, requestPersistentStorage } from './utils/db/database';
-import { getAllTopics } from './utils/db/topics';
+import { topicsService } from './services/topics.service';
 import { registerServiceWorker, listenForInstallPrompt, scheduleAgentCheck } from './utils/serviceWorker';
 import { authService } from './services/auth.service';
 import Dashboard from './components/Dashboard';
@@ -37,7 +37,7 @@ function MainApp() {
   // Function to refresh topics
   const refreshTopics = async () => {
     try {
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
 
       // Auto-select first topic if none selected and topics exist

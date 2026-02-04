@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, Brain, FileText } from 'lucide-react';
 import { ResearchInsightsDashboard } from './ResearchInsightsDashboard';
 import { getDB } from '@/utils/db/database';
-import { getAllTopics } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 import type { ResearchFinding, SmartDigest, Topic } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { digestService } from '@/services/digest.service';
@@ -32,7 +32,7 @@ export function AnalyticsView() {
 
   const loadTopics = async () => {
     try {
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
       if (allTopics.length > 0 && !selectedTopicId) {
         setSelectedTopicId(allTopics[0].id);

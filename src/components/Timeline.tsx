@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllTopics } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 import { getTimelineForTopic, deleteTimelineEvent, updateTimelineEvent } from '@/utils/db/timeline';
 import { TranscriptionSummary } from './TranscriptionSummary';
 import { ChevronDown, ChevronRight, Edit2, Check, X, Trash2 } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function Timeline() {
 
   const loadTopics = async () => {
     try {
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
       if (allTopics.length > 0 && !selectedTopicId) {
         setSelectedTopicId(allTopics[0].id);

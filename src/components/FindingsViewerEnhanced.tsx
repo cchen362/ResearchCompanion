@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { digestQueueService } from '@/services/digestQueue.service';
+import { digestService } from '@/services/digest.service';
 import { topicsService } from '@/services/topics.service';
 import { findingsService } from '@/services/findings.service';
-import { digestService } from '@/services/digest.service';
 import type { ResearchFinding, Topic, SmartDigest, DigestTimeframe, ExplanationMode } from '@/types';
 import { DigestCard } from './DigestCard';
 import { ThemeAccordion } from './ThemeAccordion';
@@ -287,11 +286,11 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
         return;
       }
 
-      // Use digestQueueService to generate digest with proper auth
+      // Use digestService to generate digest with proper auth
       const findingIds = filteredFindings.map(f => f.id);
       console.log('[DIGEST GEN] Queueing digest with finding IDs:', findingIds.length);
 
-      const queueId = await digestQueueService.queueDigestGeneration(
+      const queueId = await digestService.queueDigestGeneration(
         topicId || '',
         digestTimeframe,
         findingIds,
@@ -308,7 +307,7 @@ export default function FindingsViewerEnhanced({ topicId }: FindingsViewerEnhanc
 
       const checkStatus = async () => {
         try {
-          const status = await digestQueueService.getQueueStatus(queueId);
+          const status = await digestService.getQueueStatus(queueId);
 
           if (status?.status === 'completed' && status.digest) {
             setDigest(status.digest);

@@ -224,8 +224,8 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       if (!finding) {
         console.log('Finding not in local store, fetching from API...');
         try {
-          const { findingsAPIService } = await import('../services/findings.api.service');
-          const apiFindings = await findingsAPIService.getFindings(topicId);
+          const { findingsService } = await import('../services/findings.service');
+          const apiFindings = await findingsService.getFindings(topicId);
 
           // Find the specific finding from the API response
           finding = apiFindings.find((f: any) => f.id === findingId);

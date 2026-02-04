@@ -1,159 +1,543 @@
+/**
+ * FindingsService - Consolidated service for research findings
+ *
+ * Phase 1 Refactoring: Service Layer Consolidation
+ *
+ * This service merges:
+ * - findings.service.ts (old version with dual API/local paths)
+ * - findings.api.service.ts (transformation functions + API calls)
+ *
+ * Architecture: Server-first with IndexedDB cache for offline support
+ */
+
+import { api } from './api';
 import { getDB } from '@/utils/db/database';
-import { findingsAPIService } from './findings.api.service';
-import { storageConfig } from '@/config/storage.config';
 import type { ResearchFinding } from '@/types';
 
+// API Response types
+interface FindingsResponse {
+  success: boolean;
+  findings: any[];
+  count?: number;
+}
+
+interface FindingResponse {
+  success: boolean;
+  finding: any;
+}
+
+interface DeleteResponse {
+  success: boolean;
+  message: string;
+  count?: number;
+}
+
+interface StatsResponse {
+  success: boolean;
+  stats: {
+    total: number;
+    unread: number;
+    starred: number;
+    by_category: Array<{ category: string; count: number }>;
+  };
+}
+
+export interface FindingsOptions {
+  category?: string;
+  isStarred?: boolean;
+  isRead?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
 class FindingsService {
-  private get isUsingAPI() {
-    return storageConfig.useServerStorage;
+  private baseUrl = '/findings';
+
+  // ==================== Transformation Functions ====================
+
+  /**
+   * Transform backend finding to frontend ResearchFinding interface
+   * Preserves all backend fields while mapping to frontend structure
+   */
+  private transformToFrontend(apiFinding: any): ResearchFinding {
+    return {
+      id: apiFinding.id,
+      agentId: apiFinding.agent_id || '',
+      agentType: apiFinding.metadata?.agentType || apiFinding.category || 'study',
+      topicId: apiFinding.topic_id || '',
+      type: apiFinding.category || 'study',
+      title: apiFinding.title,
+      summary: apiFinding.summary || apiFinding.content,
+      details: apiFinding.content,
+      source: apiFinding.source || {
+        type: 'unknown',
+        name: 'Unknown Source',
+        displayName: 'Unknown Source',
+        url: ''
+      },
+      isNew: this.calculateIsNew(apiFinding),
+      timestamp: new Date(apiFinding.created_at).getTime(),
+      extractedEntities: apiFinding.metadata?.extractedEntities,
+      ...apiFinding.metadata
+    };
   }
 
-  async getFindings(topicId?: string, options?: { limit?: number }): Promise<ResearchFinding[]> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.getFindings(topicId, options);
+  /**
+   * Calculate if finding should be marked as "new"
+   * - New if created in last 48 hours
+   * - New if unread and less than 7 days old
+   */
+  private calculateIsNew(apiFinding: any): boolean {
+    const createdAt = new Date(apiFinding.created_at).getTime();
+    const hoursSinceCreation = (Date.now() - createdAt) / (1000 * 60 * 60);
+
+    // Always new if created in last 48 hours
+    if (hoursSinceCreation < 48) {
+      return true;
     }
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readonly');
-    const store = tx.objectStore('findings');
-
-    if (topicId) {
-      const index = store.index('by-topic');
-      return await index.getAll(topicId);
+    // If unread and less than 7 days old, still consider new
+    if (!apiFinding.is_read && hoursSinceCreation < 168) {
+      return true;
     }
 
-    return await store.getAll();
+    return false;
   }
 
+  /**
+   * Transform frontend ResearchFinding to backend format
+   */
+  private transformToBackend(finding: Partial<ResearchFinding>): any {
+    return {
+      topic_id: finding.topicId || null,
+      agent_id: finding.agentId || null,
+      title: finding.title,
+      content: finding.details || finding.summary || '',
+      summary: finding.summary || '',
+      source: finding.source,
+      category: finding.type || 'study',
+      metadata: {
+        agentType: finding.agentType,
+        extractedEntities: finding.extractedEntities,
+        isNew: finding.isNew,
+        timestamp: finding.timestamp
+      },
+      relevance_score: null,
+      tags: []
+    };
+  }
+
+  // ==================== CRUD Operations ====================
+
+  /**
+   * Get findings with optional filtering
+   * Server-first with cache fallback when offline
+   */
+  async getFindings(topicId?: string, options?: FindingsOptions): Promise<ResearchFinding[]> {
+    try {
+      const params = new URLSearchParams();
+      if (topicId) params.append('topic_id', topicId);
+      if (options?.category) params.append('category', options.category);
+      if (options?.isStarred !== undefined) params.append('is_starred', String(options.isStarred));
+      if (options?.isRead !== undefined) params.append('is_read', String(options.isRead));
+      if (options?.search) params.append('search', options.search);
+      if (options?.limit) params.append('limit', String(options.limit));
+      if (options?.offset) params.append('offset', String(options.offset));
+
+      const queryString = params.toString();
+      const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
+
+      const response = await api.get<FindingsResponse>(url);
+
+      if (response.data.success) {
+        const findings = response.data.findings.map(f => this.transformToFrontend(f));
+        // Cache the results
+        await this.cacheFindings(findings);
+        return findings;
+      }
+
+      throw new Error('Failed to fetch findings');
+    } catch (error) {
+      // Fallback to cache if offline
+      if (!navigator.onLine) {
+        return await this.getCachedFindings(topicId, options);
+      }
+      console.error('Error fetching findings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single finding by ID
+   */
   async getFinding(id: string): Promise<ResearchFinding | undefined> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.getFinding(id);
-    }
+    try {
+      const response = await api.get<FindingResponse>(`${this.baseUrl}/${id}`);
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readonly');
-    const store = tx.objectStore('findings');
-    return await store.get(id);
+      if (response.data.success) {
+        const finding = this.transformToFrontend(response.data.finding);
+        await this.cacheFinding(finding);
+        return finding;
+      }
+
+      return undefined;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return undefined;
+      }
+
+      // Fallback to cache if offline
+      if (!navigator.onLine) {
+        return await this.getCachedFinding(id);
+      }
+
+      console.error('Error fetching finding:', error);
+      throw error;
+    }
   }
 
+  /**
+   * Save a single finding (create or update)
+   */
   async saveFinding(finding: ResearchFinding): Promise<ResearchFinding> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.saveFinding(finding);
-    }
+    try {
+      const backendData = this.transformToBackend(finding);
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-    await store.put(finding);
-    await tx.done;
-    return finding;
+      let response;
+      if (finding.id && finding.id !== '') {
+        // Update existing finding
+        response = await api.put<FindingResponse>(`${this.baseUrl}/${finding.id}`, backendData);
+      } else {
+        // Create new finding - let server assign UUID
+        response = await api.post<FindingResponse>(this.baseUrl, backendData);
+      }
+
+      if (response.data.success) {
+        const savedFinding = this.transformToFrontend(response.data.finding);
+        await this.cacheFinding(savedFinding);
+        return savedFinding;
+      }
+
+      throw new Error('Failed to save finding');
+    } catch (error) {
+      console.error('Error saving finding:', error);
+      throw error;
+    }
   }
 
+  /**
+   * Save multiple findings in bulk
+   */
   async saveFindings(findings: ResearchFinding[]): Promise<ResearchFinding[]> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.saveFindings(findings);
-    }
+    try {
+      const backendData = findings.map(f => this.transformToBackend(f));
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-    for (const finding of findings) {
-      await store.put(finding);
+      const response = await api.post<FindingsResponse>(
+        `${this.baseUrl}/bulk`,
+        backendData
+      );
+
+      if (response.data.success) {
+        const savedFindings = response.data.findings.map(f => this.transformToFrontend(f));
+        await this.cacheFindings(savedFindings);
+        return savedFindings;
+      }
+
+      throw new Error('Failed to save findings');
+    } catch (error) {
+      console.error('Error saving findings:', error);
+      throw error;
     }
-    await tx.done;
-    return findings;
   }
 
+  /**
+   * Update an existing finding
+   */
+  async updateFinding(id: string, updates: Partial<ResearchFinding>): Promise<ResearchFinding> {
+    try {
+      const backendData = this.transformToBackend(updates);
+      const response = await api.put<FindingResponse>(
+        `${this.baseUrl}/${id}`,
+        backendData
+      );
+
+      if (response.data.success) {
+        const updatedFinding = this.transformToFrontend(response.data.finding);
+        await this.cacheFinding(updatedFinding);
+        return updatedFinding;
+      }
+
+      throw new Error('Failed to update finding');
+    } catch (error) {
+      console.error('Error updating finding:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a single finding
+   */
   async deleteFinding(id: string): Promise<void> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.deleteFinding(id);
-    }
+    try {
+      const response = await api.delete<DeleteResponse>(`${this.baseUrl}/${id}`);
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-    await store.delete(id);
-    await tx.done;
+      if (!response.data.success) {
+        throw new Error('Failed to delete finding');
+      }
+
+      await this.removeCachedFinding(id);
+    } catch (error) {
+      console.error('Error deleting finding:', error);
+      throw error;
+    }
   }
 
+  /**
+   * Delete multiple findings
+   */
   async deleteFindings(ids: string[]): Promise<number> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.deleteFindings(ids);
-    }
+    try {
+      const response = await api.post<DeleteResponse>(
+        `${this.baseUrl}/bulk-delete`,
+        { ids }
+      );
 
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-    for (const id of ids) {
-      await store.delete(id);
-    }
-    await tx.done;
-    return ids.length;
-  }
-
-  async markFindingsAsRead(topicId?: string): Promise<void> {
-    if (this.isUsingAPI) {
-      // For API, we need to mark each finding individually
-      const findings = await this.getFindings(topicId);
-      for (const finding of findings) {
-        if (finding.isNew) {
-          await findingsAPIService.markAsRead(finding.id, true);
+      if (response.data.success) {
+        // Remove from cache
+        for (const id of ids) {
+          await this.removeCachedFinding(id);
         }
+        return response.data.count || 0;
       }
-      return;
+
+      throw new Error('Failed to delete findings');
+    } catch (error) {
+      console.error('Error deleting findings:', error);
+      throw error;
     }
-
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-
-    let findings: ResearchFinding[];
-
-    if (topicId) {
-      const index = store.index('by-topic');
-      findings = await index.getAll(topicId);
-    } else {
-      findings = await store.getAll();
-    }
-
-    // Update each finding to mark as read
-    for (const finding of findings) {
-      if (finding.isNew) {
-        finding.isNew = false;
-        await store.put(finding);
-      }
-    }
-
-    await tx.done;
   }
 
-  async markFindingAsRead(id: string): Promise<void> {
-    if (this.isUsingAPI) {
-      await findingsAPIService.markAsRead(id, true);
-      return;
+  // ==================== Read/Star Operations ====================
+
+  /**
+   * Mark a finding as read
+   */
+  async markFindingAsRead(id: string): Promise<ResearchFinding> {
+    try {
+      const response = await api.post<FindingResponse>(
+        `${this.baseUrl}/${id}/read`,
+        { is_read: true }
+      );
+
+      if (response.data.success) {
+        const finding = this.transformToFrontend(response.data.finding);
+        await this.cacheFinding(finding);
+        return finding;
+      }
+
+      throw new Error('Failed to mark finding as read');
+    } catch (error) {
+      console.error('Error marking finding as read:', error);
+      throw error;
     }
-
-    const db = await getDB();
-    const tx = db.transaction('findings', 'readwrite');
-    const store = tx.objectStore('findings');
-
-    const finding = await store.get(id);
-    if (finding && finding.isNew) {
-      finding.isNew = false;
-      await store.put(finding);
-    }
-
-    await tx.done;
   }
 
+  /**
+   * Mark all findings as read for a topic (or all topics if no topicId)
+   */
+  async markFindingsAsRead(topicId?: string): Promise<void> {
+    try {
+      const findings = await this.getFindings(topicId);
+      const unreadFindings = findings.filter(f => f.isNew);
+
+      // Mark each unread finding as read
+      await Promise.all(
+        unreadFindings.map(f => this.markFindingAsRead(f.id))
+      );
+    } catch (error) {
+      console.error('Error marking findings as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle star status on a finding
+   */
+  async toggleStar(id: string): Promise<ResearchFinding> {
+    try {
+      const response = await api.post<FindingResponse>(
+        `${this.baseUrl}/${id}/star`
+      );
+
+      if (response.data.success) {
+        const finding = this.transformToFrontend(response.data.finding);
+        await this.cacheFinding(finding);
+        return finding;
+      }
+
+      throw new Error('Failed to toggle star');
+    } catch (error) {
+      console.error('Error toggling star:', error);
+      throw error;
+    }
+  }
+
+  // ==================== Search & Stats ====================
+
+  /**
+   * Search findings by query
+   */
   async searchFindings(query: string, topicId?: string): Promise<ResearchFinding[]> {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.searchFindings(query, topicId);
-    }
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (topicId) params.append('topic_id', topicId);
 
-    // Local search implementation
-    const findings = await this.getFindings(topicId);
+      const response = await api.get<FindingsResponse>(
+        `${this.baseUrl}/search?${params.toString()}`
+      );
+
+      if (response.data.success) {
+        return response.data.findings.map(f => this.transformToFrontend(f));
+      }
+
+      throw new Error('Failed to search findings');
+    } catch (error) {
+      // Fallback to local search if offline
+      if (!navigator.onLine) {
+        return await this.searchCachedFindings(query, topicId);
+      }
+      console.error('Error searching findings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get findings statistics
+   */
+  async getStats(topicId?: string): Promise<StatsResponse['stats']> {
+    try {
+      const url = topicId
+        ? `${this.baseUrl}/stats?topic_id=${topicId}`
+        : `${this.baseUrl}/stats`;
+
+      const response = await api.get<StatsResponse>(url);
+
+      if (response.data.success) {
+        return response.data.stats;
+      }
+
+      throw new Error('Failed to get stats');
+    } catch (error) {
+      // Fallback to local stats if offline
+      if (!navigator.onLine) {
+        return await this.getCachedStats(topicId);
+      }
+      console.error('Error getting stats:', error);
+      throw error;
+    }
+  }
+
+  // ==================== Cache Operations ====================
+
+  /**
+   * Cache a single finding in IndexedDB
+   */
+  private async cacheFinding(finding: ResearchFinding): Promise<void> {
+    try {
+      const db = await getDB();
+      await db.put('findings', {
+        ...finding,
+        _cachedAt: Date.now()
+      });
+    } catch (error) {
+      console.warn('Failed to cache finding:', error);
+    }
+  }
+
+  /**
+   * Cache multiple findings in IndexedDB
+   */
+  private async cacheFindings(findings: ResearchFinding[]): Promise<void> {
+    if (!findings.length) return;
+
+    try {
+      const db = await getDB();
+      const tx = db.transaction('findings', 'readwrite');
+      const timestamp = Date.now();
+
+      for (const finding of findings) {
+        await tx.store.put({ ...finding, _cachedAt: timestamp });
+      }
+
+      await tx.done;
+    } catch (error) {
+      console.warn('Failed to cache findings:', error);
+    }
+  }
+
+  /**
+   * Get a cached finding from IndexedDB
+   */
+  private async getCachedFinding(id: string): Promise<ResearchFinding | undefined> {
+    try {
+      const db = await getDB();
+      return await db.get('findings', id);
+    } catch (error) {
+      console.warn('Failed to get cached finding:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Get cached findings from IndexedDB with filtering
+   */
+  private async getCachedFindings(topicId?: string, options?: FindingsOptions): Promise<ResearchFinding[]> {
+    try {
+      const db = await getDB();
+      let findings: ResearchFinding[];
+
+      if (topicId) {
+        const index = db.transaction('findings', 'readonly').store.index('by-topic');
+        findings = await index.getAll(topicId);
+      } else {
+        findings = await db.getAll('findings');
+      }
+
+      // Apply local filtering
+      if (options?.category) {
+        findings = findings.filter(f => f.type === options.category);
+      }
+      if (options?.limit) {
+        findings = findings.slice(0, options.limit);
+      }
+
+      return findings;
+    } catch (error) {
+      console.warn('Failed to get cached findings:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Remove a cached finding from IndexedDB
+   */
+  private async removeCachedFinding(id: string): Promise<void> {
+    try {
+      const db = await getDB();
+      await db.delete('findings', id);
+    } catch (error) {
+      console.warn('Failed to remove cached finding:', error);
+    }
+  }
+
+  /**
+   * Search cached findings locally
+   */
+  private async searchCachedFindings(query: string, topicId?: string): Promise<ResearchFinding[]> {
+    const findings = await this.getCachedFindings(topicId);
     const lowerQuery = query.toLowerCase();
+
     return findings.filter(f =>
       f.title?.toLowerCase().includes(lowerQuery) ||
       f.summary?.toLowerCase().includes(lowerQuery) ||
@@ -161,14 +545,13 @@ class FindingsService {
     );
   }
 
-  async getStats(topicId?: string) {
-    if (this.isUsingAPI) {
-      return await findingsAPIService.getStats(topicId);
-    }
-
-    // Local stats implementation
-    const findings = await this.getFindings(topicId);
+  /**
+   * Calculate stats from cached findings
+   */
+  private async getCachedStats(topicId?: string): Promise<StatsResponse['stats']> {
+    const findings = await this.getCachedFindings(topicId);
     const unread = findings.filter(f => f.isNew).length;
+
     const byCategory = findings.reduce((acc, f) => {
       const category = f.type || 'unknown';
       const existing = acc.find(item => item.category === category);
@@ -183,7 +566,7 @@ class FindingsService {
     return {
       total: findings.length,
       unread,
-      starred: 0, // Not tracked in local storage
+      starred: 0, // Not tracked in local cache
       by_category: byCategory
     };
   }

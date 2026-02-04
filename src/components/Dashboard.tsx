@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
-import { getAllTopics, getTopicsNeedingUpdate } from '@/utils/db/topics';
-import { getAgentsToRun, getAgentsByTopic } from '@/utils/db/agents';
-import { getMonthlyApiCost } from '@/utils/db/agents';
+import { topicsService } from '@/services/topics.service';
+import { agentsService } from '@/services/agents.service';
 import type { Topic, Agent, ResearchFinding } from '@/types';
-import { getDB } from '@/utils/db/database';
 import { FileText, Bot, MessageSquare, TrendingUp, Plus, X } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { findingsService } from '@/services/findings.service';
-import { digestQueueService } from '@/services/digestQueue.service';
 import { digestService } from '@/services/digest.service';
 
 interface DashboardProps {
@@ -29,11 +26,11 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
   useEffect(() => {
     loadDashboardData();
 
-    // Initialize digest queue service to ensure it starts processing
+    // Initialize digest service to ensure it starts processing
     // This fixes the issue where digest generation requires navigation to Findings page
-    console.log('[Dashboard] Initializing digest queue service');
+    console.log('[Dashboard] Initializing digest service');
     // Simply importing the service ensures the singleton is created and queue processor starts
-    const queueService = digestQueueService;
+    const queueService = digestService;
   }, []);
 
   const loadDashboardData = async () => {
@@ -41,7 +38,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       setLoading(true);
 
       // Load topics
-      const allTopics = await getAllTopics();
+      const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
 
       // Warm digest cache for all topics in background
@@ -57,13 +54,13 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       // Load agent counts for each topic
       const counts: Record<string, number> = {};
       for (const topic of allTopics) {
-        const agents = await getAgentsByTopic(topic.id);
+        const agents = await agentsService.getAgents(topic.id);
         counts[topic.id] = agents.length;
       }
       setAgentCounts(counts);
 
       // Load pending agents
-      const agentsToRun = await getAgentsToRun();
+      const agentsToRun = await agentsService.getAgentsToRun();
       setPendingAgents(agentsToRun);
 
       // Load recent findings
@@ -74,7 +71,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
       setRecentFindings(recent);
 
       // Load monthly cost
-      const cost = await getMonthlyApiCost();
+      const cost = await agentsService.getMonthlyApiCost();
       setMonthlyCost(cost);
     } catch (error) {
       console.error('Error loading dashboard data:', error);

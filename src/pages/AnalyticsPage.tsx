@@ -6,9 +6,11 @@ import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ExportMenu } from '@/components/ExportMenu';
 import { findingsService } from '@/services/findings.service';
 import { digestService } from '@/services/digest.service';
-import { timelineService } from '@/services/timeline.service';
 import { topicsService } from '@/services/topics.service';
 import type { ResearchFinding, SmartDigest, TimelineEvent, ResearchTopic } from '@/types';
+
+// NOTE: Timeline service was deprecated in Phase 1 refactoring
+// Timeline events will be empty until Phase 3 cleanup
 import { useToast } from '@/components/ui/use-toast';
 
 export function AnalyticsPage() {
@@ -35,17 +37,17 @@ export function AnalyticsPage() {
       setLoading(true);
 
       // Load all data in parallel
-      const [topicData, findingsData, digestData, timelineData] = await Promise.all([
+      const [topicData, findingsData, digestData] = await Promise.all([
         topicsService.getTopic(topicId),
         findingsService.getFindings(topicId),
-        digestService.getDigest(topicId),
-        timelineService.getTimeline(topicId)
+        digestService.getDigest(topicId)
       ]);
 
       setTopic(topicData);
       setFindings(findingsData);
       setDigest(digestData);
-      setTimeline(timelineData);
+      // Timeline service deprecated in Phase 1 - leave timeline empty
+      setTimeline([]);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({

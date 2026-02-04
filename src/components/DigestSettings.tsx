@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { digestCacheService } from '@/services/digestCache.service';
+import { digestService } from '@/services/digest.service';
 import type { DigestTimeframe } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
@@ -49,7 +49,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
   const loadCacheStats = async () => {
     setLoading(true);
     try {
-      const stats = await digestCacheService.getCacheStats();
+      const stats = await digestService.getCacheStats();
       setCacheStats(stats);
     } catch (error) {
       console.error('Error loading cache stats:', error);
@@ -63,7 +63,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
     setLoading(true);
     try {
       if (topicId) {
-        await digestCacheService.invalidateCache(topicId, timeframe);
+        await digestService.invalidateCache(topicId, timeframe);
         setMessage({ type: 'success', text: 'Cache cleared successfully' });
       }
       await loadCacheStats();
@@ -78,7 +78,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
   const updateCacheConfig = (timeframe: DigestTimeframe, maxAge: number, unit: string) => {
     const milliseconds = unit === 'days' ? maxAge * 24 * 60 * 60 * 1000 : maxAge * 60 * 60 * 1000;
 
-    digestCacheService.updateCacheConfig(timeframe, {
+    digestService.updateCacheConfig(timeframe, {
       maxAge: milliseconds,
       staleWhileRevalidate: true,
       autoRefresh: autoRefresh

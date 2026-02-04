@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/utils/db/database';
-import { getAllTopics } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 
 export function DebugPanel() {
   const [notificationCount, setNotificationCount] = useState(0);
@@ -18,7 +18,7 @@ export function DebugPanel() {
         setError(null);
 
         // Check topics
-        const topics = await getAllTopics();
+        const topics = await topicsService.getTopics();
         setTopicCount(topics.length);
         console.log('DEBUG: Topics in DB:', topics.length);
 

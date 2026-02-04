@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { agentsService } from '@/services/agents.service';
+import { agentsService, runAgentWithAPI, runAllResearchAgents } from '@/services/agents.service';
 import { topicsService } from '@/services/topics.service';
-import { runAgentWithAPI, runAllResearchAgents } from '@/services/agentRunner';
 import AgentConfigModal from './AgentConfigModal';
 import { useUIStore } from '@/stores/uiStore';
 import type { Agent } from '@/types';

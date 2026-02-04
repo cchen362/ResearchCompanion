@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './api';
-import { digestQueueService } from './digestQueue.service';
+import { digestService } from './digest.service';
 
 export interface LoginCredentials {
   email: string;
@@ -41,7 +41,7 @@ class AuthService {
         // The api interceptor will handle the token automatically
 
         // Start digest queue polling after successful registration/login
-        digestQueueService.startPolling();
+        digestService.startPolling();
       }
 
       return response.data;
@@ -67,7 +67,7 @@ class AuthService {
         // The api interceptor will handle the token automatically
 
         // Start digest queue polling after successful registration/login
-        digestQueueService.startPolling();
+        digestService.startPolling();
       }
 
       return response.data;
@@ -115,7 +115,7 @@ class AuthService {
   // Logout user
   logout(): void {
     // Stop digest queue polling before logout
-    digestQueueService.stopPolling();
+    digestService.stopPolling();
 
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);

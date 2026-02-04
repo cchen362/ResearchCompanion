@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateAgentConfig } from '@/utils/db/agents';
+import { agentsService } from '@/services/agents.service';
 import type { Agent } from '@/types';
 
 interface AgentConfigModalProps {
@@ -17,7 +17,7 @@ export default function AgentConfigModal({ agent, onClose, onUpdate }: AgentConf
   const handleSave = async () => {
     try {
       setSaving(true);
-      await updateAgentConfig(agent.id, {
+      await agentsService.updateAgentConfig(agent.id, {
         updateFrequency,
         priority,
         searchDepth

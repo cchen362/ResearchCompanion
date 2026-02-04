@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getDB } from '@/utils/db/database';
 import { api } from '@/services/api';
 import { topicsService } from '@/services/topics.service';
-import { digestQueueService } from '@/services/digestQueue.service';
-import { digestCacheService } from '@/services/digestCache.service';
+import { digestService } from '@/services/digest.service';
 import { findingsService } from '@/services/findings.service';
 import { useDigestStore, useDigestHydrated } from '@/stores/digestStore';
 import type {
@@ -235,7 +234,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         console.log('Cleared isRefreshing flag in digest-completed handler');
 
         // Save to cache
-        await digestCacheService.saveDigest(newDigest);
+        await digestService.saveDigest(newDigest);
 
         // Also reload findings to show any new ones from the research
         const updatedFindings = await findingsService.getFindings(selectedTopicId);
@@ -317,7 +316,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
         // Small delay to ensure digest queue has been updated
         setTimeout(async () => {
-          const queueStatus = await digestQueueService.getQueueStatusByTopic(topicId);
+          const queueStatus = await digestService.getQueueStatusByTopic(topicId);
           if (queueStatus) {
             console.log('Found queued digest after agent complete:', queueStatus);
             setQueueItem(queueStatus);
@@ -443,7 +442,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       // Step 3: Check for cached digest using cache service
       setIsLoadingCachedDigest(true); // Use new state for loading cached digest
       // Don't set loadingDigest here - that's for generating new digests!
-      const { digest: cachedDigest, isStale } = await digestCacheService.getCachedDigest(
+      const { digest: cachedDigest, isStale } = await digestService.getCachedDigest(
         topicId,
         digestTimeframe
       );
@@ -467,7 +466,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
             setDigest(serverDigest);
             setCachedDigest(serverDigest);
             // Cache it locally
-            await digestCacheService.saveDigest(serverDigest);
+            await digestService.saveDigest(serverDigest);
           }
         } catch (error) {
           // No existing digest - that's fine
@@ -476,7 +475,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       }
 
       // Always check for existing queue status first
-      const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
+      const existingQueue = await digestService.getQueueStatusByTopic(topicId);
       if (existingQueue) {
         console.log('Found existing digest generation in progress (with cached digest):', existingQueue);
         setQueueItem(existingQueue);
@@ -496,7 +495,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
       // Auto-refresh was causing "Generating AI-Powered Insights" to show on every page load
       /*
         if (!isManualRefresh && !existingQueue) {
-          const shouldRefresh = await digestCacheService.shouldRefreshDigest(
+          const shouldRefresh = await digestService.shouldRefreshDigest(
             topicId,
             digestTimeframe,
             cachedDigest
@@ -514,7 +513,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
         // Don't need to clear loadingDigest since we didn't set it
 
         // Step 4: Check if there's already a digest being generated
-        const existingQueue = await digestQueueService.getQueueStatusByTopic(topicId);
+        const existingQueue = await digestService.getQueueStatusByTopic(topicId);
         if (existingQueue) {
           console.log('Found existing digest generation in queue:', existingQueue);
           setQueueItem(existingQueue);
@@ -535,7 +534,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
 
             // Force the queue to process immediately if it's pending
             console.log('Triggering immediate queue processing for pending digest');
-            digestQueueService.processQueue();
+            digestService.processQueue();
           } else if (existingQueue.status === 'failed') {
             setDigestGeneration({
               isGenerating: false,
@@ -561,7 +560,7 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
               // COMMENTED OUT AUTO-QUEUE TO PREVENT UNWANTED REGENERATION
               // setLoadingDigest(true);
               // try {
-              //   const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+              //   const newQueueItem = await digestService.queueDigestFromExistingFindings(
               //     topicId,
               //     digestTimeframe
               //   );
@@ -620,11 +619,11 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
     try {
       // Cancel existing queue item if any
       if (queueItem) {
-        await digestQueueService.cancelQueueItem(queueItem.id);
+        await digestService.cancelQueueItem(queueItem.id);
       }
 
       // Queue digest generation from existing findings only
-      const newQueueItem = await digestQueueService.queueDigestFromExistingFindings(
+      const newQueueItem = await digestService.queueDigestFromExistingFindings(
         selectedTopicId,
         digestTimeframe
       );
@@ -670,12 +669,12 @@ export default function FindingsViewerProgressive({ topicId }: FindingsViewerPro
     try {
       // Cancel existing queue item if any
       if (queueItem) {
-        await digestQueueService.cancelQueueItem(queueItem.id);
+        await digestService.cancelQueueItem(queueItem.id);
       }
 
       // Use the new integrated refresh method that fetches research first
       // This method runs the complete operation synchronously and returns when done
-      const newQueueItem = await digestQueueService.refreshResearchAndDigest(
+      const newQueueItem = await digestService.refreshResearchAndDigest(
         selectedTopicId,
         digestTimeframe,
         'high'

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/utils/db/database';
-import { getTopic } from '@/utils/db/topics';
+import { topicsService } from '@/services/topics.service';
 import type { ResearchFinding, Topic } from '@/types';
 
 interface FindingsViewerProps {
