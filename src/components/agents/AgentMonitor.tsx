@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { agentsService, runAgentWithAPI, runAllResearchAgents } from '@/services/agents.service';
 import { topicsService } from '@/services/topics.service';
 import AgentConfigModal from './AgentConfigModal';
-import { useUIStore } from '@/stores/uiStore';
+import { notificationService } from '@/services/notification.service';
 import { logger } from '@/utils/logger';
 import type { Agent } from '@/types';
 
@@ -14,7 +14,6 @@ export default function AgentMonitor() {
   const [configuringAgent, setConfiguringAgent] = useState<Agent | null>(null);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [runningAllProgress, setRunningAllProgress] = useState({ current: 0, total: 0 });
-  const showToast = useUIStore(state => state.showToast);
 
   useEffect(() => {
     loadAgents();
@@ -60,27 +59,29 @@ export default function AgentMonitor() {
         throw new Error('Topic not found');
       }
 
-      showToast({
-        type: 'info',
-        message: `Running ${agent.name}...`,
-        duration: 3000
-      });
-
       const findings = await runAgentWithAPI(agent, topic);
 
-      showToast({
-        type: 'success',
-        message: `Agent completed successfully! Found ${findings.length} new findings.`,
-        duration: 5000
+      // Create notification (same as autonomous runs)
+      await notificationService.createNotification({
+        type: 'agent_complete',
+        title: `${agent.name} Complete`,
+        message: `Found ${findings.length} new finding${findings.length !== 1 ? 's' : ''} for ${topics.get(agent.topicId) || 'your topic'}`,
+        priority: findings.length > 10 ? 'high' : 'medium',
+        data: {
+          topicId: agent.topicId,
+          agentId: agent.id,
+          findingsCount: findings.length
+        }
       });
 
       await loadAgents();
     } catch (error) {
       logger.error('Error running agent:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to run agent. Check console for details.',
-        duration: 5000
+      await notificationService.createNotification({
+        type: 'agent_complete',
+        title: `${agent.name} Failed`,
+        message: 'Agent run failed. Please try again or check settings.',
+        priority: 'high'
       });
     } finally {
       setRunningAgentId(null);
@@ -95,31 +96,23 @@ export default function AgentMonitor() {
       const forceRunAgents = await agentsService.getAgentsForForceRun();
 
       if (forceRunAgents.length === 0) {
-        showToast({
-          type: 'info',
-          message: 'No agents available to run.',
-          duration: 4000
-        });
+        // No agents available - no notification needed for this info message
         return;
       }
 
       // Use force-run agents instead
       pendingAgents = forceRunAgents;
-      showToast({
-        type: 'info',
-        message: `No agents scheduled, but force-running ${forceRunAgents.length} agent${forceRunAgents.length > 1 ? 's' : ''}...`,
-        duration: 3000
-      });
     }
 
     // Get the topic ID (all agents should have the same topic)
     const topicIds = [...new Set(pendingAgents.map(a => a.topicId))];
 
     if (topicIds.length === 0) {
-      showToast({
-        type: 'error',
+      await notificationService.createNotification({
+        type: 'agent_complete',
+        title: 'Agent Run Failed',
         message: 'No valid topics found for agents.',
-        duration: 5000
+        priority: 'high'
       });
       return;
     }
@@ -127,26 +120,12 @@ export default function AgentMonitor() {
     setIsRunningAll(true);
     setRunningAllProgress({ current: 0, total: pendingAgents.length });
 
-    showToast({
-      type: 'info',
-      message: `Starting to run ${pendingAgents.length} agent${pendingAgents.length > 1 ? 's' : ''}...`,
-      duration: 3000
-    });
-
     try {
       // Run all agents for each topic using the coordinated approach
       // This ensures digest is generated AFTER all agents complete
       let totalFindings = 0;
 
       for (const topicId of topicIds) {
-        const topicAgents = pendingAgents.filter(a => a.topicId === topicId);
-
-        showToast({
-          type: 'info',
-          message: `Running ${topicAgents.length} agents for topic...`,
-          duration: 2000
-        });
-
         // Use the coordinated function that runs all agents and generates digest once
         const findings = await runAllResearchAgents(topicId);
         totalFindings += findings.length;
@@ -162,10 +141,11 @@ export default function AgentMonitor() {
       setIsRunningAll(false);
       setRunningAllProgress({ current: 0, total: 0 });
 
-      showToast({
-        type: 'success',
-        message: `Successfully completed! Found ${totalFindings} new findings.`,
-        duration: 5000
+      await notificationService.createNotification({
+        type: 'agent_complete',
+        title: 'All Agents Complete',
+        message: `Successfully found ${totalFindings} new finding${totalFindings !== 1 ? 's' : ''}.`,
+        priority: totalFindings > 10 ? 'high' : 'medium'
       });
 
     } catch (error) {
@@ -173,10 +153,11 @@ export default function AgentMonitor() {
       setIsRunningAll(false);
       setRunningAllProgress({ current: 0, total: 0 });
 
-      showToast({
-        type: 'error',
-        message: 'Failed to run agents. Check console for details.',
-        duration: 5000
+      await notificationService.createNotification({
+        type: 'agent_complete',
+        title: 'Agent Run Failed',
+        message: 'Failed to run agents. Please try again or check settings.',
+        priority: 'high'
       });
 
       await loadAgents();

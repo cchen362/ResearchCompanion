@@ -1,5 +1,5 @@
 import express from 'express';
-import { AgentModel } from '../models/agent.model.js';
+import { AgentModel, Agent } from '../models/agent.model.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -120,6 +120,65 @@ router.post('/agents/defaults/:topicId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create default agents'
+    });
+  }
+});
+
+// POST /api/agents/repair/:topicId - Create missing default agents for existing topic
+router.post('/agents/repair/:topicId', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const { topicId } = req.params;
+
+    // Get existing agents for this topic
+    const existing = await AgentModel.getByTopicId(userId, topicId);
+    const existingTypes = new Set(existing.map(a => a.type));
+
+    // Define required agents
+    const requiredAgents = [
+      { type: 'treatment_breakthrough', name: 'Treatment Breakthrough Agent' },
+      { type: 'clinical_trial', name: 'Clinical Trial Agent' },
+      { type: 'medical_literature', name: 'Medical Literature Agent' }
+    ];
+
+    // Find and create missing agents
+    const created: Agent[] = [];
+    const errors: string[] = [];
+
+    for (const { type, name } of requiredAgents) {
+      if (!existingTypes.has(type)) {
+        try {
+          const agent = await AgentModel.create(userId, {
+            topic_id: topicId,
+            name,
+            type,
+            enabled: true,
+            config: { searchDepth: 10 },
+            schedule: 'daily'
+          });
+          created.push(agent);
+          console.log(`[AgentRepair] Created missing agent: ${name} for topic ${topicId}`);
+        } catch (error) {
+          const errorMsg = `Failed to create ${name}: ${error instanceof Error ? error.message : 'Unknown'}`;
+          console.error(`[AgentRepair] ${errorMsg}`);
+          errors.push(errorMsg);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Repair complete: ${created.length} agents created`,
+      existing: existing.length,
+      created: created.length,
+      errors: errors.length > 0 ? errors : undefined,
+      agents: [...existing, ...created]
+    });
+  } catch (error) {
+    console.error('Error repairing agents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to repair agents'
     });
   }
 });

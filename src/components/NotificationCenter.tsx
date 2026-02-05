@@ -17,6 +17,14 @@ export default function NotificationCenter() {
   useEffect(() => {
     loadNotifications();
 
+    // Auto-cleanup old notifications (older than 7 days)
+    notificationService.deleteOld(7).then(deleted => {
+      if (deleted > 0) {
+        logger.debug(`[NotificationCenter] Auto-cleaned ${deleted} old notifications`);
+        loadNotifications(); // Refresh after cleanup
+      }
+    });
+
     // Refresh every 2 seconds for more responsive updates
     const interval = setInterval(() => {
       loadNotifications();
@@ -67,6 +75,18 @@ export default function NotificationCenter() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    await notificationService.deleteNotification(id);
+    await loadNotifications();
+  };
+
+  const handleClearAll = async () => {
+    if (window.confirm('Clear all notifications?')) {
+      await notificationService.clearAll();
+      await loadNotifications();
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'breakthrough_treatment':
@@ -113,14 +133,24 @@ export default function NotificationCenter() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="text-xs text-indigo-600 hover:text-indigo-500"
-                  >
-                    Mark all as read
-                  </button>
-                )}
+                <div className="flex items-center">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-xs text-indigo-600 hover:text-indigo-500"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={handleClearAll}
+                      className="text-xs text-red-600 hover:text-red-500 ml-2"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
               </div>
 
               {notifications.length === 0 ? (
@@ -154,6 +184,17 @@ export default function NotificationCenter() {
                           High
                         </span>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(notification.id);
+                        }}
+                        className="flex-shrink-0 text-gray-400 hover:text-red-500 p-1"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   ))}
                 </div>

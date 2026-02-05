@@ -332,14 +332,6 @@ class ExportService {
         { 'Field': 'Next Steps', 'Value': digest.nextSteps.join('; ') }
       ];
 
-      // Add themes
-      digest.themes.forEach((theme, index) => {
-        summaryData.push({
-          'Field': `Theme ${index + 1}`,
-          'Value': `${theme.name}: ${theme.description}`
-        });
-      });
-
       // Add breakthroughs
       digest.breakthroughs.forEach((breakthrough, index) => {
         summaryData.push({

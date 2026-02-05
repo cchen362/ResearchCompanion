@@ -53,11 +53,6 @@ const metricsExplanations: Record<string, MetricExplanation> = {
     explanation: 'Findings with relevance score ≥ 7',
     details: 'These are the most important findings for your research'
   },
-  themes: {
-    label: 'Research Themes',
-    explanation: 'Common patterns identified across multiple findings',
-    details: 'AI-identified themes help you understand the bigger picture'
-  },
   emergingResearch: {
     label: 'Emerging Research',
     explanation: 'New research areas gaining attention in the last 30 days',

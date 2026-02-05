@@ -76,7 +76,7 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick }: DigestPane
 
   const handleThemeClick = (themeId: string) => {
     const theme = digest?.themes?.find(t => t.id === themeId);
-    onThemeClick(themeId, theme?.name || '');
+    onThemeClick(themeId, theme?.title || '');
   };
 
   // Show progress during generation
@@ -141,7 +141,7 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick }: DigestPane
             <CardTitle className="text-xl">Ready to Generate Insights</CardTitle>
             <p className="text-muted-foreground max-w-md mx-auto">
               Transform your {filteredFindingsCount} research findings into an AI-powered digest
-              with key themes, breakthroughs, and actionable insights.
+              with breakthroughs and actionable insights.
             </p>
           </div>
           <DigestActions

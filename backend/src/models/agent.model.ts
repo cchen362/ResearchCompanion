@@ -89,14 +89,42 @@ export class AgentModel {
     ];
 
     const agents: Agent[] = [];
+    const errors: string[] = [];
+
     for (const agentData of defaultAgents) {
-      const agent = await this.create(userId, {
-        ...agentData,
-        topic_id: topicId,
-        enabled: true,
-        config: { searchDepth: 10 }
-      });
-      agents.push(agent);
+      try {
+        // Check if agent of this type already exists (idempotency)
+        const existing = await queryOne<Agent>(
+          'SELECT * FROM agents WHERE user_id = $1 AND topic_id = $2 AND type = $3',
+          [userId, topicId, agentData.type]
+        );
+
+        if (existing) {
+          console.log(`[AgentModel] Agent ${agentData.type} already exists for topic ${topicId}`);
+          agents.push(existing);
+          continue;
+        }
+
+        const agent = await this.create(userId, {
+          ...agentData,
+          topic_id: topicId,
+          enabled: true,
+          config: { searchDepth: 10 }
+        });
+        agents.push(agent);
+        console.log(`[AgentModel] Created agent: ${agentData.name} for topic ${topicId}`);
+      } catch (error) {
+        const errorMsg = `Failed to create ${agentData.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(`[AgentModel] ${errorMsg}`);
+        errors.push(errorMsg);
+        // Continue creating other agents - don't let one failure block all
+      }
+    }
+
+    // Log summary
+    console.log(`[AgentModel] Created ${agents.length}/3 agents for topic ${topicId}`);
+    if (errors.length > 0) {
+      console.warn(`[AgentModel] Errors during agent creation:`, errors);
     }
 
     return agents;

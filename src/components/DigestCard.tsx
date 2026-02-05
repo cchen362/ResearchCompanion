@@ -9,20 +9,15 @@ import {
   TrendingDown,
   AlertTriangle,
   Lightbulb,
-  BarChart3,
   Clock,
   FileText,
   BookOpen,
   Brain,
   HelpCircle,
-  Info,
   Database,
   RefreshCw,
   HardDrive,
-  Stethoscope,
-  Pill,
-  Shield,
-  Building2
+  Stethoscope
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -95,40 +90,6 @@ export function DigestCard({
         return 'All Research';
       default:
         return 'Research Digest';
-    }
-  };
-
-  const getImportanceBadgeColor = (importance: string) => {
-    switch (importance) {
-      case 'critical':
-        return 'destructive';
-      case 'high':
-        return 'default';
-      case 'medium':
-        return 'secondary';
-      case 'low':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'treatment':
-        return <Pill className="h-4 w-4" />;
-      case 'mechanism':
-        return <Info className="h-4 w-4" />;
-      case 'trial':
-        return <Building2 className="h-4 w-4" />;
-      case 'outcome':
-        return <TrendingUp className="h-4 w-4" />;
-      case 'diagnostic':
-        return <Shield className="h-4 w-4" />;
-      case 'prevention':
-        return <Shield className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
     }
   };
 
@@ -286,87 +247,6 @@ export function DigestCard({
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* Research Themes */}
-      {digest.themes && digest.themes.length > 0 && (
-        <Card>
-          <CardHeader
-            className="cursor-pointer"
-            onClick={() => toggleSection('themes')}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Research Themes
-                <Badge variant="secondary" className="ml-2">
-                  {digest.themes.length}
-                </Badge>
-              </CardTitle>
-              {expandedSections.has('themes') ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </div>
-          </CardHeader>
-          {expandedSections.has('themes') && (
-            <CardContent className="space-y-3">
-              {digest.themes.map((theme, index) => (
-                <div
-                  key={theme.id || index}
-                  className="p-4 bg-background/50 rounded-lg border border-border/50"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                      {getCategoryIcon(theme.category)}
-                      {theme.title}
-                    </h4>
-                    <div className="flex gap-1">
-                      {theme.category && (
-                        <Badge variant="outline" className="text-xs">
-                          {theme.category}
-                        </Badge>
-                      )}
-                      {theme.importance && (
-                        <Badge
-                          variant={getImportanceBadgeColor(theme.importance) as any}
-                          className="text-xs"
-                        >
-                          {theme.importance}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
-                    {theme.summary}
-                  </p>
-
-                  {theme.practicalInsight && (
-                    <div className="border-l-4 border-primary/50 bg-primary/5 pl-4 py-2 mb-3">
-                      <p className="text-sm font-medium text-primary/90">
-                        Practical Insight
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {theme.practicalInsight}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    {theme.studyStrength && (
-                      <span>Study: {theme.studyStrength}</span>
-                    )}
-                    {theme.findingCount && (
-                      <span>Findings: {theme.findingCount}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
             </CardContent>
           )}
         </Card>
