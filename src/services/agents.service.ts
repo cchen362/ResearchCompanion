@@ -617,14 +617,36 @@ class AgentsService {
 
   /**
    * Get or create default agents for a topic
+   * Also repairs if fewer than 3 agents exist
    */
   async ensureDefaultAgents(topicId: string): Promise<Agent[]> {
     const existingAgents = await this.getAgents(topicId);
+    const REQUIRED_AGENT_COUNT = 3;
 
-    if (existingAgents.length > 0) {
+    // If we have all required agents, return them
+    if (existingAgents.length >= REQUIRED_AGENT_COUNT) {
       return existingAgents;
     }
 
+    // If we have some but not all agents, call repair endpoint
+    if (existingAgents.length > 0 && existingAgents.length < REQUIRED_AGENT_COUNT) {
+      logger.debug(`[AgentsService] Found ${existingAgents.length}/${REQUIRED_AGENT_COUNT} agents, calling repair for topic ${topicId}`);
+      try {
+        const response = await api.post<AgentsResponse>(`${this.baseUrl}/repair/${topicId}`);
+        if (response.data.success) {
+          const agents = response.data.agents.map((a: any) => this.transformToFrontend(a));
+          await this.cacheAgents(agents);
+          logger.debug(`[AgentsService] Repair complete: now have ${agents.length} agents`);
+          return agents;
+        }
+      } catch (error) {
+        logger.error('[AgentsService] Error repairing agents:', error);
+        // Fall through to return existing agents
+      }
+      return existingAgents;
+    }
+
+    // No agents exist, create defaults
     const topic = await topicsService.getTopic(topicId);
     if (!topic) {
       throw new Error(`Topic ${topicId} not found`);
