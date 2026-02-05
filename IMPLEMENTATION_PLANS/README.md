@@ -26,7 +26,8 @@ Each implementation plan includes:
 | 002 | [Digest Issues Investigation](./002_DIGEST_ISSUES_INVESTIGATION.md) | Complete | Investigation into digest generation issues |
 | 003 | [Digest UI Improvements](./003_DIGEST_UI_IMPROVEMENTS.md) | Complete | UI improvements for digest display |
 | 004 | [Agent Fixes & Digest UI Simplification](./004_AGENT_FIXES_DIGEST_UI_SIMPLIFICATION.md) | Complete | Fix missing agent, unify notifications, remove themes |
-| 005 | [PubMed API Fix & Agent Logging](./005_PUBMED_API_FIX_AND_AGENT_LOGGING.md) | **Ready** | Fix silent PubMed failures, add agent execution logging |
+| 005 | [PubMed API Fix & Agent Logging](./005_PUBMED_API_FIX_AND_AGENT_LOGGING.md) | Complete | Fix silent PubMed failures, add agent execution logging |
+| 006 | [PubMed Query Construction Fix](./006_PUBMED_QUERY_CONSTRUCTION_FIX.md) | **Ready** | Fix "2026 latest recent" query breaking PubMed searches |
 
 ## How to Use
 
@@ -48,4 +49,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 6, 2026*
-*Latest Plan: 005 - PubMed API Fix & Agent Logging*
+*Latest Plan: 006 - PubMed Query Construction Fix*

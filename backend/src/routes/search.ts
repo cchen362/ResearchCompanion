@@ -63,7 +63,9 @@ router.post('/pubmed-search', async (req, res) => {
 
     // PubMed E-utilities API (with API key for higher rate limit: 10 req/sec vs 3)
     const apiKeyParam = process.env.PUBMED_API_KEY ? `&api_key=${process.env.PUBMED_API_KEY}` : '';
-    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${apiKeyParam}`;
+    // Add date filtering: last 2 years, sorted by relevance
+    const dateParams = '&datetype=pdat&reldate=730&sort=relevance';
+    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${dateParams}${apiKeyParam}`;
 
     console.log('[PUBMED] Calling PubMed esearch API...');
     const searchResponse = await axios.get(searchUrl);

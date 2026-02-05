@@ -708,21 +708,25 @@ class AgentsService {
 
     switch (agentType) {
       case 'treatment_breakthrough':
-        modifiers.push('new treatment', 'FDA approval', 'breakthrough therapy');
+        // Terms optimized for finding recent treatments
+        modifiers.push('treatment', 'therapy', 'drug');
         break;
       case 'clinical_trial':
-        modifiers.push('clinical trial', 'recruiting', 'enrollment');
+        // Terms for finding active trials
+        modifiers.push('clinical trial', 'recruiting', 'study');
         break;
       case 'medical_literature':
-        modifiers.push('research', 'study', 'meta-analysis');
+        // PubMed-optimized terms for finding review articles
+        modifiers.push('review', 'meta-analysis');
         break;
       case 'pattern_recognition':
-        modifiers.push('systematic review', 'consensus', 'guidelines');
+        // Terms for finding guidelines and consensus
+        modifiers.push('guidelines', 'consensus', 'recommendations');
         break;
     }
 
-    const currentYear = new Date().getFullYear();
-    modifiers.push(currentYear.toString(), 'latest', 'recent');
+    // DO NOT add year - let backend date filtering handle recency
+    // DO NOT add "latest" or "recent" - these break PubMed searches
 
     return `${baseQuery} ${modifiers.join(' ')}`;
   }
