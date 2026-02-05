@@ -11,7 +11,7 @@ import {
   Lightbulb,
   Clock,
   FileText,
-  BookOpen,
+  GraduationCap,
   Brain,
   HelpCircle,
   Database,
@@ -20,6 +20,9 @@ import {
   Stethoscope
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
+import { SourceStatsBar } from './digest/SourceStatsBar';
+import { FeaturedDiscovery } from './digest/FeaturedDiscovery';
+import { FindingSummaryCard } from './digest/FindingSummaryCard';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Tooltip,
@@ -190,33 +193,95 @@ export function DigestCard({
                 variant="outline"
                 size="sm"
                 onClick={() => setExplanationMode(
-                  explanationMode === 'detailed' ? 'simple' : 'detailed'
+                  explanationMode === 'technical' ? 'explained' : 'technical'
                 )}
+                className="gap-2"
               >
-                <BookOpen className="h-4 w-4 mr-1" />
-                {explanationMode === 'detailed' ? 'Simple' : 'Detailed'}
+                {explanationMode === 'technical' ? (
+                  <>
+                    <GraduationCap className="h-4 w-4" />
+                    Technical
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-4 w-4" />
+                    Explained
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Executive Summary */}
-            <div className="p-4 bg-background/50 rounded-lg border">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-yellow-500" />
-                Key Insight
-              </h3>
-              <p className="text-sm leading-relaxed">
-                {explanationMode === 'simple' && digest.laymanSummary
-                  ? digest.laymanSummary
-                  : digest.executiveSummary}
-              </p>
-            </div>
+            {/* Featured Discovery */}
+            {digest.featuredDiscovery && (
+              <FeaturedDiscovery
+                discovery={digest.featuredDiscovery}
+                mode={explanationMode}
+                onViewSource={(id) => {
+                  console.log('View finding:', id);
+                }}
+              />
+            )}
+
+            {/* Fallback to old Key Insight if no featured discovery */}
+            {!digest.featuredDiscovery && (
+              <div className="p-4 bg-background/50 rounded-lg border">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  Key Insight
+                </h3>
+                <p className="text-sm leading-relaxed">
+                  {explanationMode === 'explained' && digest.laymanSummary
+                    ? digest.laymanSummary
+                    : digest.executiveSummary}
+                </p>
+              </div>
+            )}
 
           </div>
         </CardContent>
       </Card>
+
+      {/* Source Stats Bar */}
+      {digest.sourceBreakdown && (
+        <SourceStatsBar
+          breakdown={digest.sourceBreakdown}
+          totalFindings={digest.statistics.totalFindings}
+        />
+      )}
+
+      {/* Also In This Digest */}
+      {digest.topFindings && digest.topFindings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Also In This Digest</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {digest.topFindings.length} of {digest.statistics.totalFindings}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {digest.topFindings.map((finding) => (
+              <FindingSummaryCard
+                key={finding.findingId}
+                finding={finding}
+                mode={explanationMode}
+                onViewSource={(id) => {
+                  console.log('View finding:', id);
+                }}
+              />
+            ))}
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" onClick={onViewSources}>
+                View all {digest.statistics.totalFindings} findings →
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Key Takeaways */}
       {digest.keyTakeaways.length > 0 && (

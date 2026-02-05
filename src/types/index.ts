@@ -442,7 +442,7 @@ export interface DatabaseSchema {
 
 export type DigestTimeframe = 'daily' | 'weekly' | 'monthly' | 'all-time';
 export type DigestThemeCategory = 'treatment' | 'mechanism' | 'trial' | 'outcome' | 'diagnostic' | 'prevention';
-export type ExplanationMode = 'detailed' | 'simple';
+export type ExplanationMode = 'technical' | 'explained';
 
 // Digest Queue Status Types
 export type DigestQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -470,6 +470,54 @@ export interface DigestQueueItem {
     percentage: number;
     message: string;
   };
+}
+
+// Source type for categorizing findings
+export type DigestSourceType = 'pubmed' | 'clinical_trial' | 'fda' | 'web';
+
+// Featured Discovery - the "hero" content of the digest
+export interface FeaturedDiscovery {
+  findingId: string;
+  sourceType: DigestSourceType;
+  technical: {
+    quote: string;
+    whyItMatters: string;
+    actionItem?: string;
+  };
+  explained: {
+    quote: string;
+    whyItMatters: string;
+    actionItem?: string;
+  };
+  sourceMetadata: {
+    name: string;
+    url?: string;
+    date?: string;
+    studyType?: string;
+  };
+}
+
+// Top Finding - secondary notable findings
+export interface TopFinding {
+  findingId: string;
+  sourceType: DigestSourceType;
+  technical: {
+    title: string;
+    summary: string;
+  };
+  explained: {
+    title: string;
+    summary: string;
+  };
+  metadata: string;
+}
+
+// Source Breakdown - counts by type
+export interface SourceBreakdown {
+  pubmed: number;
+  clinicalTrials: number;
+  fda: number;
+  web: number;
 }
 
 export interface SmartDigest {
@@ -540,6 +588,11 @@ export interface SmartDigest {
     cacheRetrievedAt?: number;                          // When retrieved from cache
     cacheExpiresAt?: number;                            // When cache entry expires
   };
+
+  // NEW fields for magazine editorial design
+  featuredDiscovery?: FeaturedDiscovery;
+  topFindings?: TopFinding[];
+  sourceBreakdown?: SourceBreakdown;
 }
 
 export interface DigestTheme {
