@@ -156,11 +156,16 @@ class DigestService {
       timeframe: apiDigest.type || 'weekly',
       generatedAt: new Date(apiDigest.created_at).getTime(),
       executiveSummary: apiDigest.executive_summary || '',
-      laymanSummary: apiDigest.metadata?.laymanSummary || '',
+      // FIX: Read from correct columns (backend aliases these in SQL)
+      laymanSummary: apiDigest.laymanSummary || apiDigest.layman_summary || '',
       themes: apiDigest.themes || [],
-      keyTakeaways: apiDigest.metadata?.keyTakeaways || [],
+      keyTakeaways: apiDigest.keyTakeaways || apiDigest.key_takeaways || [],
       breakthroughs: apiDigest.breakthroughs || [],
       contradictions: apiDigest.contradictions || [],
+      // NEW: Add mappings for additional sections
+      questionsForDoctor: apiDigest.questionsForDoctor || apiDigest.questions_for_doctor || [],
+      warningSigns: apiDigest.warningSigns || apiDigest.warning_signs || [],
+      clinicalImplications: apiDigest.clinicalImplications || apiDigest.clinical_implications || [],
       trends: apiDigest.metadata?.trends || {
         emerging: [],
         declining: [],

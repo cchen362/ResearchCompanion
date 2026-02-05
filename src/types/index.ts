@@ -525,6 +525,12 @@ export interface SmartDigest {
     expandedThemes?: string[];   // Theme IDs user expanded
     followUpQuestions?: string[]; // Questions user asked
   };
+
+  // Optional clinical sections (may be empty arrays)
+  questionsForDoctor?: string[];
+  warningSigns?: string[];
+  clinicalImplications?: string[];
+
   // Cache metadata for tracking digest source and freshness
   cacheMetadata?: {
     source?: 'postgresql' | 'indexeddb' | 'generated'; // Where this digest came from
@@ -559,6 +565,10 @@ export interface DigestTheme {
   // Visual indicator
   icon?: string;                  // Icon name for UI
   color?: string;                 // Theme color for UI
+
+  // Practical guidance (from backend AI analysis)
+  practicalInsight?: string;      // Actionable guidance for patients
+  studyStrength?: string;         // RCT, Meta-analysis, Observational, Case study
 }
 
 export interface Breakthrough {

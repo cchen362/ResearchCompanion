@@ -18,7 +18,11 @@ import {
   Info,
   Database,
   RefreshCw,
-  HardDrive
+  HardDrive,
+  Stethoscope,
+  Pill,
+  Shield,
+  Building2
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -112,19 +116,19 @@ export function DigestCard({
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'treatment':
-        return '💊';
+        return <Pill className="h-4 w-4" />;
       case 'mechanism':
-        return '🧬';
+        return <Info className="h-4 w-4" />;
       case 'trial':
-        return '🔬';
+        return <Building2 className="h-4 w-4" />;
       case 'outcome':
-        return '📊';
+        return <TrendingUp className="h-4 w-4" />;
       case 'diagnostic':
-        return '🔍';
+        return <Shield className="h-4 w-4" />;
       case 'prevention':
-        return '🛡️';
+        return <Shield className="h-4 w-4" />;
       default:
-        return '📝';
+        return <FileText className="h-4 w-4" />;
     }
   };
 
@@ -184,7 +188,7 @@ export function DigestCard({
               <div className="flex items-center gap-2 mb-2">
                 <Brain className="h-5 w-5 text-primary" />
                 <CardTitle className="text-xl">
-                  {getTimeframeLabel(digest.timeframe)}
+                  Weekly Research Digest
                 </CardTitle>
                 {/* Cache Status Badge */}
                 {cacheStatus && (
@@ -212,7 +216,7 @@ export function DigestCard({
                 )}
               </div>
               <p className="text-sm text-muted-foreground mb-2">
-                Generated {formatDistanceToNow(digest.generatedAt, { addSuffix: true })}
+                Updated {formatDistanceToNow(digest.generatedAt, { addSuffix: true })}
                 {digest.cacheMetadata?.deduplicated && (
                   <span className="ml-2 text-primary">
                     • This is a cached version from your previous request
@@ -249,41 +253,6 @@ export function DigestCard({
               </p>
             </div>
 
-            {/* Statistics Bar - Only show meaningful metrics */}
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-3 bg-background/50 rounded cursor-help">
-                      <div className="text-2xl font-bold text-primary">
-                        {digest.statistics.totalFindings}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Total Findings</div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Total number of research findings collected for this topic</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-3 bg-background/50 rounded cursor-help">
-                      <div className="text-2xl font-bold">
-                        {digest.statistics.sourceCount}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Unique Sources</div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Number of different journals, databases, and research sources</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -317,6 +286,87 @@ export function DigestCard({
                   </li>
                 ))}
               </ul>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Research Themes */}
+      {digest.themes && digest.themes.length > 0 && (
+        <Card>
+          <CardHeader
+            className="cursor-pointer"
+            onClick={() => toggleSection('themes')}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Research Themes
+                <Badge variant="secondary" className="ml-2">
+                  {digest.themes.length}
+                </Badge>
+              </CardTitle>
+              {expandedSections.has('themes') ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </div>
+          </CardHeader>
+          {expandedSections.has('themes') && (
+            <CardContent className="space-y-3">
+              {digest.themes.map((theme, index) => (
+                <div
+                  key={theme.id || index}
+                  className="p-4 bg-background/50 rounded-lg border border-border/50"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      {getCategoryIcon(theme.category)}
+                      {theme.title}
+                    </h4>
+                    <div className="flex gap-1">
+                      {theme.category && (
+                        <Badge variant="outline" className="text-xs">
+                          {theme.category}
+                        </Badge>
+                      )}
+                      {theme.importance && (
+                        <Badge
+                          variant={getImportanceBadgeColor(theme.importance) as any}
+                          className="text-xs"
+                        >
+                          {theme.importance}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                    {theme.summary}
+                  </p>
+
+                  {theme.practicalInsight && (
+                    <div className="border-l-4 border-primary/50 bg-primary/5 pl-4 py-2 mb-3">
+                      <p className="text-sm font-medium text-primary/90">
+                        Practical Insight
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {theme.practicalInsight}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    {theme.studyStrength && (
+                      <span>Study: {theme.studyStrength}</span>
+                    )}
+                    {theme.findingCount && (
+                      <span>Findings: {theme.findingCount}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </CardContent>
           )}
         </Card>
@@ -362,6 +412,83 @@ export function DigestCard({
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Questions for Doctor */}
+      {digest.questionsForDoctor && digest.questionsForDoctor.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+          <CardHeader
+            className="cursor-pointer"
+            onClick={() => toggleSection('questions')}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Stethoscope className="h-5 w-5 text-blue-600" />
+                Questions for Your Doctor
+                <Badge variant="secondary" className="ml-2">
+                  {digest.questionsForDoctor.length}
+                </Badge>
+              </CardTitle>
+              {expandedSections.has('questions') ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </div>
+          </CardHeader>
+          {expandedSections.has('questions') && (
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Use these evidence-based questions at your next appointment.
+              </p>
+              <div className="space-y-2">
+                {digest.questionsForDoctor.map((question, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-background/80 rounded-md border border-border/50"
+                  >
+                    <p className="text-sm leading-relaxed">
+                      "{question}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Warning Signs */}
+      {digest.warningSigns && digest.warningSigns.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Warning Signs to Monitor
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Based on the research, be aware of these signs:
+            </p>
+            <div className="space-y-2">
+              {digest.warningSigns.map((sign, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-3 bg-background/80 rounded-md"
+                >
+                  <span className="text-amber-600 mt-0.5">●</span>
+                  <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
+                    {sign}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground italic mt-4">
+              If you experience any of these symptoms, contact your healthcare provider promptly.
+            </p>
           </CardContent>
         </Card>
       )}

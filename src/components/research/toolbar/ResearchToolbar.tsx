@@ -9,13 +9,11 @@
 
 import { useUIStore } from '@/stores/uiStore';
 import { useDigest } from '@/hooks/useDigest';
-import { useAppStore } from '@/stores/appStore';
 import { ViewToggle } from './ViewToggle';
-import { TimeframeSelector } from './TimeframeSelector';
 import { ExportMenu } from '@/components/ExportMenu';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Settings } from 'lucide-react';
-import type { Topic, ResearchFinding, SmartDigest, DigestTimeframe } from '@/types';
+import type { Topic, ResearchFinding, SmartDigest } from '@/types';
 
 // ============================================
 // Types
@@ -46,15 +44,10 @@ export function ResearchToolbar({
   onSettingsClick
 }: ResearchToolbarProps) {
   const { viewMode, setViewMode } = useUIStore();
-  const { digestTimeframe, setDigestTimeframe } = useAppStore();
   const { isGenerating, refreshDigest } = useDigest(topicId);
 
   const handleViewChange = (mode: 'digest' | 'list') => {
     setViewMode(mode);
-  };
-
-  const handleTimeframeChange = (timeframe: DigestTimeframe) => {
-    setDigestTimeframe(timeframe);
   };
 
   const handleRefresh = () => {
@@ -72,12 +65,6 @@ export function ResearchToolbar({
           timeline={[]}
         />
       )}
-
-      {/* Timeframe selector */}
-      <TimeframeSelector
-        timeframe={digestTimeframe}
-        onTimeframeChange={handleTimeframeChange}
-      />
 
       {/* View mode toggle */}
       <ViewToggle
