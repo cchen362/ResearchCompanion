@@ -301,13 +301,18 @@ export function useDigest(
           setDigestProgress(0, '');
           setLoading('digest', false);
         } else {
-          // No active queue
-          logger.debug(`[useDigest] No active queue for topic ${topicId}`);
-          // Only reset if not in user-initiated generation
-          const currentProgress = useUIStore.getState().digestProgress;
-          if (currentProgress === 0 || currentProgress >= 100) {
-            setDigestProgress(0, '');
+          // No active queue - try to load existing digest
+          logger.debug(`[useDigest] No active queue for topic ${topicId}, trying to load digest...`);
+
+          // Always try to load the digest when there's no active queue
+          // This handles the case where digest was generated but queue was cleared
+          try {
+            await loadDigestFromStore(topicId, timeframe);
+          } catch (loadError) {
+            logger.debug(`[useDigest] No digest found for topic ${topicId}`);
           }
+
+          setDigestProgress(0, '');
           setLoading('digest', false);
         }
       } catch (error) {

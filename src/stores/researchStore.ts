@@ -146,29 +146,43 @@ export const useResearchStore = create<ResearchStore>()(
 
       loadDigest: async (topicId: string, timeframe: DigestTimeframe = 'all-time') => {
         try {
-          // Try to get cached digest first
-          const { digest: cachedDigest } = await digestService.getCachedDigest(topicId, timeframe);
-
-          if (cachedDigest) {
-            const key = makeDigestKey(topicId, timeframe);
-            set(state => ({
-              digests: new Map(state.digests).set(key, cachedDigest)
-            }));
-            return;
-          }
-
-          // Try to fetch from server
+          // Always fetch from server first (source of truth)
+          // This ensures we get the latest digest, especially after generation completes
           const digest = await digestService.getDigest(topicId, timeframe);
+
           if (digest) {
             const key = makeDigestKey(topicId, timeframe);
             set(state => ({
               digests: new Map(state.digests).set(key, digest)
             }));
-            // Cache it locally
-            await digestService.saveDigest(digest);
+            logger.debug(`[ResearchStore] Loaded digest ${digest.id} for topic ${topicId}`);
+            return;
+          }
+
+          // If server returned no digest, try local cache as fallback (offline support)
+          const { digest: cachedDigest } = await digestService.getCachedDigest(topicId, timeframe);
+          if (cachedDigest) {
+            const key = makeDigestKey(topicId, timeframe);
+            set(state => ({
+              digests: new Map(state.digests).set(key, cachedDigest)
+            }));
+            logger.debug(`[ResearchStore] Loaded cached digest for topic ${topicId}`);
           }
         } catch (error) {
           logger.error('[ResearchStore] Error loading digest:', error);
+
+          // On error, try local cache as fallback
+          try {
+            const { digest: cachedDigest } = await digestService.getCachedDigest(topicId, timeframe);
+            if (cachedDigest) {
+              const key = makeDigestKey(topicId, timeframe);
+              set(state => ({
+                digests: new Map(state.digests).set(key, cachedDigest)
+              }));
+            }
+          } catch {
+            // Ignore cache errors
+          }
         }
       },
 
