@@ -481,7 +481,7 @@ git push origin fix/digest-findings-race-condition
 ssh user@your-debian-server
 
 # 4. Navigate to project directory
-cd /path/to/medical-companion-pwa
+cd /home/medical-pwa
 
 # 5. Pull latest changes
 git pull origin fix/digest-findings-race-condition
