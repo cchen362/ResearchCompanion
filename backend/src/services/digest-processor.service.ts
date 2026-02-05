@@ -138,10 +138,21 @@ export class DigestProcessorService {
    */
   private async generateAndStoreDigest(item: QueueItem): Promise<string> {
     // 1. Fetch findings for the topic
-    const findings = await FindingModel.getFiltered(item.user_id, {
+    let findings = await FindingModel.getFiltered(item.user_id, {
       topic_id: item.topic_id,
       limit: 100 // Reasonable limit for digest generation
     });
+
+    // SAFETY CAP: Limit to 50 most recent findings to prevent AI timeout
+    // If more than 50 findings exist, prioritize by recency
+    const MAX_FINDINGS_FOR_DIGEST = 50;
+    if (findings.length > MAX_FINDINGS_FOR_DIGEST) {
+      console.log(`[DigestProcessor] Capping findings from ${findings.length} to ${MAX_FINDINGS_FOR_DIGEST}`);
+      // Sort by created_at descending (most recent first) and take top 50
+      findings = findings
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, MAX_FINDINGS_FOR_DIGEST);
+    }
 
     if (findings.length === 0) {
       throw new Error('No findings available for digest generation');

@@ -7,8 +7,10 @@
  * Uses useFindings() hook for findings data.
  */
 
+import { useMemo } from 'react';
 import { useFindings } from '@/hooks/useFindings';
 import { useUIStore } from '@/stores/uiStore';
+import { useAppStore } from '@/stores/appStore';
 import { FindingCard } from './FindingCard';
 import { FindingsEmpty } from './FindingsEmpty';
 import { Card } from '@/components/ui/card';
@@ -33,6 +35,24 @@ interface FindingsGridProps {
 export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
   const { findings, isLoading } = useFindings(topicId);
   const { viewMode } = useUIStore();
+  const { findingsDateFilter } = useAppStore();
+
+  // Apply date filtering
+  const filteredFindings = useMemo(() => {
+    if (findingsDateFilter === 'all') return findings;
+
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+
+    const cutoffMap: Record<'7d' | '30d' | '90d', number> = {
+      '7d': now - (7 * day),
+      '30d': now - (30 * day),
+      '90d': now - (90 * day),
+    };
+
+    const cutoff = cutoffMap[findingsDateFilter];
+    return findings.filter(f => f.timestamp > cutoff);
+  }, [findings, findingsDateFilter]);
 
   // Loading state
   if (isLoading) {
@@ -54,16 +74,17 @@ export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
     );
   }
 
-  // Empty state
-  if (findings.length === 0) {
+  // Empty state - check filteredFindings
+  if (filteredFindings.length === 0) {
     return <FindingsEmpty hasTopicSelected={!!topicId} />;
   }
 
   // Only show list view in this component (digest view is handled by DigestPanel)
+  // List view - use filteredFindings
   if (viewMode === 'list') {
     return (
       <div className="space-y-4">
-        {findings.map((finding) => (
+        {filteredFindings.map((finding) => (
           <FindingCard
             key={finding.id}
             finding={finding}

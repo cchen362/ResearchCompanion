@@ -8,9 +8,12 @@
  */
 
 import { useUIStore } from '@/stores/uiStore';
+import { useAppStore } from '@/stores/appStore';
 import { useDigest } from '@/hooks/useDigest';
 import { ViewToggle } from './ViewToggle';
+import { FindingsDateFilter } from './FindingsDateFilter';
 import { ExportMenu } from '@/components/ExportMenu';
+import type { FindingsDateFilter as FilterType } from '@/stores/appStore';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Settings } from 'lucide-react';
 import type { Topic, ResearchFinding, SmartDigest } from '@/types';
@@ -44,10 +47,15 @@ export function ResearchToolbar({
   onSettingsClick
 }: ResearchToolbarProps) {
   const { viewMode, setViewMode } = useUIStore();
+  const { findingsDateFilter, setFindingsDateFilter } = useAppStore();
   const { isGenerating, refreshDigest } = useDigest(topicId);
 
   const handleViewChange = (mode: 'digest' | 'list') => {
     setViewMode(mode);
+  };
+
+  const handleFilterChange = (filter: FilterType) => {
+    setFindingsDateFilter(filter);
   };
 
   const handleRefresh = () => {
@@ -63,6 +71,14 @@ export function ResearchToolbar({
           findings={findings}
           digest={digest || undefined}
           timeline={[]}
+        />
+      )}
+
+      {/* Date filter - only show in list view */}
+      {viewMode === 'list' && (
+        <FindingsDateFilter
+          filter={findingsDateFilter}
+          onFilterChange={handleFilterChange}
         />
       )}
 
