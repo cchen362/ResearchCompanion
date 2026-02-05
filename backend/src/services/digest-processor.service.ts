@@ -20,6 +20,35 @@ import { generateSmartDigest } from './ai.service.js';
 import { query } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Count findings by source type for the source stats bar
+ * This serves as a backup/validation for AI-generated sourceBreakdown
+ */
+function countSourcesByType(findings: any[]): {
+  pubmed: number;
+  clinicalTrials: number;
+  fda: number;
+  web: number;
+} {
+  const breakdown = { pubmed: 0, clinicalTrials: 0, fda: 0, web: 0 };
+
+  for (const finding of findings) {
+    const sourceType = (finding.source?.type || '').toLowerCase();
+
+    if (sourceType.includes('pubmed') || sourceType.includes('research') || sourceType === 'academic') {
+      breakdown.pubmed++;
+    } else if (sourceType.includes('clinical') || sourceType.includes('trial')) {
+      breakdown.clinicalTrials++;
+    } else if (sourceType.includes('fda')) {
+      breakdown.fda++;
+    } else {
+      breakdown.web++;
+    }
+  }
+
+  return breakdown;
+}
+
 interface QueueItem {
   id: string;
   user_id: string;
@@ -232,7 +261,12 @@ export class DigestProcessorService {
           queueItemId: item.id,
           findingsCount: findings.length,
           generatedAt: new Date().toISOString(),
-          timeframe: item.timeframe || 'all-time'
+          timeframe: item.timeframe || 'all-time',
+          // NEW magazine editorial fields
+          featuredDiscovery: (digest as any).featuredDiscovery || null,
+          topFindings: (digest as any).topFindings || [],
+          // Use AI-generated sourceBreakdown, with fallback to calculated
+          sourceBreakdown: (digest as any).sourceBreakdown || countSourcesByType(findings)
         })
       ]
     );

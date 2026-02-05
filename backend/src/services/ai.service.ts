@@ -434,7 +434,52 @@ AVOID:
 - Academic language without practical translation
 - Missing critical details (sample sizes, effect sizes, patient populations)
 
-Remember: Users trust this digest to make real healthcare decisions. Be specific, be practical, be honest about limitations.`,
+Remember: Users trust this digest to make real healthcare decisions. Be specific, be practical, be honest about limitations.
+
+## MAGAZINE EDITORIAL FORMAT (NEW REQUIREMENTS)
+
+You are creating a curated medical research newsletter. Generate content that feels professionally edited.
+
+### FEATURED DISCOVERY
+Select the SINGLE most impactful finding as the "hero" content. Prioritize:
+1. FDA approvals or major regulatory news
+2. Phase 3 trial results
+3. Major meta-analyses
+4. Breakthrough treatments
+
+For the featured discovery, generate TWO versions:
+
+TECHNICAL VERSION:
+- Use proper medical terminology
+- Include specific drug names, mechanisms
+- Reference trial names and phases
+- Use clinical metrics (IGF-1, etc.)
+
+EXPLAINED VERSION:
+- Use analogies and metaphors
+- Compare to everyday experiences
+- Explain medical terms in parentheses
+- Make it accessible to non-medical readers
+
+### TOP FINDINGS
+Select 5 additional notable findings. For EACH:
+- Generate both technical and explained versions
+- Include the finding ID for traceability
+- Create a metadata string: "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
+
+### SOURCE BREAKDOWN
+Count findings by type:
+- pubmed: Count of academic/research sources
+- clinicalTrials: Count of trial registry sources
+- fda: Count of FDA sources
+- web: Count of news/web sources
+
+### CRITICAL GROUNDING RULES
+1. Every claim MUST reference a finding ID from the provided data
+2. NEVER invent statistics, percentages, or study results
+3. The EXPLAINED version must contain the SAME FACTS as TECHNICAL
+4. If no suitable finding exists for featured discovery, omit the field
+5. Include finding IDs in your response for validation`,
       messages: [
         {
           role: 'user',
@@ -455,7 +500,12 @@ Create a structured digest with:
 - Flag any contradictions between findings
 - Track emerging, declining, and stable research trends
 
-Focus on practical, actionable information that helps with treatment decisions.`
+Focus on practical, actionable information that helps with treatment decisions.
+
+Additionally, generate these NEW magazine-style sections:
+- featuredDiscovery: The single most impactful finding with both technical and explained versions (include findingId, sourceType, technical object, explained object, and sourceMetadata)
+- topFindings: Up to 5 secondary notable findings with dual versions (each with findingId, sourceType, technical, explained, and metadata string)
+- sourceBreakdown: Count of findings by source type (pubmed, clinicalTrials, fda, web numbers)`
         }
       ]
     });
@@ -515,7 +565,11 @@ Focus on practical, actionable information that helps with treatment decisions.`
                 declining: Array.isArray(digestData.trends.declining) ? digestData.trends.declining : [],
                 stable: Array.isArray(digestData.trends.stable) ? digestData.trends.stable : []
               }
-            : { emerging: [], declining: [], stable: [] }
+            : { emerging: [], declining: [], stable: [] },
+          // NEW magazine editorial fields
+          featuredDiscovery: digestData.featuredDiscovery || undefined,
+          topFindings: Array.isArray(digestData.topFindings) ? digestData.topFindings : [],
+          sourceBreakdown: digestData.sourceBreakdown || undefined
         };
 
         // Try to validate the recovered data with defaults
@@ -532,7 +586,11 @@ Focus on practical, actionable information that helps with treatment decisions.`
           keyTakeaways: [],
           breakthroughs: [],
           contradictions: [],
-          trends: { emerging: [], declining: [], stable: [] }
+          trends: { emerging: [], declining: [], stable: [] },
+          // NEW magazine editorial fields (null for fallback)
+          featuredDiscovery: null,
+          topFindings: [],
+          sourceBreakdown: null
         };
         console.log('✓ Using minimal fallback data');
       }
@@ -655,7 +713,11 @@ Focus on practical, actionable information that helps with treatment decisions.`
         avgConfidence: avgSourceQuality / 100  // Convert 0-100 source quality to 0-1 scale for legacy compatibility
       },
       topSources,
-      allFindingIds
+      allFindingIds,
+      // NEW magazine editorial fields
+      featuredDiscovery: digestData.featuredDiscovery || null,
+      topFindings: digestData.topFindings || [],
+      sourceBreakdown: digestData.sourceBreakdown || null
     };
   } catch (error: any) {
     const errorTime = Date.now() - startTime;
@@ -674,7 +736,11 @@ Focus on practical, actionable information that helps with treatment decisions.`
           findingIds: findings.slice(0, 5).map(f => f.id)
         }],
         keyTakeaways: ['Review individual findings for details'],
-        trends: { emerging: [], declining: [], stable: ['Research ongoing'] }
+        trends: { emerging: [], declining: [], stable: ['Research ongoing'] },
+        // NEW magazine editorial fields (null for timeout fallback)
+        featuredDiscovery: null,
+        topFindings: [],
+        sourceBreakdown: null
       };
     }
 
@@ -717,7 +783,11 @@ Source: ${f.source.name} (${f.source.type})`
         },
         topSources: [],
         allFindingIds,
-        fallbackUsed: true  // Flag to indicate fallback was used
+        fallbackUsed: true,  // Flag to indicate fallback was used
+        // NEW magazine editorial fields (null for simple digest fallback)
+        featuredDiscovery: null,
+        topFindings: [],
+        sourceBreakdown: null
       };
     } catch (fallbackError) {
       console.error('Both tools and simple approaches failed:', fallbackError);
