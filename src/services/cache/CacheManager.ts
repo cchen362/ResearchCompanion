@@ -19,12 +19,13 @@ import { logger } from '@/utils/logger';
 
 /**
  * Cache entry structure stored in IndexedDB
+ * Uses 'id' as the key field to match IndexedDB keyPath: 'id'
  */
 export interface CacheEntry<T = unknown> {
+  id: string;  // Must be 'id' to match IndexedDB keyPath
   data: T;
   timestamp: number;
   ttl: number;
-  key: string;
 }
 
 /**
@@ -88,13 +89,15 @@ class CacheManagerClass {
       const ttl = options?.ttl ?? getCacheTTL(store);
 
       const entry: CacheEntry<T> = {
+        id: key,  // Use 'id' to match IndexedDB keyPath
         data,
         timestamp: Date.now(),
-        ttl,
-        key
+        ttl
       };
 
-      await db.put(store as any, entry, key);
+      // For stores with in-line keys (keyPath), don't pass key as second argument
+      // The key is taken from the object's keyPath property
+      await db.put(store as any, entry);
       logger.debug(`[CacheManager] Cached ${store}/${key} (TTL: ${ttl}ms)`);
     } catch (error) {
       // Cache errors are non-critical
@@ -123,12 +126,12 @@ class CacheManagerClass {
 
       for (const item of items) {
         const entry: CacheEntry<T> = {
+          id: item.id,  // Use 'id' to match IndexedDB keyPath
           data: item,
           timestamp,
-          ttl,
-          key: item.id
+          ttl
         };
-        await objStore.put(entry, item.id);
+        await objStore.put(entry);  // Don't pass key - uses in-line keyPath
       }
 
       await tx.done;
