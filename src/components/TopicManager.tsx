@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { topicsService } from '@/services/topics.service';
 import { agentsService } from '@/services/agents.service';
 import { logger } from '@/utils/logger';
-import type { Topic, DiseaseProfile, PatientContext, AgentType } from '@/types';
+import type { Topic, DiseaseProfile, PatientContext } from '@/types';
 
 interface TopicManagerProps {
   onTopicsChange?: () => void;
@@ -227,41 +227,14 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         throw new Error('Topic was not created properly - no ID returned');
       }
 
-      // Create default agents for the topic
-      const agentTypes: AgentType[] = ['treatment_breakthrough', 'clinical_trial'];
-
-      for (const type of agentTypes) {
-        try {
-          await agentsService.saveAgent({
-          id: '', // Will be assigned by server
-          topicId: topic.id,
-          name: `${type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Agent`,
-          type,
-          status: 'idle',
-          config: {
-            updateFrequency: progressionRate === 'rapid' ? 'hourly' :
-                           progressionRate === 'moderate' ? 'daily' : 'weekly',
-            searchDepth: 10,
-            sources: [],
-            keywords: []
-          },
-          lastRun: null,
-          createdAt: Date.now(),
-          metrics: {
-            totalRuns: 0,
-            successfulRuns: 0,
-            failedRuns: 0,
-            findingsGenerated: 0,
-            lastSuccessAt: null,
-            lastErrorAt: null,
-            lastError: null,
-            apiCostTotal: 0
-          }
-        });
-        } catch (agentError) {
-          logger.error(`[TopicManager] Error creating ${type} agent:`, agentError);
-          // Continue with next agent even if one fails
-        }
+      // Create default agents for the topic using backend's single source of truth
+      // Backend defines all 3 agent types: treatment_breakthrough, clinical_trial, medical_literature
+      try {
+        await agentsService.createDefaultAgents(topic.id);
+        logger.debug(`[TopicManager] Created default agents for topic ${topic.id}`);
+      } catch (agentError) {
+        logger.error('[TopicManager] Error creating default agents:', agentError);
+        // Don't fail topic creation if agents fail - they can be repaired later
       }
 
       onSuccess();
