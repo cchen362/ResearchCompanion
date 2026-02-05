@@ -367,33 +367,72 @@ class AgentsService {
 
       switch (agent.type) {
         case 'treatment_breakthrough':
-          const webResults = await searchApi.searchWeb(`${query} FDA approval new treatment`, 10);
-          const pubmedResults = await searchApi.searchPubMed(`${query} treatment therapy`, 10);
-          searchResults = [...(webResults.results || []), ...(pubmedResults.articles || [])];
+          try {
+            logger.debug(`[AgentsService] ${agent.name}: Starting web search...`);
+            const webResults = await searchApi.searchWeb(`${query} FDA approval new treatment`, 10);
+            logger.debug(`[AgentsService] ${agent.name}: Web search returned ${webResults?.results?.length || 0} results`);
+
+            logger.debug(`[AgentsService] ${agent.name}: Starting PubMed search...`);
+            const pubmedResults = await searchApi.searchPubMed(`${query} treatment therapy`, 10);
+            logger.debug(`[AgentsService] ${agent.name}: PubMed search returned ${pubmedResults?.articles?.length || 0} results`);
+
+            searchResults = [...(webResults?.results || []), ...(pubmedResults?.articles || [])];
+          } catch (error) {
+            logger.error(`[AgentsService] ${agent.name}: Search failed:`, error);
+            searchResults = [];
+          }
           break;
 
         case 'clinical_trial':
-          const trials = await searchApi.searchClinicalTrials(
-            topic.diseaseProfile.name,
-            'RECRUITING',
-            topic.patientContext?.location
-          );
-          searchResults = trials.trials || [];
+          try {
+            logger.debug(`[AgentsService] ${agent.name}: Starting clinical trials search...`);
+            const trials = await searchApi.searchClinicalTrials(
+              topic.diseaseProfile.name,
+              'RECRUITING',
+              topic.patientContext?.location
+            );
+            logger.debug(`[AgentsService] ${agent.name}: Clinical trials returned ${trials?.trials?.length || 0} results`);
+            searchResults = trials?.trials || [];
+          } catch (error) {
+            logger.error(`[AgentsService] ${agent.name}: Search failed:`, error);
+            searchResults = [];
+          }
           break;
 
         case 'medical_literature':
-          const literature = await searchApi.searchPubMed(query, 20);
-          searchResults = literature.articles || [];
+          try {
+            logger.debug(`[AgentsService] ${agent.name}: Starting PubMed search...`);
+            const literature = await searchApi.searchPubMed(query, 20);
+            logger.debug(`[AgentsService] ${agent.name}: PubMed returned ${literature?.articles?.length || 0} results`);
+            searchResults = literature?.articles || [];
+          } catch (error) {
+            logger.error(`[AgentsService] ${agent.name}: PubMed search failed:`, error);
+            searchResults = [];
+          }
           break;
 
         case 'pattern_recognition':
-          searchResults = await this.analyzeExistingFindings(topic);
+          try {
+            logger.debug(`[AgentsService] ${agent.name}: Analyzing existing findings...`);
+            searchResults = await this.analyzeExistingFindings(topic);
+            logger.debug(`[AgentsService] ${agent.name}: Pattern analysis returned ${searchResults?.length || 0} results`);
+          } catch (error) {
+            logger.error(`[AgentsService] ${agent.name}: Analysis failed:`, error);
+            searchResults = [];
+          }
           break;
 
         default:
-          const generalWeb = await searchApi.searchWeb(query, 10);
-          const generalPubmed = await searchApi.searchPubMed(query, 10);
-          searchResults = [...(generalWeb.results || []), ...(generalPubmed.articles || [])];
+          try {
+            logger.debug(`[AgentsService] ${agent.name}: Starting general search...`);
+            const generalWeb = await searchApi.searchWeb(query, 10);
+            const generalPubmed = await searchApi.searchPubMed(query, 10);
+            searchResults = [...(generalWeb?.results || []), ...(generalPubmed?.articles || [])];
+            logger.debug(`[AgentsService] ${agent.name}: General search returned ${searchResults.length} results`);
+          } catch (error) {
+            logger.error(`[AgentsService] ${agent.name}: Search failed:`, error);
+            searchResults = [];
+          }
       }
 
       logger.debug(`[AgentsService] Found ${searchResults.length} search results`);

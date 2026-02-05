@@ -62,6 +62,7 @@ export class SearchService {
   async searchPubMed(query: string, limit?: number): Promise<any[]> {
     // Use provided limit or fall back to configured default
     const maxResults = limit || this.pubmedLimit;
+    console.log(`[SearchService.searchPubMed] Query: "${query}", Limit: ${maxResults}`);
     try {
       // Build base params
       const searchParams: any = {
@@ -145,7 +146,11 @@ export class SearchService {
 
       return articles;
     } catch (error) {
-      console.error('PubMed search error:', error);
+      console.error('[SearchService.searchPubMed] Error:', {
+        query,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        response: (error as any).response?.data
+      });
       return [];
     }
   }

@@ -51,10 +51,13 @@ router.post('/websearch', async (req, res) => {
  * Search PubMed for medical literature
  */
 router.post('/pubmed-search', async (req, res) => {
+  console.log('[PUBMED] Request received:', { query: req.body.query, limit: req.body.limit });
+
   try {
     const { query, limit = 10 } = req.body;
 
     if (!query) {
+      console.log('[PUBMED] Error: Query is required');
       return res.status(400).json({ error: 'Query is required' });
     }
 
@@ -62,10 +65,13 @@ router.post('/pubmed-search', async (req, res) => {
     const apiKeyParam = process.env.PUBMED_API_KEY ? `&api_key=${process.env.PUBMED_API_KEY}` : '';
     const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${apiKeyParam}`;
 
+    console.log('[PUBMED] Calling PubMed esearch API...');
     const searchResponse = await axios.get(searchUrl);
     const idList = searchResponse.data.esearchresult?.idlist || [];
+    console.log('[PUBMED] Found', idList.length, 'article IDs');
 
     if (idList.length === 0) {
+      console.log('[PUBMED] No articles found, returning empty array');
       return res.json({ articles: [] });
     }
 
@@ -89,9 +95,14 @@ router.post('/pubmed-search', async (req, res) => {
       };
     }).filter(Boolean);
 
+    console.log('[PUBMED] Returning', articles.length, 'articles');
     res.json({ articles });
   } catch (error) {
-    console.error('Error in pubmed-search:', error);
+    console.error('[PUBMED] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      response: (error as any).response?.data
+    });
     res.status(500).json({ error: 'Failed to search PubMed' });
   }
 });
