@@ -150,6 +150,11 @@ class DigestService {
   // ==================== Transformation Functions ====================
 
   private transformToFrontend(apiDigest: any, responseContext?: { deduplicated?: boolean; source?: string }): SmartDigest {
+    // Safety check: throw meaningful error if called with null/undefined
+    if (!apiDigest) {
+      throw new Error('Cannot transform null or undefined digest');
+    }
+
     const digest: SmartDigest = {
       id: apiDigest.id,
       topicId: apiDigest.topic_id || '',
@@ -259,7 +264,8 @@ class DigestService {
 
       const response = await api.get<DigestResponse>(url);
 
-      if (response.data.success) {
+      if (response.data.success && response.data.digest) {
+        // Only transform if digest exists (might be null if still generating)
         const digest = this.transformToFrontend(response.data.digest, {
           deduplicated: response.data.deduplicated,
           source: 'postgresql'
@@ -268,6 +274,7 @@ class DigestService {
         return digest;
       }
 
+      // If success but no digest (still generating), return undefined
       return undefined;
     } catch (error: any) {
       if (error.response?.status === 404) {
