@@ -482,7 +482,12 @@ class AgentsService {
           });
 
           if (!isDuplicate) {
-            await findingsService.saveFinding(finding);
+            try {
+              await findingsService.saveFinding(finding);
+            } catch (saveError) {
+              logger.warn(`[AgentsService] Failed to save finding "${finding.title}": ${saveError instanceof Error ? saveError.message : 'Unknown error'}`);
+              duplicatesSkipped++;
+            }
           } else {
             duplicatesSkipped++;
             logger.debug(`[AgentsService] Skipping duplicate finding: ${finding.title}`);
