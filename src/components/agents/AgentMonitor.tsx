@@ -3,8 +3,31 @@ import { agentsService, runAgentWithAPI, runAllResearchAgents } from '@/services
 import { topicsService } from '@/services/topics.service';
 import AgentConfigModal from './AgentConfigModal';
 import { notificationService } from '@/services/notification.service';
+import { SourceIcon } from '@/components/digest/SourceIcon';
 import { logger } from '@/utils/logger';
-import type { Agent } from '@/types';
+import type { Agent, DigestSourceType } from '@/types';
+
+const AGENT_TYPE_CONFIG: Record<string, {
+  sourceTypes: DigestSourceType[];
+  description: string;
+}> = {
+  medical_literature: {
+    sourceTypes: ['pubmed'],
+    description: 'Searches PubMed for peer-reviewed studies and review articles',
+  },
+  clinical_trial: {
+    sourceTypes: ['clinical_trial'],
+    description: 'Monitors ClinicalTrials.gov for active and recruiting trials',
+  },
+  treatment_breakthrough: {
+    sourceTypes: ['web', 'fda'],
+    description: 'Searches web and FDA for emerging treatments and drug approvals',
+  },
+  pattern_recognition: {
+    sourceTypes: [],
+    description: 'Analyzes existing findings to detect recurring patterns',
+  },
+};
 
 export default function AgentMonitor() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -242,11 +265,13 @@ export default function AgentMonitor() {
                 <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
-                  <p className="text-xs text-gray-500">
-                    {agent.type.split('_').map(word =>
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
-                  </p>
+                  {AGENT_TYPE_CONFIG[agent.type]?.sourceTypes.length > 0 && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {AGENT_TYPE_CONFIG[agent.type].sourceTypes.map(st => (
+                        <SourceIcon key={st} type={st} size="sm" showLabel />
+                      ))}
+                    </div>
+                  )}
                   {topics.get(agent.topicId) && (
                     <p className="text-xs text-indigo-600 mt-1">
                       Monitoring: {topics.get(agent.topicId)}
@@ -255,7 +280,9 @@ export default function AgentMonitor() {
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4">{agent.description}</p>
+              <p className="text-sm text-gray-600 mb-4">
+                {agent.description || AGENT_TYPE_CONFIG[agent.type]?.description || ''}
+              </p>
 
               <div className="space-y-2 text-xs text-gray-500">
                 <div className="flex justify-between">
