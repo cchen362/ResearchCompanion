@@ -269,7 +269,8 @@ export class DigestProcessorService {
           queueItemId: item.id,
           findingsCount: findings.length,
           generatedAt: new Date().toISOString(),
-          timeframe: item.timeframe || 'all-time'
+          timeframe: item.timeframe || 'all-time',
+          statistics: (digest as any).statistics || { totalFindings: findings.length, newFindings: 0, sourceCount: 0 }
         }),
         JSON.stringify((digest as any).featuredDiscovery || null),
         JSON.stringify((digest as any).topFindings || []),
