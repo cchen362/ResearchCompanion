@@ -67,7 +67,7 @@ export class DigestProcessorService {
   private queueService: DigestQueueServicePG;
   private isProcessing = false;
   private pollInterval: NodeJS.Timeout | null = null;
-  private readonly POLL_INTERVAL_MS = 30000; // 30 seconds
+  private readonly POLL_INTERVAL_MS = 10000; // 10 seconds — faster pickup for user-initiated digests
 
   constructor(pool: Pool) {
     this.pool = pool;
@@ -153,9 +153,15 @@ export class DigestProcessorService {
   private async getNextPendingItem(): Promise<QueueItem | null> {
     const result = await query<QueueItem>(
       `SELECT * FROM digest_queue
-       WHERE status = 'pending'
+       WHERE (
+         status = 'pending'
+         OR (status = 'processing' AND started_at < NOW() - INTERVAL '5 minutes')
+       )
        AND retry_count < max_retries
-       ORDER BY priority DESC, created_at ASC
+       ORDER BY
+         CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+         priority DESC,
+         created_at ASC
        LIMIT 1`,
       []
     );

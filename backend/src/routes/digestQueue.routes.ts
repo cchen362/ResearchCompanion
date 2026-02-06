@@ -13,7 +13,7 @@ import { authenticate } from '../middleware/auth.js';
 const CreateQueueItemSchema = z.object({
   topicId: z.string().uuid(),
   digestType: z.enum(['smart', 'simple']).optional().default('smart'),
-  timeframe: z.enum(['daily', 'weekly', 'monthly', 'all']),
+  timeframe: z.enum(['daily', 'weekly', 'monthly', 'all-time']),
   priority: z.number().int().min(0).max(10).optional().default(0),
   metadata: z.record(z.string(), z.any()).optional()
 });

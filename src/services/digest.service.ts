@@ -521,7 +521,8 @@ class DigestService {
       };
 
       window.dispatchEvent(new CustomEvent('digest-queued', { detail: { queueItem } }));
-      this.processQueue();
+      // Backend DigestProcessor handles queue processing — no frontend processing needed
+      logger.debug('[DigestService] Queue item created, backend processor will pick it up');
 
       return queueItem;
     } finally {
@@ -593,7 +594,7 @@ class DigestService {
       'user'
     );
 
-    setTimeout(() => this.processQueue(), 100);
+    // Backend DigestProcessor handles queue processing — no frontend processing needed
     return queueItem;
   }
 
@@ -620,112 +621,18 @@ class DigestService {
   // ==================== Queue Processing ====================
 
   async processQueue(): Promise<void> {
-    if (this.processingQueue) return;
-
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-
-    this.processingQueue = true;
-
-    try {
-      const response = await api.get(`${this.queueBaseUrl}?limit=10`);
-      const pendingItems = response.data.items?.filter((item: any) =>
-        item.status === 'pending' || item.status === 'processing'
-      ) || [];
-
-      for (const item of pendingItems) {
-        if (item.status === 'processing' && this.currentProcessingId !== item.id) {
-          continue;
-        }
-
-        if (item.status === 'pending') {
-          await this.processQueueItem(item);
-        }
-      }
-    } finally {
-      this.processingQueue = false;
-    }
+    // No-op: Backend DigestProcessor handles all queue processing.
+    // This method is kept for interface compatibility but does nothing.
+    // Both manual (user click) and autonomous (scheduler) paths now use
+    // the backend DigestProcessor exclusively.
+    logger.debug('[DigestService] processQueue called — backend processor handles this');
   }
 
   private async processQueueItem(item: any): Promise<void> {
-    this.currentProcessingId = item.id;
-
-    try {
-      await api.patch(`${this.queueBaseUrl}/${item.id}`, { status: 'processing' });
-
-      const topic = await topicsService.getTopic(item.topicId);
-      if (!topic) {
-        throw new Error(`Topic ${item.topicId} not found`);
-      }
-
-      const findings = await findingsService.getFindings(item.topicId);
-      if (findings.length === 0) {
-        throw new Error('No findings available for digest generation');
-      }
-
-      const queueItem: DigestQueueItem = {
-        id: item.id,
-        topicId: item.topicId,
-        timeframe: item.timeframe as DigestTimeframe,
-        status: 'processing',
-        priority: 'normal',
-        createdAt: new Date(item.createdAt).getTime(),
-        startedAt: Date.now(),
-        attempts: 1,
-        maxAttempts: 3,
-        findingIds: findings.map(f => f.id),
-        requestedBy: 'user',
-        estimatedCompletionTime: Date.now() + 60000,
-        progress: { stage: 'generating', percentage: 10, message: 'Starting digest generation...' }
-      };
-
-      this.notifyProgressUpdate(queueItem);
-
-      const digest = await this.generateDigestFromFindings(
-        queueItem,
-        topic,
-        findings,
-        item.timeframe as DigestTimeframe
-      );
-
-      const savedDigest = await this.saveDigest(digest);
-
-      await api.patch(`${this.queueBaseUrl}/${item.id}`, {
-        status: 'completed',
-        resultId: savedDigest.id
-      });
-
-      queueItem.status = 'completed';
-      queueItem.completedAt = Date.now();
-      queueItem.progress = { stage: 'completed', percentage: 100, message: 'Digest generated successfully' };
-      this.notifyCompletion(queueItem, savedDigest);
-
-    } catch (error) {
-      logger.error(`[DigestService] Failed to process queue item ${item.id}:`, error);
-
-      await api.patch(`${this.queueBaseUrl}/${item.id}`, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-
-      this.notifyFailure({
-        id: item.id,
-        topicId: item.topicId,
-        timeframe: item.timeframe as DigestTimeframe,
-        status: 'failed',
-        priority: 'normal',
-        createdAt: new Date(item.createdAt).getTime(),
-        attempts: 1,
-        maxAttempts: 3,
-        findingIds: [],
-        requestedBy: 'user',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      if (this.currentProcessingId === item.id) {
-        this.currentProcessingId = null;
-      }
-    }
+    // No-op: Backend DigestProcessor handles all queue processing.
+    // Previously, this method held a long HTTP connection to POST /digest/generate-digest
+    // which was fragile and caused 504 timeouts + race conditions.
+    logger.debug(`[DigestService] processQueueItem called for ${item.id} — backend processor handles this`);
   }
 
   private async generateDigestFromFindings(
@@ -734,36 +641,9 @@ class DigestService {
     findings: ResearchFinding[],
     timeframe: DigestTimeframe
   ): Promise<SmartDigest> {
-    const now = Date.now();
-    const day = 24 * 60 * 60 * 1000;
-    let filteredFindings = findings;
-
-    switch (timeframe) {
-      case 'daily':
-        filteredFindings = findings.filter(f => f.timestamp > now - day);
-        break;
-      case 'weekly':
-        filteredFindings = findings.filter(f => f.timestamp > now - (7 * day));
-        break;
-      case 'monthly':
-        filteredFindings = findings.filter(f => f.timestamp > now - (30 * day));
-        break;
-    }
-
-    const response = await longOperationApi.post('/digest/generate-digest', {
-      findings: filteredFindings,
-      topic,
-      timeframe
-    });
-
-    if (!response.data) {
-      throw new Error('No digest data returned from backend');
-    }
-
-    return {
-      ...response.data,
-      topicId: topic.id
-    };
+    // No-op: Backend DigestProcessor handles digest generation directly.
+    // This method previously made a long HTTP request that was fragile.
+    throw new Error('Frontend digest generation disabled — backend processor handles this');
   }
 
   // ==================== Cache Operations ====================
@@ -957,8 +837,8 @@ class DigestService {
   // ==================== Lifecycle Methods ====================
 
   public startPolling(): void {
-    logger.debug('[DigestService] Initializing queue service after login');
-    setTimeout(() => this.processQueue(), 1000);
+    logger.debug('[DigestService] Initializing digest service after login');
+    // Backend DigestProcessor handles queue processing — no frontend polling needed
   }
 
   public stopPolling(): void {

@@ -1658,15 +1658,15 @@ If issues arise after deployment:
 
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
-| Phase 1: Wire click handlers | | | |
-| Phase 2: Visual affordances | | | |
-| Phase 3: PubMed efetch | | | |
-| Phase 4: Property mismatch | | | |
+| Phase 1: Wire click handlers | DONE | Feb 6 | onViewFinding prop chain through DigestCard → DigestPanel → ResearchContainer → ResearchPage |
+| Phase 2: Visual affordances | DONE | Feb 6 | ExternalLink icon on FeaturedDiscovery, ChevronRight on FindingSummaryCard |
+| Phase 3: PubMed efetch | DONE | Feb 6 | efetch added to both search.ts and search.service.ts with graceful fallback |
+| Phase 4: Property mismatch | DONE | Feb 6 | Fixed agents.service.ts fallback chain + "No abstract available" filter |
 | Phase 5: Structured Haiku summaries | DONE | Feb 6 | structuredDetails stored in metadata JSONB (no details column) |
 | Phase 6: ~~Backfill endpoint~~ | SKIPPED | Feb 6 | No users yet — delete topic & re-run agents |
 | Phase 7: Structured details UI | DONE | Feb 6 | Reads (finding as any).structuredDetails from metadata spread |
 | Phase 8: Inline source stats | DONE | Feb 6 | Standalone SourceStatsBar replaced with inline colored pills in digest header CardContent |
 | Phase 9: 12 findings + tabs | DONE | Feb 6 | Schema+prompt updated to 12; source-type filter tabs added to "Also In This Digest" |
 | Phase 10: SourceDrawer visuals | DONE | Feb 6 | Left border colors, Featured/In Digest badges, grouped-view summaries |
-| Phase 11: Deployment | | | |
-| Phase 12: Verification | | | |
+| Phase 11: Deployment | DONE | Feb 6 | Both builds pass, deployed via docker compose on Debian server |
+| Phase 12: Verification | PENDING | | Manual testing needed |

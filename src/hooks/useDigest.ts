@@ -273,8 +273,11 @@ export function useDigest(
 
     let isMounted = true;
     let pollTimer: NodeJS.Timeout | null = null;
+    let hasResolvedOnce = false;
 
     const checkQueueStatus = async () => {
+      if (hasResolvedOnce || !isMounted) return;
+
       setLoading('digest', true);
       try {
         logger.debug(`[useDigest] Checking queue status for topic ${topicId}...`);
@@ -294,18 +297,16 @@ export function useDigest(
 
           // Continue polling until complete
           pollTimer = setTimeout(checkQueueStatus, 2000);
-        } else if (status?.status === 'completed') {
-          // Just completed - load the digest
-          logger.debug(`[useDigest] Queue completed, loading digest...`);
-          await loadDigestFromStore(topicId, timeframe);
-          setDigestProgress(0, '');
-          setLoading('digest', false);
         } else {
-          // No active queue - try to load existing digest
-          logger.debug(`[useDigest] No active queue for topic ${topicId}, trying to load digest...`);
+          // Queue resolved (completed, failed, or absent) — resolve once and stop
+          hasResolvedOnce = true;
 
-          // Always try to load the digest when there's no active queue
-          // This handles the case where digest was generated but queue was cleared
+          if (status?.status === 'completed') {
+            logger.debug(`[useDigest] Queue completed, loading digest...`);
+          } else {
+            logger.debug(`[useDigest] No active queue for topic ${topicId}, trying to load digest...`);
+          }
+
           try {
             await loadDigestFromStore(topicId, timeframe);
           } catch (loadError) {
@@ -317,6 +318,8 @@ export function useDigest(
         }
       } catch (error) {
         logger.error('[useDigest] Error checking queue status:', error);
+        hasResolvedOnce = true;
+        setDigestProgress(0, '');
         setLoading('digest', false);
       }
     };

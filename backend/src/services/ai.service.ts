@@ -13,8 +13,8 @@ dotenv.config({ path: join(__dirname, '..', '..', '.env') });
 // Initialize API clients with retry configuration
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
-  maxRetries: 2, // Reduce retries to 2
-  timeout: 120000, // Increased to 120 seconds to allow complex digests to complete
+  maxRetries: 2,
+  timeout: 300000, // 5 minutes — matches nginx (300s), Express (300s), and frontend longOperationApi (300s)
 });
 
 const openai = new OpenAI({
