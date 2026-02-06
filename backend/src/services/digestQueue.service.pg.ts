@@ -173,8 +173,10 @@ export class DigestQueueServicePG {
 
         // If it's completed or failed, check if it's recent before resetting
         if (existing.status === 'completed' || existing.status === 'failed' || existing.status === 'cancelled') {
-          // Don't reset if completed within the last 24 hours
-          if (existing.status === 'completed' && existing.completedAt) {
+          const forceRegenerate = data.metadata?.force === true;
+
+          // Don't reset if completed within the last 24 hours (unless force=true)
+          if (!forceRegenerate && existing.status === 'completed' && existing.completedAt) {
             const completedTime = new Date(existing.completedAt).getTime();
             const now = Date.now();
             const hoursSinceCompletion = (now - completedTime) / (1000 * 60 * 60);
@@ -183,6 +185,10 @@ export class DigestQueueServicePG {
               console.log(`[DigestQueueService] Queue item completed ${hoursSinceCompletion.toFixed(1)} hours ago, not resetting`);
               return existing; // Return the completed item without resetting
             }
+          }
+
+          if (forceRegenerate) {
+            console.log(`[DigestQueueService] Force regenerate requested, resetting queue item`);
           }
 
           const resetQuery = `

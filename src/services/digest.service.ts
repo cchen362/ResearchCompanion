@@ -447,7 +447,8 @@ class DigestService {
     timeframe: DigestTimeframe,
     findingIds: string[],
     priority: DigestPriority = 'normal',
-    requestedBy: 'user' | 'system' | 'background' = 'user'
+    requestedBy: 'user' | 'system' | 'background' = 'user',
+    force: boolean = false
   ): Promise<DigestQueueItem> {
     const lockKey = `queue_${topicId}_${timeframe}`;
 
@@ -462,10 +463,10 @@ class DigestService {
     this.queueLocks.add(lockKey);
 
     try {
-      // Check for existing active queue
+      // Check for existing active queue (skip if force regeneration)
       const queueStatus = await this.getQueueStatusAPI(topicId, timeframe);
 
-      if (queueStatus.hasActiveQueue && queueStatus.queueId) {
+      if (!force && queueStatus.hasActiveQueue && queueStatus.queueId) {
         const existing: DigestQueueItem = {
           id: queueStatus.queueId,
           topicId,
@@ -494,7 +495,7 @@ class DigestService {
         timeframe,
         digestType: 'smart',
         priority: priority === 'high' ? 5 : priority === 'normal' ? 3 : 1,
-        metadata: { findingIds, requestedBy }
+        metadata: { findingIds, requestedBy, ...(force ? { force: true } : {}) }
       });
 
       if (!response.data.success || !response.data.queueId) {
@@ -575,7 +576,8 @@ class DigestService {
 
   async queueDigestFromExistingFindings(
     topicId: string,
-    timeframe: DigestTimeframe = 'weekly'
+    timeframe: DigestTimeframe = 'weekly',
+    force: boolean = false
   ): Promise<DigestQueueItem> {
     const findings = await findingsService.getFindings(topicId, { limit: 100 });
 
@@ -591,7 +593,8 @@ class DigestService {
       timeframe,
       findingIds,
       'high',
-      'user'
+      'user',
+      force
     );
 
     // Backend DigestProcessor handles queue processing — no frontend processing needed

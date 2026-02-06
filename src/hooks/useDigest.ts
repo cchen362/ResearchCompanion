@@ -152,7 +152,8 @@ export function useDigest(
       // and load the digest when complete. No second polling loop needed.
       await digestService.queueDigestFromExistingFindings(
         topicId,
-        timeframe
+        timeframe,
+        force
       );
 
       logger.debug('[useDigest] Queue item created, useEffect poller will track progress');
