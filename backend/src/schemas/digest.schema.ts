@@ -52,19 +52,20 @@ export const TrendItemSchema = z.object({
 export const SmartDigestSchema = z.object({
   executiveSummary: z.string(),
   laymanSummary: z.string(),
-  themes: z.array(DigestThemeSchema).default([]),
   keyTakeaways: z.array(z.string()).default([]),
   breakthroughs: z.array(BreakthroughSchema).optional().default([]),
   contradictions: z.array(ContradictionSchema).optional().default([]),
+  // Magazine editorial fields (REQUIRED for new digests)
+  featuredDiscovery: z.lazy(() => FeaturedDiscoverySchema),
+  topFindings: z.array(z.lazy(() => TopFindingSchema)).max(5),
+  sourceBreakdown: z.lazy(() => SourceBreakdownSchema),
+  // Legacy fields (kept optional for backward compat with old digests)
+  themes: z.array(DigestThemeSchema).optional().default([]),
   trends: z.object({
     emerging: z.array(TrendItemSchema).default([]),
     declining: z.array(TrendItemSchema).default([]),
     stable: z.array(TrendItemSchema).default([])
-  }).default({ emerging: [], declining: [], stable: [] }),
-  // NEW fields for magazine editorial design
-  featuredDiscovery: z.lazy(() => FeaturedDiscoverySchema).optional(),
-  topFindings: z.array(z.lazy(() => TopFindingSchema)).max(5).optional(),
-  sourceBreakdown: z.lazy(() => SourceBreakdownSchema).optional()
+  }).optional().default({ emerging: [], declining: [], stable: [] }),
 });
 
 // Featured Discovery schema - the "hero" content of the digest
@@ -129,65 +130,6 @@ export const digestJSONSchema = {
     laymanSummary: {
       type: 'string',
       description: 'Plain English explanation a family member would understand, with practical implications'
-    },
-    themes: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          title: {
-            type: 'string',
-            description: 'Specific theme (e.g., "Metformin Shows 30% Response Rate")'
-          },
-          summary: {
-            type: 'string',
-            description: 'What this means for treatment decisions, including specific metrics'
-          },
-          category: {
-            type: 'string',
-            enum: ['treatment', 'mechanism', 'trial', 'outcome', 'diagnostic', 'prevention']
-          },
-          importance: {
-            type: 'string',
-            enum: ['critical', 'high', 'medium', 'low']
-          },
-          findingIndices: {
-            type: 'array',
-            items: { type: 'number' },
-            description: 'Indices of findings that support this theme'
-          },
-          entities: {
-            type: 'object',
-            properties: {
-              medications: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Drug names with dosages if mentioned'
-              },
-              institutions: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Research centers conducting studies'
-              }
-            },
-            required: ['medications', 'institutions']
-          },
-          practicalInsight: {
-            type: 'string',
-            description: 'One specific action or consideration'
-          },
-          studyStrength: {
-            type: 'string',
-            description: 'RCT, Meta-analysis, Observational, or Case study'
-          },
-          avgConfidence: {
-            type: 'string',
-            enum: ['high', 'medium', 'low']
-          }
-        },
-        required: ['id', 'title', 'summary', 'category', 'importance', 'findingIndices', 'entities', 'practicalInsight', 'studyStrength', 'avgConfidence']
-      }
     },
     keyTakeaways: {
       type: 'array',
@@ -257,48 +199,6 @@ export const digestJSONSchema = {
         },
         required: ['id', 'topic', 'findingA', 'findingB', 'explanation', 'requiresAttention']
       }
-    },
-    trends: {
-      type: 'object',
-      properties: {
-        emerging: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              topic: { type: 'string' },
-              findingCount: { type: 'number' },
-              description: { type: 'string' }
-            },
-            required: ['topic', 'findingCount', 'description']
-          }
-        },
-        declining: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              topic: { type: 'string' },
-              findingCount: { type: 'number' },
-              description: { type: 'string' }
-            },
-            required: ['topic', 'findingCount', 'description']
-          }
-        },
-        stable: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              topic: { type: 'string' },
-              findingCount: { type: 'number' },
-              description: { type: 'string' }
-            },
-            required: ['topic', 'findingCount', 'description']
-          }
-        }
-      },
-      required: ['emerging', 'declining', 'stable']
     },
     featuredDiscovery: {
       type: 'object',
@@ -439,6 +339,6 @@ export const digestJSONSchema = {
       required: ['pubmed', 'clinicalTrials', 'fda', 'web']
     }
   },
-  required: ['executiveSummary', 'laymanSummary', 'themes', 'keyTakeaways', 'trends'],
+  required: ['executiveSummary', 'laymanSummary', 'keyTakeaways', 'featuredDiscovery', 'topFindings', 'sourceBreakdown'],
   additionalProperties: false
 };

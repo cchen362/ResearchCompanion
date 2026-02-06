@@ -105,6 +105,9 @@ CREATE TABLE IF NOT EXISTS digests (
     lifestyle_considerations JSONB DEFAULT '[]'::jsonb, -- Lifestyle recommendations
     questions_for_doctor JSONB DEFAULT '[]'::jsonb, -- Questions for healthcare provider
     warning_signs JSONB DEFAULT '[]'::jsonb, -- Warning signs to watch for
+    featured_discovery JSONB DEFAULT NULL, -- Hero content with technical/explained versions
+    top_findings JSONB DEFAULT '[]'::jsonb, -- Up to 5 secondary findings with dual versions
+    source_breakdown JSONB DEFAULT NULL, -- Finding counts by source type
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

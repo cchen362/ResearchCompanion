@@ -449,7 +449,7 @@ export class AgentExecutionService {
 
     try {
       const response = await aiService.client.messages.create({
-        model: 'claude-3-haiku-20240307', // Use faster model for background processing
+        model: 'claude-haiku-4-5-20251001', // Use Haiku 4.5 for cost-efficient background processing
         system: 'You are a medical research analyst. Extract key information and insights from research findings. Be concise and factual.',
         messages: [
           {

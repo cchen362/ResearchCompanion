@@ -403,7 +403,7 @@ Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
     // Using tools to encourage structured output (without beta header for compatibility)
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',  // Using Claude Sonnet 4.5 for superior quality
-      max_tokens: 4000,
+      max_tokens: 8000,
       temperature: 0.3,
       tools: [
         {
@@ -494,18 +494,16 @@ ${findingsText}
 Create a structured digest with:
 - Executive summary highlighting the most critical finding with immediate action items
 - Layman summary in plain English
-- Group findings into practical themes with specific metrics and actionable insights
 - Key takeaways with specific numbers (effect sizes, dosages, patient counts)
 - Identify any breakthroughs or paradigm shifts
 - Flag any contradictions between findings
-- Track emerging, declining, and stable research trends
 
-Focus on practical, actionable information that helps with treatment decisions.
+MAGAZINE EDITORIAL SECTIONS (REQUIRED):
+- featuredDiscovery: The SINGLE most impactful finding as hero content. Include findingId (from the data above), sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
+- topFindings: Up to 5 additional notable findings. Each with findingId, sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
+- sourceBreakdown: Count ALL findings by source type (pubmed, clinicalTrials, fda, web)
 
-Additionally, generate these NEW magazine-style sections:
-- featuredDiscovery: The single most impactful finding with both technical and explained versions (include findingId, sourceType, technical object, explained object, and sourceMetadata)
-- topFindings: Up to 5 secondary notable findings with dual versions (each with findingId, sourceType, technical, explained, and metadata string)
-- sourceBreakdown: Count of findings by source type (pubmed, clinicalTrials, fda, web numbers)`
+Focus on practical, actionable information that helps with treatment decisions.`
         }
       ]
     });
@@ -528,9 +526,10 @@ Additionally, generate these NEW magazine-style sections:
     console.log('Raw digest data sample:', JSON.stringify({
       hasExecutiveSummary: !!digestData.executiveSummary,
       hasLaymanSummary: !!digestData.laymanSummary,
-      themesCount: digestData.themes?.length || 0,
       keyTakeawaysCount: digestData.keyTakeaways?.length || 0,
-      hasTrends: !!digestData.trends
+      hasFeaturedDiscovery: !!digestData.featuredDiscovery,
+      topFindingsCount: digestData.topFindings?.length || 0,
+      hasSourceBreakdown: !!digestData.sourceBreakdown
     }));
 
     // Validate with Zod schema for type safety
@@ -555,21 +554,16 @@ Additionally, generate these NEW magazine-style sections:
         const recoveredData = {
           executiveSummary: digestData.executiveSummary || 'Analysis completed. See findings for details.',
           laymanSummary: digestData.laymanSummary || 'Medical research findings have been compiled for your review.',
-          themes: Array.isArray(digestData.themes) ? digestData.themes : [],
           keyTakeaways: Array.isArray(digestData.keyTakeaways) ? digestData.keyTakeaways : [],
           breakthroughs: Array.isArray(digestData.breakthroughs) ? digestData.breakthroughs : [],
           contradictions: Array.isArray(digestData.contradictions) ? digestData.contradictions : [],
-          trends: digestData.trends && typeof digestData.trends === 'object'
-            ? {
-                emerging: Array.isArray(digestData.trends.emerging) ? digestData.trends.emerging : [],
-                declining: Array.isArray(digestData.trends.declining) ? digestData.trends.declining : [],
-                stable: Array.isArray(digestData.trends.stable) ? digestData.trends.stable : []
-              }
-            : { emerging: [], declining: [], stable: [] },
-          // NEW magazine editorial fields
+          // Magazine editorial fields
           featuredDiscovery: digestData.featuredDiscovery || undefined,
           topFindings: Array.isArray(digestData.topFindings) ? digestData.topFindings : [],
-          sourceBreakdown: digestData.sourceBreakdown || undefined
+          sourceBreakdown: digestData.sourceBreakdown || undefined,
+          // Legacy fields (optional, for backward compat)
+          themes: Array.isArray(digestData.themes) ? digestData.themes : [],
+          trends: { emerging: [], declining: [], stable: [] }
         };
 
         // Try to validate the recovered data with defaults
@@ -582,15 +576,14 @@ Additionally, generate these NEW magazine-style sections:
         digestData = {
           executiveSummary: digestData.executiveSummary || 'Analysis completed.',
           laymanSummary: digestData.laymanSummary || 'Research findings compiled.',
-          themes: [],
           keyTakeaways: [],
           breakthroughs: [],
           contradictions: [],
-          trends: { emerging: [], declining: [], stable: [] },
-          // NEW magazine editorial fields (null for fallback)
           featuredDiscovery: null,
           topFindings: [],
-          sourceBreakdown: null
+          sourceBreakdown: null,
+          themes: [],
+          trends: { emerging: [], declining: [], stable: [] }
         };
         console.log('✓ Using minimal fallback data');
       }
@@ -603,13 +596,6 @@ Additionally, generate these NEW magazine-style sections:
     const allFindingIds = findings.map(f => f.id);
     const totalFindings = findings.length;
     const newFindings = findings.filter(f => f.isNew).length;
-    // Use priority instead of deprecated relevanceScore
-    const highPriorityCount = findings.filter(f => f.priority === 'critical' || f.priority === 'high').length;
-
-    // Calculate source quality average (using sourceQuality instead of deprecated confidenceLevel)
-    const avgSourceQuality = findings.reduce((sum, f) =>
-      sum + (f.sourceQuality || f.source?.sourceQuality || 50), 0
-    ) / findings.length;
 
     // Calculate unique studies count properly
     const uniqueStudies = new Set();
@@ -628,48 +614,6 @@ Additionally, generate these NEW magazine-style sections:
         uniqueStudies.add(f.url || `${f.source.name}:${f.title.substring(0, 50)}`);
       }
     });
-
-    // Group sources and count
-    const sourceMap = new Map();
-    findings.forEach(f => {
-      const source = f.source.name;
-      if (!sourceMap.has(source)) {
-        sourceMap.set(source, {
-          name: source,
-          type: f.source.type,
-          count: 0,
-          credibilitySum: 0,
-          contributions: []
-        });
-      }
-      const entry = sourceMap.get(source);
-      entry.count++;
-      entry.credibilitySum += f.source.credibilityScore || 0.5;
-      if (entry.contributions.length < 3) {
-        entry.contributions.push(f.title.substring(0, 50));
-      }
-    });
-
-    // Convert to top sources array
-    const topSources = Array.from(sourceMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-      .map(s => ({
-        name: s.name,
-        type: s.type,
-        findingCount: s.count,
-        avgCredibility: s.credibilitySum / s.count,
-        topContributions: s.contributions
-      }));
-
-    // Transform themes to use finding IDs instead of indices
-    const themes = digestData.themes.map((theme: any) => ({
-      ...theme,
-      findingIds: theme.findingIndices.map((idx: number) => findings[idx]?.id).filter(Boolean),
-      findingCount: theme.findingIndices.length,
-      icon: getCategoryIcon(theme.category),
-      color: getCategoryColor(theme.category)
-    }));
 
     // Transform breakthroughs and contradictions
     const breakthroughs = digestData.breakthroughs?.map((b: any) => ({
@@ -700,24 +644,22 @@ Additionally, generate these NEW magazine-style sections:
       timeframe,
       executiveSummary: digestData.executiveSummary,
       laymanSummary: digestData.laymanSummary,
-      themes,
       keyTakeaways: digestData.keyTakeaways,
       breakthroughs,
       contradictions,
-      trends: digestData.trends,
       statistics: {
         totalFindings,
         newFindings,
-        highRelevanceCount: highPriorityCount,  // Now based on priority, not deprecated relevanceScore
-        sourceCount: uniqueStudies.size,  // Now counts actual unique studies
-        avgConfidence: avgSourceQuality / 100  // Convert 0-100 source quality to 0-1 scale for legacy compatibility
+        sourceCount: uniqueStudies.size
       },
-      topSources,
       allFindingIds,
-      // NEW magazine editorial fields
+      // Magazine editorial fields
       featuredDiscovery: digestData.featuredDiscovery || null,
       topFindings: digestData.topFindings || [],
-      sourceBreakdown: digestData.sourceBreakdown || null
+      sourceBreakdown: digestData.sourceBreakdown || null,
+      // Legacy fields (empty - AI no longer generates these)
+      themes: digestData.themes || [],
+      trends: digestData.trends || { emerging: [], declining: [], stable: [] }
     };
   } catch (error: any) {
     const errorTime = Date.now() - startTime;

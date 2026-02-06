@@ -36,6 +36,9 @@ router.get('/by-topic/:topicId', async (req, res) => {
         lifestyle_considerations as "lifestyleConsiderations",
         questions_for_doctor as "questionsForDoctor",
         warning_signs as "warningSigns",
+        featured_discovery as "featuredDiscovery",
+        top_findings as "topFindings",
+        source_breakdown as "sourceBreakdown",
         metadata,
         created_at as "createdAt",
         updated_at as "updatedAt"

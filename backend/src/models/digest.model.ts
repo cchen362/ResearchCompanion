@@ -14,6 +14,9 @@ export interface Digest {
   next_steps?: any[];
   finding_ids?: string[];
   metadata?: any;
+  featured_discovery?: any;
+  top_findings?: any[];
+  source_breakdown?: any;
   created_at: Date;
 }
 

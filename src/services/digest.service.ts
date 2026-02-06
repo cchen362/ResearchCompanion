@@ -163,7 +163,7 @@ class DigestService {
       executiveSummary: apiDigest.executive_summary || '',
       // FIX: Read from correct columns (backend aliases these in SQL)
       laymanSummary: apiDigest.laymanSummary || apiDigest.layman_summary || '',
-      themes: apiDigest.themes || [],
+      themes: apiDigest.themes || [],  // Legacy - kept for backward compat, no longer generated
       keyTakeaways: apiDigest.keyTakeaways || apiDigest.key_takeaways || [],
       breakthroughs: apiDigest.breakthroughs || [],
       contradictions: apiDigest.contradictions || [],
@@ -171,7 +171,7 @@ class DigestService {
       questionsForDoctor: apiDigest.questionsForDoctor || apiDigest.questions_for_doctor || [],
       warningSigns: apiDigest.warningSigns || apiDigest.warning_signs || [],
       clinicalImplications: apiDigest.clinicalImplications || apiDigest.clinical_implications || [],
-      trends: apiDigest.metadata?.trends || {
+      trends: apiDigest.trends || apiDigest.metadata?.trends || {
         emerging: [],
         declining: [],
         stable: []
@@ -179,13 +179,14 @@ class DigestService {
       statistics: apiDigest.metadata?.statistics || {
         totalFindings: apiDigest.finding_ids?.length || 0,
         newFindings: 0,
-        highRelevanceCount: 0,
-        sourceCount: 0,
-        avgConfidence: 0
+        sourceCount: 0
       },
-      topSources: apiDigest.metadata?.topSources || [],
       allFindingIds: apiDigest.finding_ids || [],
-      userEngagement: apiDigest.metadata?.userEngagement
+      userEngagement: apiDigest.metadata?.userEngagement,
+      // Magazine editorial fields (triple fallback: camelCase alias → snake_case → metadata blob)
+      featuredDiscovery: apiDigest.featuredDiscovery || apiDigest.featured_discovery || apiDigest.metadata?.featuredDiscovery || undefined,
+      topFindings: apiDigest.topFindings || apiDigest.top_findings || apiDigest.metadata?.topFindings || [],
+      sourceBreakdown: apiDigest.sourceBreakdown || apiDigest.source_breakdown || apiDigest.metadata?.sourceBreakdown || undefined
     };
 
     if (responseContext) {

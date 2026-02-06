@@ -228,13 +228,15 @@ export class DigestProcessorService {
         executive_summary, layman_summary, themes, contradictions,
         breakthroughs, knowledge_gaps, next_steps, key_takeaways,
         trends, clinical_implications, lifestyle_considerations,
-        questions_for_doctor, warning_signs, finding_ids, metadata
+        questions_for_doctor, warning_signs, finding_ids, metadata,
+        featured_discovery, top_findings, source_breakdown
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9,
         $10, $11, $12, $13,
         $14, $15, $16,
-        $17, $18, $19, $20
+        $17, $18, $19, $20,
+        $21, $22, $23
       )`,
       [
         digestId,
@@ -261,13 +263,11 @@ export class DigestProcessorService {
           queueItemId: item.id,
           findingsCount: findings.length,
           generatedAt: new Date().toISOString(),
-          timeframe: item.timeframe || 'all-time',
-          // NEW magazine editorial fields
-          featuredDiscovery: (digest as any).featuredDiscovery || null,
-          topFindings: (digest as any).topFindings || [],
-          // Use AI-generated sourceBreakdown, with fallback to calculated
-          sourceBreakdown: (digest as any).sourceBreakdown || countSourcesByType(findings)
-        })
+          timeframe: item.timeframe || 'all-time'
+        }),
+        JSON.stringify((digest as any).featuredDiscovery || null),
+        JSON.stringify((digest as any).topFindings || []),
+        JSON.stringify((digest as any).sourceBreakdown || countSourcesByType(findings))
       ]
     );
 
