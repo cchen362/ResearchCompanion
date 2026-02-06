@@ -471,6 +471,7 @@ class AgentsService {
 
         // Step 5: Store findings with deduplication
         existingFindings = await findingsService.getFindings(topic.id);
+        const failedFindings = new Set<ResearchFinding>();
 
         for (const finding of findings) {
           const isDuplicate = existingFindings.some(existing => {
@@ -486,6 +487,7 @@ class AgentsService {
               await findingsService.saveFinding(finding);
             } catch (saveError) {
               logger.warn(`[AgentsService] Failed to save finding "${finding.title}": ${saveError instanceof Error ? saveError.message : 'Unknown error'}`);
+              failedFindings.add(finding);
               duplicatesSkipped++;
             }
           } else {
@@ -509,6 +511,7 @@ class AgentsService {
       logger.debug(`[AgentsService] Agent run complete. Found ${actualNewCount} new findings (${duplicatesSkipped} duplicates skipped).`);
 
       return findings.filter(f =>
+        !failedFindings.has(f) &&
         !existingFindings.some(existing =>
           (f.source.url && existing.source.url && f.source.url === existing.source.url) ||
           (f.title.toLowerCase() === existing.title.toLowerCase() && f.source.name === existing.source.name)
