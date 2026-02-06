@@ -467,6 +467,13 @@ class AgentsService {
             };
           }
 
+          // Skip findings with no usable content (e.g., PubMed correction/erratum articles)
+          const content = finding.details || finding.summary || '';
+          if (!finding.title || finding.title === 'Untitled' || !content) {
+            logger.debug(`[AgentsService] Skipping finding with no content: "${finding.title}"`);
+            continue;
+          }
+
           findings.push(finding);
         }
 
