@@ -371,14 +371,9 @@ class AgentsService {
             logger.debug(`[AgentsService] ${agent.name}: Starting web search...`);
             const webResults = await searchApi.searchWeb(`${query} FDA approval new treatment`, 10);
             logger.debug(`[AgentsService] ${agent.name}: Web search returned ${webResults?.results?.length || 0} results`);
-
-            logger.debug(`[AgentsService] ${agent.name}: Starting PubMed search...`);
-            const pubmedResults = await searchApi.searchPubMed(`${query} treatment therapy`, 10);
-            logger.debug(`[AgentsService] ${agent.name}: PubMed search returned ${pubmedResults?.articles?.length || 0} results`);
-
-            searchResults = [...(webResults?.results || []), ...(pubmedResults?.articles || [])];
+            searchResults = webResults?.results || [];
           } catch (error) {
-            logger.error(`[AgentsService] ${agent.name}: Search failed:`, error);
+            logger.error(`[AgentsService] ${agent.name}: Web search failed:`, error);
             searchResults = [];
           }
           break;

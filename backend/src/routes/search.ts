@@ -77,68 +77,45 @@ router.post('/pubmed-search', async (req, res) => {
       return res.json({ articles: [] });
     }
 
-    // Rate-limit helper: NCBI allows 3 req/sec without API key, 10 with
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    // Fetch all article data via efetch XML (esummary is unreliable — known NCBI 500 errors)
+    const efetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${idList.join(',')}&rettype=abstract&retmode=xml${apiKeyParam}`;
+    const efetchResponse = await axios.get(efetchUrl);
+    const xmlData = efetchResponse.data as string;
 
-    // Fetch article summaries with retry (NCBI sometimes returns 500)
-    const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${idList.join(',')}&retmode=json${apiKeyParam}`;
-    let summaryResponse: any;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        if (attempt > 0) await delay(1000 * attempt);
-        summaryResponse = await axios.get(summaryUrl);
-        break;
-      } catch (retryErr) {
-        if (attempt === 2) throw retryErr;
-        console.warn(`[PUBMED] esummary attempt ${attempt + 1} failed, retrying...`);
-      }
-    }
+    // Parse all article fields from efetch XML
+    const articleBlocks = xmlData.split('<PubmedArticle>');
+    const articles = articleBlocks.map(block => {
+      const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
+      if (!pmidMatch) return null;
+      const id = pmidMatch[1];
 
-    // Delay before next API call to respect NCBI rate limits
-    await delay(350);
+      const title = block.match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/)?.[1]?.replace(/<[^>]+>/g, '').trim() || 'No title';
 
-    // Fetch real abstracts via efetch (esummary never returns abstracts)
-    let abstractMap: Record<string, string> = {};
-    try {
-      const efetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${idList.join(',')}&rettype=abstract&retmode=xml${apiKeyParam}`;
-      const efetchResponse = await axios.get(efetchUrl);
-      const xmlData = efetchResponse.data as string;
+      const authorMatches = block.match(/<Author[\s\S]*?<\/Author>/g) || [];
+      const authors = authorMatches.map(a => {
+        const last = a.match(/<LastName>(.*?)<\/LastName>/)?.[1] || '';
+        const fore = a.match(/<ForeName>(.*?)<\/ForeName>/)?.[1] || '';
+        return fore ? `${fore} ${last}` : last;
+      }).filter(Boolean).join(', ');
 
-      // Parse abstracts from XML - extract <AbstractText> for each PMID
-      const articleBlocks = xmlData.split('<PubmedArticle>');
-      for (const block of articleBlocks) {
-        const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
-        const abstractMatch = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
-        if (pmidMatch && abstractMatch) {
-          const pmid = pmidMatch[1];
-          const abstractText = abstractMatch
-            .map(m => m.replace(/<\/?[^>]+(>|$)/g, '').trim())
-            .join(' ');
-          abstractMap[pmid] = abstractText;
-        }
-      }
-      console.log(`[PUBMED] Fetched abstracts for ${Object.keys(abstractMap).length} of ${idList.length} articles`);
-    } catch (efetchError) {
-      console.warn('[PUBMED] efetch failed, continuing without abstracts:', efetchError instanceof Error ? efetchError.message : 'Unknown');
-    }
+      const journal = block.match(/<ISOAbbreviation>([\s\S]*?)<\/ISOAbbreviation>/)?.[1]?.trim()
+        || block.match(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/)?.[1]?.trim() || '';
 
-    const articles = idList.map((id: string) => {
-      const article = summaryResponse.data.result?.[id];
-      if (!article) return null;
+      const year = block.match(/<PubDate>[\s\S]*?<Year>(\d+)<\/Year>/)?.[1] || '';
+      const month = block.match(/<PubDate>[\s\S]*?<Month>(.*?)<\/Month>/)?.[1] || '';
+      const publishDate = month ? `${year} ${month}` : year;
 
-      const abstract = abstractMap[id] || '';
+      const abstractMatches = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+      const abstract = abstractMatches
+        ? abstractMatches.map(m => m.replace(/<\/?[^>]+(>|$)/g, '').trim()).join(' ')
+        : '';
 
-      return {
-        id,
-        title: article.title || 'No title',
-        authors: article.authors?.map((a: any) => a.name).join(', ') || '',
-        journal: article.source || '',
-        publishDate: article.pubdate || '',
-        abstract,
-        url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
-        doi: article.elocationid || ''
-      };
+      const doi = block.match(/<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/)?.[1]?.trim() || '';
+
+      return { id, title, authors, journal, publishDate, abstract, url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`, doi };
     }).filter(Boolean);
+
+    console.log(`[PUBMED] Parsed ${articles.length} articles from efetch XML`);
 
     console.log('[PUBMED] Returning', articles.length, 'articles');
     res.json({ articles });

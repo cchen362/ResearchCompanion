@@ -91,112 +91,85 @@ export class SearchService {
         return [];
       }
 
-      // Step 2: Fetch article details
-      const summaryParams: any = {
+      // Step 2: Fetch all article data via efetch XML (esummary is unreliable — known NCBI 500 errors)
+      const efetchParams: any = {
         db: 'pubmed',
         id: pmids.join(','),
-        retmode: 'json'
+        rettype: 'abstract',
+        retmode: 'xml'
       };
-
-      // Add API key if available
       if (process.env.PUBMED_API_KEY) {
-        summaryParams.api_key = process.env.PUBMED_API_KEY;
+        efetchParams.api_key = process.env.PUBMED_API_KEY;
       }
 
-      // Helper for rate-limiting between NCBI calls
-      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      const efetchResponse = await axios.get(`${this.pubmedBaseUrl}/efetch.fcgi`, {
+        params: efetchParams
+      });
+      const xmlData = efetchResponse.data as string;
 
-      // Retry esummary up to 3 times (NCBI sometimes returns transient 500s)
-      let summaryResponse: any;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          if (attempt > 0) await delay(1000 * attempt);
-          summaryResponse = await axios.get(`${this.pubmedBaseUrl}/esummary.fcgi`, {
-            params: summaryParams
-          });
-          break;
-        } catch (retryErr) {
-          if (attempt === 2) throw retryErr;
-          console.warn(`[SearchService] esummary attempt ${attempt + 1} failed, retrying...`);
-        }
-      }
+      // Parse all article fields from efetch XML
+      const articles: any[] = [];
+      const articleBlocks = xmlData.split('<PubmedArticle>');
 
-      await delay(350);
+      for (const block of articleBlocks) {
+        const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
+        if (!pmidMatch) continue;
+        const pmid = pmidMatch[1];
 
-      // Fetch real abstracts via efetch (esummary never returns abstracts)
-      let abstractMap: Record<string, string> = {};
-      try {
-        const efetchParams: any = {
-          db: 'pubmed',
-          id: pmids.join(','),
-          rettype: 'abstract',
-          retmode: 'xml'
-        };
-        if (process.env.PUBMED_API_KEY) {
-          efetchParams.api_key = process.env.PUBMED_API_KEY;
-        }
-        const efetchResponse = await axios.get(`${this.pubmedBaseUrl}/efetch.fcgi`, {
-          params: efetchParams
-        });
-        const xmlData = efetchResponse.data as string;
+        const title = block.match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/)?.[1]?.replace(/<[^>]+>/g, '').trim() || 'Untitled';
 
-        const articleBlocks = xmlData.split('<PubmedArticle>');
-        for (const block of articleBlocks) {
-          const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
-          const abstractMatch = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
-          if (pmidMatch && abstractMatch) {
-            const pmid = pmidMatch[1];
-            const abstractText = abstractMatch
-              .map((m: string) => m.replace(/<\/?[^>]+(>|$)/g, '').trim())
-              .join(' ');
-            abstractMap[pmid] = abstractText;
+        const authorMatches = block.match(/<Author[\s\S]*?<\/Author>/g) || [];
+        const authorNames = authorMatches.map((a: string) => {
+          const last = a.match(/<LastName>(.*?)<\/LastName>/)?.[1] || '';
+          const fore = a.match(/<ForeName>(.*?)<\/ForeName>/)?.[1] || '';
+          return fore ? `${fore} ${last}` : last;
+        }).filter(Boolean);
+
+        const journal = block.match(/<ISOAbbreviation>([\s\S]*?)<\/ISOAbbreviation>/)?.[1]?.trim()
+          || block.match(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/)?.[1]?.trim() || 'Unknown Journal';
+
+        const year = block.match(/<PubDate>[\s\S]*?<Year>(\d+)<\/Year>/)?.[1] || '';
+        const month = block.match(/<PubDate>[\s\S]*?<Month>(.*?)<\/Month>/)?.[1] || '';
+        const publishDate = month ? `${year} ${month}` : year;
+
+        const abstractMatches = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+        const abstract = abstractMatches
+          ? abstractMatches.map((m: string) => m.replace(/<\/?[^>]+(>|$)/g, '').trim()).join(' ')
+          : '';
+
+        const doi = block.match(/<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/)?.[1]?.trim() || '';
+
+        const articleSummary = abstract || title;
+        const publicationInfo = `Published in ${journal} on ${publishDate || 'Unknown Date'}`;
+        const uniqueDetails = abstract
+          ? `${abstract}\n\n${publicationInfo}\n\nAuthors: ${authorNames.join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${pmid}`
+          : `${title}\n\n${publicationInfo}\n\nAuthors: ${authorNames.join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${pmid}`;
+
+        articles.push({
+          id: `pubmed_${pmid}`,
+          title,
+          snippet: publicationInfo,
+          summary: articleSummary,
+          details: uniqueDetails,
+          source: {
+            type: 'pubmed',
+            name: journal,
+            displayName: journal,
+            journal,
+            url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+          },
+          type: 'study',
+          publishedAt: publishDate || new Date().toISOString(),
+          metadata: {
+            pmid,
+            doi,
+            authors: authorNames.slice(0, 3),
+            studyType: 'Peer-reviewed research'
           }
-        }
-        console.log(`[SearchService] Fetched abstracts for ${Object.keys(abstractMap).length} of ${pmids.length} articles`);
-      } catch (efetchError) {
-        console.warn('[SearchService] efetch failed, continuing without abstracts:', efetchError instanceof Error ? efetchError.message : 'Unknown');
+        });
       }
 
-      const articles = [];
-      const results = summaryResponse.data?.result || {};
-
-      for (const pmid of pmids) {
-        const article = results[pmid];
-        if (article && article.uid) {
-          const realAbstract = abstractMap[pmid] || '';
-          const articleSummary = realAbstract || article.title || 'Untitled';
-          const publicationInfo = `Published in ${article.source || 'Unknown Journal'} on ${article.sortpubdate || 'Unknown Date'}`;
-
-          // Add unique identifier to details to prevent duplication
-          const uniqueDetails = realAbstract
-            ? `${realAbstract}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`
-            : `${article.title || 'Untitled'}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`;
-
-          articles.push({
-            id: `pubmed_${article.uid}`,
-            title: article.title || 'Untitled',
-            snippet: publicationInfo,
-            summary: articleSummary,
-            details: uniqueDetails,
-            source: {
-              type: 'pubmed',
-              name: article.source || 'PubMed',
-              displayName: article.source || 'PubMed',
-              journal: article.fulljournalname || article.source,
-              url: `https://pubmed.ncbi.nlm.nih.gov/${article.uid}/`
-            },
-            type: 'study', // Changed from 'research' to match frontend enum
-            publishedAt: article.sortpubdate || new Date().toISOString(),
-            metadata: {
-              pmid: article.uid,
-              doi: article.elocationid,
-              authors: article.authors?.map((a: any) => a.name).slice(0, 3),
-              studyType: 'Peer-reviewed research'
-            }
-          });
-        }
-      }
-
+      console.log(`[SearchService] Parsed ${articles.length} articles from efetch XML`);
       return articles;
     } catch (error) {
       console.error('[SearchService.searchPubMed] Error:', {
