@@ -19,7 +19,10 @@ const CreateDigestSchema = z.object({
   knowledge_gaps: z.array(z.any()).optional(),
   next_steps: z.array(z.any()).optional(),
   finding_ids: z.array(z.string()).optional(),
-  metadata: z.record(z.string(), z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional(),
+  featured_discovery: z.any().optional(),
+  top_findings: z.array(z.any()).optional(),
+  source_breakdown: z.any().optional()
 });
 
 const UpdateDigestSchema = CreateDigestSchema.partial();
