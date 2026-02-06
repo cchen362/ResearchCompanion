@@ -10,6 +10,8 @@
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import type { ResearchFinding } from '@/types';
+import { getSourceCategory } from '@/utils/sourceCategory';
+import { SOURCE_CONFIG } from '@/components/digest/SourceIcon';
 
 // ============================================
 // Types
@@ -39,7 +41,7 @@ export function FindingCard({ finding, onClick, className }: FindingCardProps) {
           <CardTitle className="text-base line-clamp-2">{finding.title}</CardTitle>
         </div>
         <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
-          <span>{finding.type}</span>
+          <span>{SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}</span>
           <span>-</span>
           <span>{finding.source.displayName || 'Research Database'}</span>
           <span>-</span>

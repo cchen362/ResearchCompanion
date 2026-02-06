@@ -18,6 +18,9 @@ import {
   Pill,
   AlertTriangle,
   BookOpen,
+  FlaskConical,
+  Globe,
+  Shield,
   Copy,
   Download,
   Star
@@ -25,6 +28,8 @@ import {
 import type { ResearchFinding, ResearchSource } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getSourceCategory } from '@/utils/sourceCategory';
+import { SOURCE_CONFIG } from '@/components/digest/SourceIcon';
 
 interface SourceDrawerProps {
   isOpen: boolean;
@@ -73,7 +78,7 @@ export function SourceDrawer({
       finding.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
       finding.source.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesType = selectedType === 'all' || finding.type === selectedType;
+    const matchesType = selectedType === 'all' || getSourceCategory(finding.source?.type) === selectedType;
 
     return matchesSearch && matchesType;
   });
@@ -84,7 +89,7 @@ export function SourceDrawer({
       case 'date':
         return b.timestamp - a.timestamp;
       case 'type':
-        return a.type.localeCompare(b.type);
+        return getSourceCategory(a.source?.type).localeCompare(getSourceCategory(b.source?.type));
       default:
         return 0;
     }
@@ -130,19 +135,11 @@ export function SourceDrawer({
     URL.revokeObjectURL(url);
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'treatment':
-        return <Pill className="h-4 w-4" />;
-      case 'trial':
-        return <Building2 className="h-4 w-4" />;
-      case 'study':
-        return <BookOpen className="h-4 w-4" />;
-      case 'guideline':
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
-    }
+  const getSourceIcon = (finding: ResearchFinding) => {
+    const category = getSourceCategory(finding.source?.type);
+    const config = SOURCE_CONFIG[category];
+    const Icon = config.icon;
+    return <Icon className={`h-4 w-4 ${config.color}`} />;
   };
 
   const getConfidenceColor = (level: string) => {
@@ -158,13 +155,15 @@ export function SourceDrawer({
     }
   };
 
-  // Source type to border color mapping
+  // Source type to border color mapping (uses centralized category)
   const getSourceBorderColor = (finding: ResearchFinding): string => {
-    const type = finding.source?.type?.toLowerCase() || '';
-    if (type.includes('pubmed') || type === 'journal' || type === 'research_paper') return 'border-l-4 border-l-blue-500';
-    if (type.includes('clinical')) return 'border-l-4 border-l-green-500';
-    if (type.includes('fda')) return 'border-l-4 border-l-purple-500';
-    return 'border-l-4 border-l-gray-300';
+    const borderColors: Record<string, string> = {
+      pubmed: 'border-l-4 border-l-blue-500',
+      clinical_trial: 'border-l-4 border-l-green-500',
+      fda: 'border-l-4 border-l-purple-500',
+      web: 'border-l-4 border-l-gray-300',
+    };
+    return borderColors[getSourceCategory(finding.source?.type)];
   };
 
   return (
@@ -213,12 +212,11 @@ export function SourceDrawer({
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="px-3 py-1 text-sm border rounded-md bg-background"
               >
-                <option value="all">All Types</option>
-                <option value="treatment">Treatments</option>
-                <option value="trial">Clinical Trials</option>
-                <option value="study">Studies</option>
-                <option value="guideline">Guidelines</option>
-                <option value="news">News</option>
+                <option value="all">All Sources</option>
+                <option value="pubmed">PubMed</option>
+                <option value="clinical_trial">Clinical Trials</option>
+                <option value="fda">FDA</option>
+                <option value="web">Web</option>
               </select>
 
               <select
@@ -227,7 +225,7 @@ export function SourceDrawer({
                 className="px-3 py-1 text-sm border rounded-md bg-background"
               >
                 <option value="date">Sort by Date</option>
-                <option value="type">Sort by Type</option>
+                <option value="type">Sort by Source</option>
               </select>
 
               <Button variant="outline" size="sm" onClick={exportFindings}>
@@ -256,9 +254,9 @@ export function SourceDrawer({
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              {getTypeIcon(finding.type)}
+                              {getSourceIcon(finding)}
                               <Badge variant="outline" className="text-xs">
-                                {finding.type}
+                                {SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}
                               </Badge>
                               {finding.isNew && (
                                 <Badge variant="default" className="text-xs">
@@ -471,7 +469,7 @@ export function SourceDrawer({
                                 )}
                                 <div className="flex items-center gap-3 mt-1">
                                   <Badge variant="outline" className="text-xs">
-                                    {finding.type}
+                                    {SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {formatDistanceToNow(finding.timestamp, {

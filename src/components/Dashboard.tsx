@@ -7,6 +7,8 @@ import { useUIStore } from '@/stores/uiStore';
 import { findingsService } from '@/services/findings.service';
 import { digestService } from '@/services/digest.service';
 import { logger } from '@/utils/logger';
+import { getSourceCategory } from '@/utils/sourceCategory';
+import { SOURCE_CONFIG } from '@/components/digest/SourceIcon';
 
 interface DashboardProps {
   setCurrentView?: (view: string) => void;
@@ -278,7 +280,7 @@ export default function Dashboard({ setCurrentView }: DashboardProps) {
                       <p className="mt-1 text-sm text-gray-600 line-clamp-2">{finding.summary}</p>
                       <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
                         <span className="font-medium">{finding.source.displayName || finding.source.name}</span>
-                        <span>{finding.type}</span>
+                        <span>{SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}</span>
                         <span>{new Date(finding.timestamp).toLocaleDateString()}</span>
                       </div>
                     </div>
