@@ -6,7 +6,7 @@ import type { DigestSourceType } from '@/types';
  *
  * Mapping logic (must stay consistent with digest-processor.service.ts):
  *   'research_article', 'pubmed', 'journal', 'research_paper' → 'pubmed'
- *   'clinical_trial'                                           → 'clinical_trial'
+ *   'clinical_trial', 'medical_site'                           → 'clinical_trial'
  *   'fda'                                                      → 'fda'
  *   everything else (including 'web_article', undefined)       → 'web'
  */
@@ -17,7 +17,7 @@ export function getSourceCategory(sourceType?: string): DigestSourceType {
     return 'pubmed';
   }
 
-  if (s.includes('clinical') || s.includes('trial')) {
+  if (s.includes('clinical') || s.includes('trial') || s === 'medical_site') {
     return 'clinical_trial';
   }
 
