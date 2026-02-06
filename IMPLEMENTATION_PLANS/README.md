@@ -32,7 +32,7 @@ Each implementation plan includes:
 | 008 | [Digest & Findings UX Enhancement](./008_DIGEST_FINDINGS_UX_ENHANCEMENT.md) | **Ready** | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
 | 009 | [Digest Generation Timeout Fix](./009_DIGEST_GENERATION_TIMEOUT_FIX.md) | Complete | Fix digest generation timeout issues |
 | 010 | [Finding Label Unification](./010_FINDING_LABEL_UNIFICATION.md) | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
-| 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | **Ready** | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
+| 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 
 ## How to Use
 
