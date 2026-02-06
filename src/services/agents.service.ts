@@ -348,6 +348,7 @@ class AgentsService {
       await this.setAgentStatus(agent.id, 'running');
 
       const findings: ResearchFinding[] = [];
+      const failedFindings = new Set<ResearchFinding>();
       let duplicatesSkipped = 0;
       let existingFindings: ResearchFinding[] = [];
       const query = this.buildSearchQuery(topic, agent.type);
@@ -471,7 +472,6 @@ class AgentsService {
 
         // Step 5: Store findings with deduplication
         existingFindings = await findingsService.getFindings(topic.id);
-        const failedFindings = new Set<ResearchFinding>();
 
         for (const finding of findings) {
           const isDuplicate = existingFindings.some(existing => {
