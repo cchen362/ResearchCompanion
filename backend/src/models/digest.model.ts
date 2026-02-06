@@ -32,6 +32,9 @@ export interface CreateDigestData {
   next_steps?: any[];
   finding_ids?: string[];
   metadata?: any;
+  featured_discovery?: any;
+  top_findings?: any[];
+  source_breakdown?: any;
 }
 
 export class DigestModel {
@@ -82,9 +85,10 @@ export class DigestModel {
       `INSERT INTO digests (
          user_id, topic_id, type, title, executive_summary,
          themes, contradictions, breakthroughs, knowledge_gaps, next_steps,
-         finding_ids, metadata
+         finding_ids, metadata,
+         featured_discovery, top_findings, source_breakdown
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         userId,
@@ -98,7 +102,10 @@ export class DigestModel {
         JSON.stringify(data.knowledge_gaps || []),
         JSON.stringify(data.next_steps || []),
         data.finding_ids || [],
-        JSON.stringify(data.metadata || {})
+        JSON.stringify(data.metadata || {}),
+        JSON.stringify(data.featured_discovery || null),
+        JSON.stringify(data.top_findings || []),
+        JSON.stringify(data.source_breakdown || null)
       ]
     );
 

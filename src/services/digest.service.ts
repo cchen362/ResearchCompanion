@@ -217,6 +217,9 @@ class DigestService {
       knowledge_gaps: digest.knowledgeGaps || [],
       next_steps: digest.recommendations || [],
       finding_ids: digest.allFindingIds || [],
+      featured_discovery: digest.featuredDiscovery || null,
+      top_findings: digest.topFindings || [],
+      source_breakdown: digest.sourceBreakdown || null,
       metadata: {
         laymanSummary: digest.laymanSummary,
         keyTakeaways: digest.keyTakeaways,

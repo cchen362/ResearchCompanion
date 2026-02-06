@@ -218,12 +218,6 @@ export class DigestProcessorService {
     const timeframe = (item.timeframe || 'all-time') as 'daily' | 'weekly' | 'monthly' | 'all-time';
     const digest = await generateSmartDigest(findingsForDigest, topicForDigest, timeframe);
 
-    // DEBUG: Log magazine fields from AI service return
-    console.log(`[DigestProcessor] Digest keys:`, Object.keys(digest));
-    console.log(`[DigestProcessor] featuredDiscovery present:`, !!(digest as any).featuredDiscovery);
-    console.log(`[DigestProcessor] topFindings present:`, !!(digest as any).topFindings, `count:`, (digest as any).topFindings?.length);
-    console.log(`[DigestProcessor] sourceBreakdown present:`, !!(digest as any).sourceBreakdown);
-
     // 6. Store digest in database
     const digestId = uuidv4();
     const findingIds = findings.map(f => f.id);
