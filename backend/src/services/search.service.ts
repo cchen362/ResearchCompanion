@@ -103,9 +103,25 @@ export class SearchService {
         summaryParams.api_key = process.env.PUBMED_API_KEY;
       }
 
-      const summaryResponse = await axios.get(`${this.pubmedBaseUrl}/esummary.fcgi`, {
-        params: summaryParams
-      });
+      // Helper for rate-limiting between NCBI calls
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+      // Retry esummary up to 3 times (NCBI sometimes returns transient 500s)
+      let summaryResponse: any;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (attempt > 0) await delay(1000 * attempt);
+          summaryResponse = await axios.get(`${this.pubmedBaseUrl}/esummary.fcgi`, {
+            params: summaryParams
+          });
+          break;
+        } catch (retryErr) {
+          if (attempt === 2) throw retryErr;
+          console.warn(`[SearchService] esummary attempt ${attempt + 1} failed, retrying...`);
+        }
+      }
+
+      await delay(350);
 
       // Fetch real abstracts via efetch (esummary never returns abstracts)
       let abstractMap: Record<string, string> = {};

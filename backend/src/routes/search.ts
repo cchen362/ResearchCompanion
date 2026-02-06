@@ -77,9 +77,25 @@ router.post('/pubmed-search', async (req, res) => {
       return res.json({ articles: [] });
     }
 
-    // Fetch article summaries (with API key if available)
+    // Rate-limit helper: NCBI allows 3 req/sec without API key, 10 with
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Fetch article summaries with retry (NCBI sometimes returns 500)
     const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${idList.join(',')}&retmode=json${apiKeyParam}`;
-    const summaryResponse = await axios.get(summaryUrl);
+    let summaryResponse: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await delay(1000 * attempt);
+        summaryResponse = await axios.get(summaryUrl);
+        break;
+      } catch (retryErr) {
+        if (attempt === 2) throw retryErr;
+        console.warn(`[PUBMED] esummary attempt ${attempt + 1} failed, retrying...`);
+      }
+    }
+
+    // Delay before next API call to respect NCBI rate limits
+    await delay(350);
 
     // Fetch real abstracts via efetch (esummary never returns abstracts)
     let abstractMap: Record<string, string> = {};

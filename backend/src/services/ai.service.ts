@@ -380,9 +380,9 @@ export async function generateSmartDigest(
 
     console.log(`[AI Service] Using ALL ${findings.length} findings for digest (${fullDetailFindings.length} full + ${compactFindings.length} compact)`);
 
-    // Prepare findings text with smart formatting
+    // Prepare findings text with smart formatting — include real UUIDs so AI can reference them
     const fullDetailText = fullDetailFindings.map((f, idx) =>
-      `[Finding ${idx + 1}]
+      `[Finding ${idx + 1}] ID: ${f.id}
 Type: ${f.type}
 Title: ${f.title}
 Summary: ${f.summary?.substring(0, 400) || 'No summary'}
@@ -392,7 +392,7 @@ Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
     const compactText = compactFindings.length > 0
       ? '\n\n[Additional Findings - Compact Format]\n' +
         compactFindings.map((f, idx) =>
-          `${fullDetailCount + idx + 1}. ${f.title} (${f.source?.name || 'Unknown'})`
+          `${fullDetailCount + idx + 1}. ID: ${f.id} — ${f.title} (${f.source?.name || 'Unknown'})`
         ).join('\n')
       : '';
 
@@ -475,7 +475,7 @@ Count findings by type:
 - web: Count of news/web sources
 
 ### CRITICAL GROUNDING RULES
-1. Every claim MUST reference a finding ID from the provided data
+1. Every findingId MUST be the exact UUID from the "ID:" field in the finding data (e.g., "5c00622b-2343-40d3-ba50-e9d1dc39d865"). NEVER use sequential numbers like "1", "2", "3".
 2. NEVER invent statistics, percentages, or study results
 3. The EXPLAINED version must contain the SAME FACTS as TECHNICAL
 4. If no suitable finding exists for featured discovery, omit the field
@@ -499,8 +499,8 @@ Create a structured digest with:
 - Flag any contradictions between findings
 
 MAGAZINE EDITORIAL SECTIONS (REQUIRED):
-- featuredDiscovery: The SINGLE most impactful finding as hero content. Include findingId (from the data above), sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
-- topFindings: Up to 12 additional notable findings. Each with findingId, sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
+- featuredDiscovery: The SINGLE most impactful finding as hero content. The findingId MUST be the exact UUID string from the "ID:" field (e.g. "5c00622b-2343-40d3-ba50-e9d1dc39d865"), NOT a number. Include sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
+- topFindings: Up to 12 additional notable findings. Each findingId MUST be the exact UUID from the "ID:" field. Include sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
 - sourceBreakdown: Count ALL findings by source type (pubmed, clinicalTrials, fda, web)
 
 Focus on practical, actionable information that helps with treatment decisions.`
