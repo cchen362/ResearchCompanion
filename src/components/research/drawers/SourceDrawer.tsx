@@ -34,6 +34,10 @@ interface SourceDrawerProps {
   selectedDigestThemeId?: string;
   // Renamed: themeName → digestThemeName (DigestTheme title, not UI theme)
   digestThemeName?: string;
+  /** ID of the featured finding in the digest */
+  featuredFindingId?: string;
+  /** IDs of findings referenced in the digest's topFindings */
+  digestFindingIds?: string[];
 }
 
 export function SourceDrawer({
@@ -41,7 +45,9 @@ export function SourceDrawer({
   onClose,
   findings,
   selectedDigestThemeId,
-  digestThemeName
+  digestThemeName,
+  featuredFindingId,
+  digestFindingIds
 }: SourceDrawerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -152,6 +158,15 @@ export function SourceDrawer({
     }
   };
 
+  // Source type to border color mapping
+  const getSourceBorderColor = (finding: ResearchFinding): string => {
+    const type = finding.source?.type?.toLowerCase() || '';
+    if (type.includes('pubmed') || type === 'journal' || type === 'research_paper') return 'border-l-4 border-l-blue-500';
+    if (type.includes('clinical')) return 'border-l-4 border-l-green-500';
+    if (type.includes('fda')) return 'border-l-4 border-l-purple-500';
+    return 'border-l-4 border-l-gray-300';
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
@@ -234,7 +249,7 @@ export function SourceDrawer({
                 const isExpanded = expandedFindings.has(finding.id);
 
                 return (
-                  <Card key={finding.id} className="overflow-hidden">
+                  <Card key={finding.id} className={cn("overflow-hidden", getSourceBorderColor(finding))}>
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         {/* Header */}
@@ -254,6 +269,17 @@ export function SourceDrawer({
                                 <Badge variant="destructive" className="text-xs">
                                   <AlertTriangle className="h-3 w-3 mr-1" />
                                   Conflicting
+                                </Badge>
+                              )}
+                              {featuredFindingId === finding.id && (
+                                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs">
+                                  <Star className="h-3 w-3 mr-1" />
+                                  Featured
+                                </Badge>
+                              )}
+                              {digestFindingIds?.includes(finding.id) && featuredFindingId !== finding.id && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  In Digest
                                 </Badge>
                               )}
                             </div>
@@ -313,15 +339,55 @@ export function SourceDrawer({
                         {/* Expanded Content */}
                         {isExpanded && (
                           <div className="pt-3 border-t space-y-3">
-                            {finding.details && (
-                              <div>
-                                <h4 className="text-sm font-medium mb-1">Full Details</h4>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                  {/* Remove markdown formatting for now */}
-                                  {finding.details.replace(/[#*`_]/g, '').trim()}
-                                </p>
-                              </div>
-                            )}
+                            {(() => {
+                              // Try structured details from metadata first
+                              const rawStructured = (finding as any).structuredDetails;
+                              if (rawStructured) {
+                                try {
+                                  const parsed = typeof rawStructured === 'string'
+                                    ? JSON.parse(rawStructured) : rawStructured;
+                                  if (parsed && (parsed.keyFinding || parsed.method || parsed.implications)) {
+                                    return (
+                                      <div className="space-y-2">
+                                        {parsed.keyFinding && (
+                                          <div>
+                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Key Finding</h4>
+                                            <p className="text-sm">{parsed.keyFinding}</p>
+                                          </div>
+                                        )}
+                                        {parsed.method && (
+                                          <div>
+                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Method</h4>
+                                            <p className="text-sm">{parsed.method}</p>
+                                          </div>
+                                        )}
+                                        {parsed.implications && (
+                                          <div>
+                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Why It Matters</h4>
+                                            <p className="text-sm">{parsed.implications}</p>
+                                          </div>
+                                        )}
+                                        {parsed.source && (
+                                          <p className="text-xs text-muted-foreground italic">{parsed.source}</p>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                } catch { /* Not JSON — fall through */ }
+                              }
+                              // Fallback: raw text for old findings
+                              if (finding.details) {
+                                return (
+                                  <div>
+                                    <h4 className="text-sm font-medium mb-1">Full Details</h4>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                      {finding.details.replace(/[#*`_]/g, '').trim()}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
 
                             {finding.extractedEntities && (
                               <div>
@@ -398,6 +464,11 @@ export function SourceDrawer({
                                 <p className="text-sm font-medium line-clamp-1">
                                   {finding.title}
                                 </p>
+                                {finding.summary && (
+                                  <p className="text-xs text-muted-foreground line-clamp-1">
+                                    {finding.summary}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-3 mt-1">
                                   <Badge variant="outline" className="text-xs">
                                     {finding.type}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Star, Lightbulb } from 'lucide-react';
+import { Star, Lightbulb, ExternalLink } from 'lucide-react';
 import { SourceIcon } from './SourceIcon';
 import type { FeaturedDiscovery as FeaturedDiscoveryType, ExplanationMode } from '@/types';
 
@@ -73,6 +73,16 @@ export function FeaturedDiscovery({ discovery, mode, onViewSource }: FeaturedDis
             >
               View original &rarr;
             </button>
+          )}
+          {sourceMetadata.url && (
+            <a
+              href={sourceMetadata.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </a>
           )}
         </div>
       </CardContent>

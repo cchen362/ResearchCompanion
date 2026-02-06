@@ -17,10 +17,14 @@ import {
   Database,
   RefreshCw,
   HardDrive,
-  Stethoscope
+  Stethoscope,
+  BookOpen,
+  FlaskConical,
+  Shield,
+  Globe
 } from 'lucide-react';
 import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
-import { SourceStatsBar } from './digest/SourceStatsBar';
+// SourceStatsBar replaced with inline pills in Phase 8
 import { FeaturedDiscovery } from './digest/FeaturedDiscovery';
 import { FindingSummaryCard } from './digest/FindingSummaryCard';
 import { formatDistanceToNow } from 'date-fns';
@@ -35,6 +39,7 @@ interface DigestCardProps {
   digest: SmartDigest;
   onThemeClick: (themeId: string) => void;
   onViewSources: () => void;
+  onViewFinding?: (findingId: string) => void;
   onAskQuestion?: (question: string) => void;
   explanationMode: ExplanationMode;
   setExplanationMode: (mode: ExplanationMode) => void;
@@ -44,10 +49,13 @@ export function DigestCard({
   digest,
   onThemeClick,
   onViewSources,
+  onViewFinding,
   onAskQuestion,
   explanationMode,
   setExplanationMode
 }: DigestCardProps) {
+  const [topFindingsFilter, setTopFindingsFilter] = useState<string>('all');
+
   // Initialize with saved preferences or default to showing takeaways
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('digestExpandedSections');
@@ -214,13 +222,44 @@ export function DigestCard({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Source Stats Inline */}
+            {digest.sourceBreakdown && (
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-muted-foreground font-medium">{digest.statistics.totalFindings} findings:</span>
+                {digest.sourceBreakdown.pubmed > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 rounded-full px-2.5 py-0.5">
+                    <BookOpen className="h-3 w-3" />
+                    {digest.sourceBreakdown.pubmed} PubMed
+                  </span>
+                )}
+                {digest.sourceBreakdown.clinicalTrials > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 rounded-full px-2.5 py-0.5">
+                    <FlaskConical className="h-3 w-3" />
+                    {digest.sourceBreakdown.clinicalTrials} Clinical
+                  </span>
+                )}
+                {digest.sourceBreakdown.fda > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 rounded-full px-2.5 py-0.5">
+                    <Shield className="h-3 w-3" />
+                    {digest.sourceBreakdown.fda} FDA
+                  </span>
+                )}
+                {digest.sourceBreakdown.web > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full px-2.5 py-0.5">
+                    <Globe className="h-3 w-3" />
+                    {digest.sourceBreakdown.web} Web
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Featured Discovery */}
             {digest.featuredDiscovery && (
               <FeaturedDiscovery
                 discovery={digest.featuredDiscovery}
                 mode={explanationMode}
                 onViewSource={(id) => {
-                  console.log('View finding:', id);
+                  onViewFinding?.(id);
                 }}
               />
             )}
@@ -244,13 +283,7 @@ export function DigestCard({
         </CardContent>
       </Card>
 
-      {/* Source Stats Bar */}
-      {digest.sourceBreakdown && (
-        <SourceStatsBar
-          breakdown={digest.sourceBreakdown}
-          totalFindings={digest.statistics.totalFindings}
-        />
-      )}
+      {/* Source Stats - Inline pills (was standalone SourceStatsBar) */}
 
       {/* Also In This Digest */}
       {digest.topFindings && digest.topFindings.length > 0 && (
@@ -262,15 +295,44 @@ export function DigestCard({
                 {digest.topFindings.length} of {digest.statistics.totalFindings}
               </span>
             </div>
+            {/* Source type filter tabs */}
+            <div className="flex gap-1 flex-wrap mt-2">
+              <Button
+                variant={topFindingsFilter === 'all' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setTopFindingsFilter('all')}
+              >
+                All ({digest.topFindings.length})
+              </Button>
+              {(['pubmed', 'clinical_trial', 'fda', 'web'] as const).map((sourceType) => {
+                const count = digest.topFindings!.filter(f => f.sourceType === sourceType).length;
+                if (count === 0) return null;
+                const labels: Record<string, string> = { pubmed: 'PubMed', clinical_trial: 'Clinical', fda: 'FDA', web: 'Web' };
+                return (
+                  <Button
+                    key={sourceType}
+                    variant={topFindingsFilter === sourceType ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setTopFindingsFilter(sourceType)}
+                  >
+                    {labels[sourceType]} ({count})
+                  </Button>
+                );
+              })}
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {digest.topFindings.map((finding) => (
+            {digest.topFindings
+              .filter(f => topFindingsFilter === 'all' || f.sourceType === topFindingsFilter)
+              .map((finding) => (
               <FindingSummaryCard
                 key={finding.findingId}
                 finding={finding}
                 mode={explanationMode}
                 onViewSource={(id) => {
-                  console.log('View finding:', id);
+                  onViewFinding?.(id);
                 }}
               />
             ))}

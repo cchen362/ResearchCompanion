@@ -107,17 +107,54 @@ export class SearchService {
         params: summaryParams
       });
 
+      // Fetch real abstracts via efetch (esummary never returns abstracts)
+      let abstractMap: Record<string, string> = {};
+      try {
+        const efetchParams: any = {
+          db: 'pubmed',
+          id: pmids.join(','),
+          rettype: 'abstract',
+          retmode: 'xml'
+        };
+        if (process.env.PUBMED_API_KEY) {
+          efetchParams.api_key = process.env.PUBMED_API_KEY;
+        }
+        const efetchResponse = await axios.get(`${this.pubmedBaseUrl}/efetch.fcgi`, {
+          params: efetchParams
+        });
+        const xmlData = efetchResponse.data as string;
+
+        const articleBlocks = xmlData.split('<PubmedArticle>');
+        for (const block of articleBlocks) {
+          const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
+          const abstractMatch = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+          if (pmidMatch && abstractMatch) {
+            const pmid = pmidMatch[1];
+            const abstractText = abstractMatch
+              .map((m: string) => m.replace(/<\/?[^>]+(>|$)/g, '').trim())
+              .join(' ');
+            abstractMap[pmid] = abstractText;
+          }
+        }
+        console.log(`[SearchService] Fetched abstracts for ${Object.keys(abstractMap).length} of ${pmids.length} articles`);
+      } catch (efetchError) {
+        console.warn('[SearchService] efetch failed, continuing without abstracts:', efetchError instanceof Error ? efetchError.message : 'Unknown');
+      }
+
       const articles = [];
       const results = summaryResponse.data?.result || {};
 
       for (const pmid of pmids) {
         const article = results[pmid];
         if (article && article.uid) {
-          const articleSummary = article.title || 'Untitled';
+          const realAbstract = abstractMap[pmid] || '';
+          const articleSummary = realAbstract || article.title || 'Untitled';
           const publicationInfo = `Published in ${article.source || 'Unknown Journal'} on ${article.sortpubdate || 'Unknown Date'}`;
 
           // Add unique identifier to details to prevent duplication
-          const uniqueDetails = `${articleSummary}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`;
+          const uniqueDetails = realAbstract
+            ? `${realAbstract}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`
+            : `${article.title || 'Untitled'}\n\n${publicationInfo}\n\nAuthors: ${article.authors?.map((a: any) => a.name).join(', ') || 'Not specified'}\n\n───────────\nPubMed ID: ${article.uid}`;
 
           articles.push({
             id: `pubmed_${article.uid}`,

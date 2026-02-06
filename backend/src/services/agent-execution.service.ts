@@ -356,10 +356,12 @@ export class AgentExecutionService {
     let content = '';
     let keyInsights: string[] = [];
 
+    let structuredDetails = '';
     try {
       const aiAnalysis = await this.analyzeWithAI(result, agent.type);
       content = aiAnalysis.summary;
       keyInsights = aiAnalysis.insights;
+      structuredDetails = aiAnalysis.structuredDetails;
     } catch (error) {
       // Fallback to basic extraction if AI fails
       content = this.extractBasicContent(result, agent.type);
@@ -372,13 +374,14 @@ export class AgentExecutionService {
       title: source.displayName || source.name || 'Research Finding',
       source,
       content,
-      summary: content.substring(0, 200),
+      summary: content,
       metadata: {
         keyInsights,
         agentId: agent.id,
         agentName: agent.name,
         searchQuery: agent.config?.query,
-        originalResult: result
+        originalResult: result,
+        structuredDetails: structuredDetails || undefined
       },
       tags: this.extractTags(result, agent.type),
       is_read: false,
@@ -444,13 +447,22 @@ export class AgentExecutionService {
   /**
    * Analyze search result with AI
    */
-  private async analyzeWithAI(result: any, agentType: string): Promise<{ summary: string; insights: string[] }> {
+  private async analyzeWithAI(result: any, agentType: string): Promise<{ summary: string; insights: string[]; structuredDetails: string }> {
     const prompt = this.buildAIPrompt(result, agentType);
 
     try {
       const response = await aiService.client.messages.create({
-        model: 'claude-haiku-4-5-20251001', // Use Haiku 4.5 for cost-efficient background processing
-        system: 'You are a medical research analyst. Extract key information and insights from research findings. Be concise and factual.',
+        model: 'claude-haiku-4-5-20251001',
+        system: `You are a medical research analyst. Generate a structured summary of research findings.
+Always respond with valid JSON in this exact format:
+{
+  "summary": "1-2 sentence plain text summary of the main finding",
+  "keyFinding": "One sentence: what was specifically found or demonstrated",
+  "method": "One sentence: study type, sample size, duration if available. Omit if not available.",
+  "implications": "One sentence: why this matters for patients or clinical practice",
+  "source": "Journal/Source Name, Year, Study Type"
+}
+Be concise. Each field must be ONE sentence maximum. If information for a field is not available, use an empty string.`,
         messages: [
           {
             role: 'user',
@@ -460,14 +472,36 @@ export class AgentExecutionService {
         max_tokens: 500
       });
 
-      // Parse AI response
       const contentBlock = response.content[0];
       const content = contentBlock && 'text' in contentBlock ? contentBlock.text : '';
-      const lines = content.split('\n').filter((l: string) => l.trim());
 
+      // Try to parse structured JSON response
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          const details: Record<string, string> = {};
+          if (parsed.keyFinding) details.keyFinding = parsed.keyFinding;
+          if (parsed.method) details.method = parsed.method;
+          if (parsed.implications) details.implications = parsed.implications;
+          if (parsed.source) details.source = parsed.source;
+
+          return {
+            summary: parsed.summary || this.extractBasicContent(result, agentType),
+            insights: [parsed.keyFinding, parsed.implications].filter(Boolean),
+            structuredDetails: JSON.stringify(details)
+          };
+        }
+      } catch (parseError) {
+        console.warn('[AgentExecution] Failed to parse structured JSON, falling back to text parsing');
+      }
+
+      // Fallback: parse as plain text (backward compat)
+      const lines = content.split('\n').filter((l: string) => l.trim());
       return {
         summary: lines[0] || this.extractBasicContent(result, agentType),
-        insights: lines.slice(1, 4).map((l: string) => l.replace(/^[-*]\s*/, ''))
+        insights: lines.slice(1, 4).map((l: string) => l.replace(/^[-*]\s*/, '')),
+        structuredDetails: ''
       };
 
     } catch (error) {
@@ -480,38 +514,48 @@ export class AgentExecutionService {
    * Build AI analysis prompt
    */
   private buildAIPrompt(result: any, agentType: string): string {
+    // Filter out junk content
+    const clean = (val: string | undefined) => {
+      if (!val) return '';
+      if (val === 'No abstract available' || val === 'Not available') return '';
+      return val;
+    };
+
     switch (agentType) {
-      case 'pubmed':
-        return `Analyze this medical research article:
-Title: ${result.title || 'Unknown'}
-Abstract: ${result.abstract || 'Not available'}
+      case 'pubmed': {
+        const abstract = clean(result.abstract);
+        const title = result.title || 'Unknown';
+        const journal = result.journal || result.source || '';
+        const date = result.publishDate || result.pubdate || '';
+        return `Analyze this PubMed research article and respond with structured JSON:
+Title: ${title}
+${abstract ? `Abstract: ${abstract}` : '(No abstract available - analyze based on title and metadata)'}
+Journal: ${journal}
+Date: ${date}`;
+      }
 
-Provide:
-1. A one-sentence summary of the main finding
-2. Three key insights or implications (one per line, starting with -)`;
+      case 'clinical_trials': {
+        const briefTitle = result.protocolSection?.identificationModule?.briefTitle || 'Unknown';
+        const description = clean(result.protocolSection?.descriptionModule?.briefSummary);
+        const phase = result.protocolSection?.designModule?.phases?.[0] || 'Unknown';
+        const status = result.protocolSection?.statusModule?.overallStatus || 'Unknown';
+        return `Analyze this clinical trial and respond with structured JSON:
+Title: ${briefTitle}
+${description ? `Description: ${description}` : '(No description available)'}
+Phase: ${phase}
+Status: ${status}`;
+      }
 
-      case 'clinical_trials':
-        return `Analyze this clinical trial:
-Title: ${result.protocolSection?.identificationModule?.briefTitle || 'Unknown'}
-Description: ${result.protocolSection?.descriptionModule?.briefSummary || 'Not available'}
-Phase: ${result.protocolSection?.designModule?.phases?.[0] || 'Unknown'}
-Status: ${result.protocolSection?.statusModule?.overallStatus || 'Unknown'}
-
-Provide:
-1. A one-sentence summary of the trial's purpose
-2. Three key insights about the trial (one per line, starting with -)`;
-
-      case 'web':
-        return `Analyze this medical article:
-Title: ${result.title || 'Unknown'}
-Description: ${result.description || 'Not available'}
-
-Provide:
-1. A one-sentence summary of the main point
-2. Three key takeaways (one per line, starting with -)`;
+      case 'web': {
+        const title = result.title || 'Unknown';
+        const description = clean(result.description);
+        return `Analyze this medical article and respond with structured JSON:
+Title: ${title}
+${description ? `Description: ${description}` : '(No description available)'}`;
+      }
 
       default:
-        return 'Summarize this finding in one sentence.';
+        return 'Analyze this finding and respond with structured JSON.';
     }
   }
 

@@ -29,6 +29,7 @@ Each implementation plan includes:
 | 005 | [PubMed API Fix & Agent Logging](./005_PUBMED_API_FIX_AND_AGENT_LOGGING.md) | Complete | Fix silent PubMed failures, add agent execution logging |
 | 006 | [PubMed Query Construction Fix](./006_PUBMED_QUERY_CONSTRUCTION_FIX.md) | **Ready** | Fix "2026 latest recent" query breaking PubMed searches |
 | 007 | [Digest Pipeline Fix & Dead Field Cleanup](./007_DIGEST_PIPELINE_FIX_AND_DEAD_FIELD_CLEANUP.md) | **Ready** | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
+| 008 | [Digest & Findings UX Enhancement](./008_DIGEST_FINDINGS_UX_ENHANCEMENT.md) | **Ready** | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
 
 ## How to Use
 
@@ -50,4 +51,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 6, 2026*
-*Latest Plan: 007 - Digest Pipeline Fix & Dead Field Cleanup*
+*Latest Plan: 008 - Digest & Findings UX Enhancement*

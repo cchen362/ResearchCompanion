@@ -57,7 +57,7 @@ export const SmartDigestSchema = z.object({
   contradictions: z.array(ContradictionSchema).optional().default([]),
   // Magazine editorial fields (REQUIRED for new digests)
   featuredDiscovery: z.lazy(() => FeaturedDiscoverySchema),
-  topFindings: z.array(z.lazy(() => TopFindingSchema)).max(5),
+  topFindings: z.array(z.lazy(() => TopFindingSchema)).max(12),
   sourceBreakdown: z.lazy(() => SourceBreakdownSchema),
   // Legacy fields (kept optional for backward compat with old digests)
   themes: z.array(DigestThemeSchema).optional().default([]),
@@ -266,8 +266,8 @@ export const digestJSONSchema = {
     },
     topFindings: {
       type: 'array',
-      description: '5 additional notable findings',
-      maxItems: 5,
+      description: '12 additional notable findings',
+      maxItems: 12,
       items: {
         type: 'object',
         properties: {

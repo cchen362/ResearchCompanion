@@ -43,6 +43,8 @@ interface ResearchContainerProps {
   onViewSources: () => void;
   /** Callback when theme clicked in digest */
   onThemeClick: (themeId: string, themeName: string) => void;
+  /** Callback when a finding is clicked in digest */
+  onViewFinding?: (findingId: string) => void;
 }
 
 // ============================================
@@ -54,7 +56,8 @@ export function ResearchContainer({
   onFindingClick,
   onSettingsClick,
   onViewSources,
-  onThemeClick
+  onThemeClick,
+  onViewFinding
 }: ResearchContainerProps) {
   // ============================================
   // Store Hydration
@@ -225,6 +228,7 @@ export function ResearchContainer({
           topicId={selectedTopicId}
           onViewSources={onViewSources}
           onThemeClick={onThemeClick}
+          onViewFinding={onViewFinding}
         />
       ) : (
         /* List View */

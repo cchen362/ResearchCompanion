@@ -452,8 +452,14 @@ class AgentsService {
             topicId: topic.id,
             type: this.determineType(agent.type),
             title: result.title || result.briefTitle || 'Untitled',
-            summary: result.snippet || result.abstract || result.briefSummary || '',
-            details: result.details || result.summary || result.briefSummary || '',
+            summary: (() => {
+              const raw = result.snippet || result.summary || result.abstract || result.briefSummary || '';
+              return raw === 'No abstract available' ? '' : raw;
+            })(),
+            details: (() => {
+              const raw = result.details || result.summary || result.briefSummary || '';
+              return raw === 'No abstract available' ? '' : raw;
+            })(),
             source: sourceObject,
             isNew: true,
             timestamp: Date.now()

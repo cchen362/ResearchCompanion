@@ -462,7 +462,7 @@ EXPLAINED VERSION:
 - Make it accessible to non-medical readers
 
 ### TOP FINDINGS
-Select 5 additional notable findings. For EACH:
+Select up to 12 additional notable findings. For EACH:
 - Generate both technical and explained versions
 - Include the finding ID for traceability
 - Create a metadata string: "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
@@ -500,7 +500,7 @@ Create a structured digest with:
 
 MAGAZINE EDITORIAL SECTIONS (REQUIRED):
 - featuredDiscovery: The SINGLE most impactful finding as hero content. Include findingId (from the data above), sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
-- topFindings: Up to 5 additional notable findings. Each with findingId, sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
+- topFindings: Up to 12 additional notable findings. Each with findingId, sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
 - sourceBreakdown: Count ALL findings by source type (pubmed, clinicalTrials, fda, web)
 
 Focus on practical, actionable information that helps with treatment decisions.`

@@ -81,9 +81,36 @@ router.post('/pubmed-search', async (req, res) => {
     const summaryUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${idList.join(',')}&retmode=json${apiKeyParam}`;
     const summaryResponse = await axios.get(summaryUrl);
 
+    // Fetch real abstracts via efetch (esummary never returns abstracts)
+    let abstractMap: Record<string, string> = {};
+    try {
+      const efetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${idList.join(',')}&rettype=abstract&retmode=xml${apiKeyParam}`;
+      const efetchResponse = await axios.get(efetchUrl);
+      const xmlData = efetchResponse.data as string;
+
+      // Parse abstracts from XML - extract <AbstractText> for each PMID
+      const articleBlocks = xmlData.split('<PubmedArticle>');
+      for (const block of articleBlocks) {
+        const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
+        const abstractMatch = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+        if (pmidMatch && abstractMatch) {
+          const pmid = pmidMatch[1];
+          const abstractText = abstractMatch
+            .map(m => m.replace(/<\/?[^>]+(>|$)/g, '').trim())
+            .join(' ');
+          abstractMap[pmid] = abstractText;
+        }
+      }
+      console.log(`[PUBMED] Fetched abstracts for ${Object.keys(abstractMap).length} of ${idList.length} articles`);
+    } catch (efetchError) {
+      console.warn('[PUBMED] efetch failed, continuing without abstracts:', efetchError instanceof Error ? efetchError.message : 'Unknown');
+    }
+
     const articles = idList.map((id: string) => {
       const article = summaryResponse.data.result?.[id];
       if (!article) return null;
+
+      const abstract = abstractMap[id] || '';
 
       return {
         id,
@@ -91,7 +118,7 @@ router.post('/pubmed-search', async (req, res) => {
         authors: article.authors?.map((a: any) => a.name).join(', ') || '',
         journal: article.source || '',
         publishDate: article.pubdate || '',
-        abstract: article.abstract || 'No abstract available',
+        abstract,
         url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
         doi: article.elocationid || ''
       };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { SourceIcon } from './SourceIcon';
+import { ChevronRight } from 'lucide-react';
 import type { TopFinding, ExplanationMode } from '@/types';
 
 interface FindingSummaryCardProps {
@@ -30,6 +31,7 @@ export function FindingSummaryCard({ finding, mode, onViewSource }: FindingSumma
             {finding.metadata}
           </p>
         </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 self-center" />
       </div>
     </Card>
   );

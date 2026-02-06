@@ -28,13 +28,15 @@ interface DigestPanelProps {
   onViewSources: () => void;
   /** Callback when a theme is clicked */
   onThemeClick: (themeId: string, themeName: string) => void;
+  /** Callback when a finding is clicked in digest */
+  onViewFinding?: (findingId: string) => void;
 }
 
 // ============================================
 // Component
 // ============================================
 
-export function DigestPanel({ topicId, onViewSources, onThemeClick }: DigestPanelProps) {
+export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFinding }: DigestPanelProps) {
   const {
     digest,
     timeframe,
@@ -115,6 +117,7 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick }: DigestPane
           setExplanationMode={setExplanationMode}
           onThemeClick={handleThemeClick}
           onViewSources={onViewSources}
+          onViewFinding={onViewFinding}
         />
         <DigestActions
           canGenerate={filteredFindingsCount > 0}

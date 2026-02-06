@@ -76,6 +76,14 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
     openSourceDrawer(themeId, themeName);
   };
 
+  const handleViewFinding = (findingId: string) => {
+    const finding = findings.find(f => f.id === findingId);
+    if (finding) {
+      selectFinding(finding.id);
+      openModal('findingDetail', finding);
+    }
+  };
+
   // ============================================
   // Derived Data
   // ============================================
@@ -100,6 +108,7 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
         onSettingsClick={handleSettingsClick}
         onViewSources={handleViewSources}
         onThemeClick={handleThemeClick}
+        onViewFinding={handleViewFinding}
       />
 
       {/* Source Drawer */}
@@ -109,6 +118,8 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
         findings={sourceDrawerFindings}
         selectedDigestThemeId={sourceDrawerContext.digestThemeId || undefined}
         digestThemeName={sourceDrawerContext.digestThemeName || undefined}
+        featuredFindingId={digest?.featuredDiscovery?.findingId}
+        digestFindingIds={digest?.topFindings?.map(f => f.findingId) || []}
       />
 
       {/* Finding Detail Drawer */}
