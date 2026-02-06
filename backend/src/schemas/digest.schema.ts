@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+// Dual-mode text: both a technical and explained version of the same content
+export const DualModeTextSchema = z.object({
+  technical: z.string(),
+  explained: z.string()
+});
+
+export type DualModeText = z.infer<typeof DualModeTextSchema>;
+
 // Define the Zod schema for validation with sensible defaults
 export const DigestThemeSchema = z.object({
   id: z.string().default(() => `theme-${Date.now()}`),
@@ -19,8 +27,8 @@ export const DigestThemeSchema = z.object({
 
 export const BreakthroughSchema = z.object({
   id: z.string().default(() => `breakthrough-${Date.now()}`),
-  title: z.string(),
-  description: z.string(),
+  title: DualModeTextSchema,
+  description: DualModeTextSchema,
   impact: z.enum(['paradigm-shift', 'major', 'moderate']).default('moderate'),
   findingIndices: z.array(z.number()).default([]),
   source: z.string().default('Unknown')
@@ -28,18 +36,18 @@ export const BreakthroughSchema = z.object({
 
 export const ContradictionSchema = z.object({
   id: z.string(),
-  topic: z.string(),
+  topic: DualModeTextSchema,
   findingA: z.object({
     index: z.number(),
-    claim: z.string(),
+    claim: DualModeTextSchema,
     source: z.string()
   }),
   findingB: z.object({
     index: z.number(),
-    claim: z.string(),
+    claim: DualModeTextSchema,
     source: z.string()
   }),
-  explanation: z.string(),
+  explanation: DualModeTextSchema,
   requiresAttention: z.boolean()
 });
 
@@ -52,7 +60,9 @@ export const TrendItemSchema = z.object({
 export const SmartDigestSchema = z.object({
   executiveSummary: z.string(),
   laymanSummary: z.string(),
-  keyTakeaways: z.array(z.string()).default([]),
+  keyTakeaways: z.array(DualModeTextSchema).default([]),
+  questionsForDoctor: z.array(DualModeTextSchema).optional().default([]),
+  warningSigns: z.array(DualModeTextSchema).optional().default([]),
   breakthroughs: z.array(BreakthroughSchema).optional().default([]),
   contradictions: z.array(ContradictionSchema).optional().default([]),
   // Magazine editorial fields (REQUIRED for new digests)
@@ -134,10 +144,20 @@ export const digestJSONSchema = {
     keyTakeaways: {
       type: 'array',
       items: {
-        type: 'string',
-        description: 'Specific insights like: "Drug X reduced symptoms by 45% at 10mg daily dose in Phase 3 trial (n=500)"'
+        type: 'object',
+        properties: {
+          technical: {
+            type: 'string',
+            description: 'Specific insight with drug names, dosages, biomarkers, trial phases, sample sizes. Example: "Pembrolizumab 200mg q3w achieved 45% ORR in KEYNOTE-189 Phase 3 (n=616)"'
+          },
+          explained: {
+            type: 'string',
+            description: 'Same fact in plain language with analogies. Example: "A cancer drug called Pembrolizumab helped about half the patients in a large study — imagine flipping a coin and getting heads"'
+          }
+        },
+        required: ['technical', 'explained']
       },
-      description: 'List of actionable insights with specific metrics'
+      description: 'Actionable insights, each with a technical version (medical terminology) and an explained version (plain language)'
     },
     breakthroughs: {
       type: 'array',
@@ -145,10 +165,21 @@ export const digestJSONSchema = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          title: { type: 'string' },
+          title: {
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: 'Title using proper medical terminology and mechanisms' },
+              explained: { type: 'string', description: 'Title in everyday language anyone can understand' }
+            },
+            required: ['technical', 'explained']
+          },
           description: {
-            type: 'string',
-            description: 'Why this is significant'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: 'Why this is significant, using clinical metrics and study references' },
+              explained: { type: 'string', description: 'Why this matters, explained with analogies and comparisons' }
+            },
+            required: ['technical', 'explained']
           },
           impact: {
             type: 'string',
@@ -170,14 +201,25 @@ export const digestJSONSchema = {
         properties: {
           id: { type: 'string' },
           topic: {
-            type: 'string',
-            description: 'What aspect is contradicted'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: 'Contradiction topic using medical terminology' },
+              explained: { type: 'string', description: 'Contradiction topic in plain language' }
+            },
+            required: ['technical', 'explained']
           },
           findingA: {
             type: 'object',
             properties: {
               index: { type: 'number' },
-              claim: { type: 'string' },
+              claim: {
+                type: 'object',
+                properties: {
+                  technical: { type: 'string', description: 'Claim in medical terminology' },
+                  explained: { type: 'string', description: 'Claim in plain language' }
+                },
+                required: ['technical', 'explained']
+              },
               source: { type: 'string' }
             },
             required: ['index', 'claim', 'source']
@@ -186,14 +228,25 @@ export const digestJSONSchema = {
             type: 'object',
             properties: {
               index: { type: 'number' },
-              claim: { type: 'string' },
+              claim: {
+                type: 'object',
+                properties: {
+                  technical: { type: 'string', description: 'Claim in medical terminology' },
+                  explained: { type: 'string', description: 'Claim in plain language' }
+                },
+                required: ['technical', 'explained']
+              },
               source: { type: 'string' }
             },
             required: ['index', 'claim', 'source']
           },
           explanation: {
-            type: 'string',
-            description: 'Possible reason for contradiction'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: 'Reason for contradiction using medical terminology' },
+              explained: { type: 'string', description: 'Reason in plain language' }
+            },
+            required: ['technical', 'explained']
           },
           requiresAttention: { type: 'boolean' }
         },
@@ -337,6 +390,42 @@ export const digestJSONSchema = {
         }
       },
       required: ['pubmed', 'clinicalTrials', 'fda', 'web']
+    },
+    questionsForDoctor: {
+      type: 'array',
+      description: 'Evidence-based questions the patient should ask their doctor at their next appointment. Generate 3-5 questions.',
+      items: {
+        type: 'object',
+        properties: {
+          technical: {
+            type: 'string',
+            description: 'Question referencing specific biomarkers, drug interactions, or trial data. Example: "Should we monitor my IGF-1 levels given the Phase 3 data on pegvisomant dose adjustment?"'
+          },
+          explained: {
+            type: 'string',
+            description: 'Same question in conversational, approachable language. Example: "Based on the new research, should we check my hormone levels to see if my medication dose needs changing?"'
+          }
+        },
+        required: ['technical', 'explained']
+      }
+    },
+    warningSigns: {
+      type: 'array',
+      description: 'Symptoms or signs the patient should monitor based on the research findings. Generate 2-4 warning signs.',
+      items: {
+        type: 'object',
+        properties: {
+          technical: {
+            type: 'string',
+            description: 'Warning sign with clinical terminology and specific thresholds. Example: "New-onset peripheral edema or arthralgia persisting >72h may indicate GH receptor antagonist adverse effects"'
+          },
+          explained: {
+            type: 'string',
+            description: 'Same sign in everyday terms. Example: "Watch for unusual swelling in your hands/feet or joint pain lasting more than 3 days — this could be a side effect worth mentioning to your doctor"'
+          }
+        },
+        required: ['technical', 'explained']
+      }
     }
   },
   required: ['executiveSummary', 'laymanSummary', 'keyTakeaways', 'featuredDiscovery', 'topFindings', 'sourceBreakdown'],

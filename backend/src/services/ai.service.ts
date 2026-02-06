@@ -479,7 +479,31 @@ Count findings by type:
 2. NEVER invent statistics, percentages, or study results
 3. The EXPLAINED version must contain the SAME FACTS as TECHNICAL
 4. If no suitable finding exists for featured discovery, omit the field
-5. Include finding IDs in your response for validation`,
+5. Include finding IDs in your response for validation
+
+### DUAL-MODE CONTENT FOR ALL SECTIONS
+
+For the following sections, generate TWO versions of each text field — one technical, one explained. Both must contain the SAME FACTS, just expressed differently.
+
+KEY TAKEAWAYS:
+- technical: Include specific drug names, dosages, biomarker values, trial phases, sample sizes
+- explained: Same fact using analogies, comparisons to everyday life, plain language
+
+BREAKTHROUGHS (title and description):
+- technical: Proper medical terminology, mechanism of action, trial names, effect sizes
+- explained: Everyday language explaining why this matters to a patient/caregiver
+
+CONTRADICTIONS (topic, claims, and explanation):
+- technical: Precise medical terminology, study references, clinical metrics
+- explained: Plain language describing the disagreement and why it matters
+
+QUESTIONS FOR DOCTOR (generate 3-5 evidence-based questions):
+- technical: Referencing specific biomarkers, drug interactions, trial data the doctor would recognize
+- explained: Conversational, approachable phrasing a patient could read directly to their doctor
+
+WARNING SIGNS (generate 2-4 relevant symptoms/signs to monitor):
+- technical: Clinical terminology with specific thresholds (e.g., "fever >38.5°C persisting >48h")
+- explained: Everyday descriptions anyone would recognize (e.g., "a high fever that doesn't go away after 2 days")`,
       messages: [
         {
           role: 'user',
@@ -497,6 +521,8 @@ Create a structured digest with:
 - Key takeaways with specific numbers (effect sizes, dosages, patient counts)
 - Identify any breakthroughs or paradigm shifts
 - Flag any contradictions between findings
+- Generate 3-5 evidence-based questions to ask the doctor (questionsForDoctor), each with technical and explained versions
+- Generate 2-4 warning signs to monitor (warningSigns), each with technical and explained versions
 
 MAGAZINE EDITORIAL SECTIONS (REQUIRED):
 - featuredDiscovery: The SINGLE most impactful finding as hero content. The findingId MUST be the exact UUID string from the "ID:" field (e.g. "5c00622b-2343-40d3-ba50-e9d1dc39d865"), NOT a number. Include sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
@@ -557,6 +583,8 @@ Focus on practical, actionable information that helps with treatment decisions.`
           keyTakeaways: Array.isArray(digestData.keyTakeaways) ? digestData.keyTakeaways : [],
           breakthroughs: Array.isArray(digestData.breakthroughs) ? digestData.breakthroughs : [],
           contradictions: Array.isArray(digestData.contradictions) ? digestData.contradictions : [],
+          questionsForDoctor: Array.isArray(digestData.questionsForDoctor) ? digestData.questionsForDoctor : [],
+          warningSigns: Array.isArray(digestData.warningSigns) ? digestData.warningSigns : [],
           // Magazine editorial fields
           featuredDiscovery: digestData.featuredDiscovery || undefined,
           topFindings: Array.isArray(digestData.topFindings) ? digestData.topFindings : [],
@@ -579,6 +607,8 @@ Focus on practical, actionable information that helps with treatment decisions.`
           keyTakeaways: [],
           breakthroughs: [],
           contradictions: [],
+          questionsForDoctor: [],
+          warningSigns: [],
           featuredDiscovery: null,
           topFindings: [],
           sourceBreakdown: null,
@@ -647,6 +677,8 @@ Focus on practical, actionable information that helps with treatment decisions.`
       keyTakeaways: digestData.keyTakeaways,
       breakthroughs,
       contradictions,
+      questionsForDoctor: digestData.questionsForDoctor || [],
+      warningSigns: digestData.warningSigns || [],
       statistics: {
         totalFindings,
         newFindings,
@@ -679,6 +711,8 @@ Focus on practical, actionable information that helps with treatment decisions.`
         }],
         keyTakeaways: ['Review individual findings for details'],
         trends: { emerging: [], declining: [], stable: ['Research ongoing'] },
+        questionsForDoctor: [],
+        warningSigns: [],
         // NEW magazine editorial fields (null for timeout fallback)
         featuredDiscovery: null,
         topFindings: [],

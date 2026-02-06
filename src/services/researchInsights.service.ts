@@ -226,8 +226,8 @@ class ResearchInsightsService {
     // Extract breakthroughs
     const breakthroughs = (latestDigest.breakthroughs || []).map(b => ({
       id: b.id,
-      finding: b.title,
-      significance: b.description,
+      finding: b.title.technical,
+      significance: b.description.technical,
       impact: b.impact
     }));
 
@@ -237,9 +237,9 @@ class ResearchInsightsService {
     // Extract contradictions
     const contradictions = (latestDigest.contradictions || []).map(c => ({
       id: c.id,
-      topic: c.topic,
-      claimA: c.findingA.claim,
-      claimB: c.findingB.claim
+      topic: c.topic.technical,
+      claimA: c.findingA.claim.technical,
+      claimB: c.findingB.claim.technical
     }));
 
     return {

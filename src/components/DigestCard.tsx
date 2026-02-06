@@ -23,7 +23,7 @@ import {
   Shield,
   Globe
 } from 'lucide-react';
-import type { SmartDigest, DigestTimeframe, ExplanationMode } from '../types';
+import type { SmartDigest, DigestTimeframe, ExplanationMode, DualModeText } from '../types';
 // SourceStatsBar replaced with inline pills in Phase 8
 import { FeaturedDiscovery } from './digest/FeaturedDiscovery';
 import { FindingSummaryCard } from './digest/FindingSummaryCard';
@@ -34,6 +34,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+
+/** Resolve a DualModeText object to its technical or explained string */
+function resolveText(item: DualModeText, mode: ExplanationMode): string {
+  return mode === 'technical' ? item.technical : item.explained;
+}
 
 interface DigestCardProps {
   digest: SmartDigest;
@@ -370,7 +375,7 @@ export function DigestCard({
                 {digest.keyTakeaways.map((takeaway, index) => (
                   <li key={index} className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span className="text-sm">{takeaway}</span>
+                    <span className="text-sm">{resolveText(takeaway, explanationMode)}</span>
                   </li>
                 ))}
               </ul>
@@ -396,7 +401,7 @@ export function DigestCard({
                   className="p-3 bg-background/80 rounded-lg border"
                 >
                   <div className="flex items-start justify-between mb-1">
-                    <h4 className="font-semibold text-sm">{breakthrough.title}</h4>
+                    <h4 className="font-semibold text-sm">{resolveText(breakthrough.title, explanationMode)}</h4>
                     <Badge
                       variant={
                         breakthrough.impact === 'paradigm-shift'
@@ -411,7 +416,7 @@ export function DigestCard({
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {breakthrough.description}
+                    {resolveText(breakthrough.description, explanationMode)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Source: {breakthrough.source}
@@ -457,7 +462,7 @@ export function DigestCard({
                     className="p-3 bg-background/80 rounded-md border border-border/50"
                   >
                     <p className="text-sm leading-relaxed">
-                      "{question}"
+                      "{resolveText(question, explanationMode)}"
                     </p>
                   </div>
                 ))}
@@ -488,7 +493,7 @@ export function DigestCard({
                 >
                   <span className="text-amber-600 mt-0.5">●</span>
                   <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
-                    {sign}
+                    {resolveText(sign, explanationMode)}
                   </p>
                 </div>
               ))}
@@ -517,17 +522,17 @@ export function DigestCard({
                   className="p-3 bg-background/80 rounded-lg border"
                 >
                   <h4 className="font-semibold text-sm mb-2">
-                    {contradiction.topic}
+                    {resolveText(contradiction.topic, explanationMode)}
                   </h4>
                   <div className="space-y-2">
                     <div className="pl-3 border-l-2 border-red-300">
-                      <p className="text-sm">{contradiction.findingA.claim}</p>
+                      <p className="text-sm">{resolveText(contradiction.findingA.claim, explanationMode)}</p>
                       <p className="text-xs text-muted-foreground">
                         — {contradiction.findingA.source}
                       </p>
                     </div>
                     <div className="pl-3 border-l-2 border-blue-300">
-                      <p className="text-sm">{contradiction.findingB.claim}</p>
+                      <p className="text-sm">{resolveText(contradiction.findingB.claim, explanationMode)}</p>
                       <p className="text-xs text-muted-foreground">
                         — {contradiction.findingB.source}
                       </p>
@@ -535,7 +540,7 @@ export function DigestCard({
                   </div>
                   {contradiction.explanation && (
                     <p className="text-xs text-muted-foreground mt-2 italic">
-                      Note: {contradiction.explanation}
+                      Note: {resolveText(contradiction.explanation, explanationMode)}
                     </p>
                   )}
                   {contradiction.requiresAttention && (

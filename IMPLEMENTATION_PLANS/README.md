@@ -30,6 +30,9 @@ Each implementation plan includes:
 | 006 | [PubMed Query Construction Fix](./006_PUBMED_QUERY_CONSTRUCTION_FIX.md) | **Ready** | Fix "2026 latest recent" query breaking PubMed searches |
 | 007 | [Digest Pipeline Fix & Dead Field Cleanup](./007_DIGEST_PIPELINE_FIX_AND_DEAD_FIELD_CLEANUP.md) | **Ready** | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
 | 008 | [Digest & Findings UX Enhancement](./008_DIGEST_FINDINGS_UX_ENHANCEMENT.md) | **Ready** | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
+| 009 | [Digest Generation Timeout Fix](./009_DIGEST_GENERATION_TIMEOUT_FIX.md) | Complete | Fix digest generation timeout issues |
+| 010 | [Finding Label Unification](./010_FINDING_LABEL_UNIFICATION.md) | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
+| 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | **Ready** | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 
 ## How to Use
 
@@ -50,5 +53,5 @@ When creating a new implementation plan:
 
 ---
 
-*Last Updated: February 6, 2026*
-*Latest Plan: 008 - Digest & Findings UX Enhancement*
+*Last Updated: February 7, 2026*
+*Latest Plan: 011 - Digest Explained Mode Expansion*

@@ -126,7 +126,7 @@ class ExportService {
             pdf.addPage();
             yPosition = 20;
           }
-          const contradictionText = `• ${contradiction.topic}: "${contradiction.findingA?.claim || 'Finding A'}" vs "${contradiction.findingB?.claim || 'Finding B'}"`;
+          const contradictionText = `• ${contradiction.topic.technical}: "${contradiction.findingA?.claim.technical || 'Finding A'}" vs "${contradiction.findingB?.claim.technical || 'Finding B'}"`;
           yPosition += addWrappedText(contradictionText, 25, yPosition, 165);
           yPosition += 3;
         });
@@ -148,8 +148,8 @@ class ExportService {
             yPosition = 20;
           }
           const breakthroughText = breakthrough.title && breakthrough.description
-            ? `• ${breakthrough.title}: ${breakthrough.description}`
-            : `• ${breakthrough.title || breakthrough.description || 'Breakthrough finding'}`;
+            ? `• ${breakthrough.title.technical}: ${breakthrough.description.technical}`
+            : `• ${breakthrough.title?.technical || breakthrough.description?.technical || 'Breakthrough finding'}`;
           yPosition += addWrappedText(breakthroughText, 25, yPosition, 165);
           yPosition += 3;
         });
@@ -336,7 +336,7 @@ class ExportService {
       digest.breakthroughs.forEach((breakthrough, index) => {
         summaryData.push({
           'Field': `Breakthrough ${index + 1}`,
-          'Value': `${breakthrough.title}: ${breakthrough.description}`
+          'Value': `${breakthrough.title.technical}: ${breakthrough.description.technical}`
         });
       });
 
