@@ -85,25 +85,11 @@ class FindingsService {
   }
 
   /**
-   * Calculate if finding should be marked as "new"
-   * - New if created in last 48 hours
-   * - New if unread and less than 7 days old
+   * A finding is "new" (unread) if is_read is false.
+   * No time-based heuristics — trust the database column.
    */
   private calculateIsNew(apiFinding: any): boolean {
-    const createdAt = new Date(apiFinding.created_at).getTime();
-    const hoursSinceCreation = (Date.now() - createdAt) / (1000 * 60 * 60);
-
-    // Always new if created in last 48 hours
-    if (hoursSinceCreation < 48) {
-      return true;
-    }
-
-    // If unread and less than 7 days old, still consider new
-    if (!apiFinding.is_read && hoursSinceCreation < 168) {
-      return true;
-    }
-
-    return false;
+    return apiFinding.is_read === false;
   }
 
   /**
@@ -345,19 +331,23 @@ class FindingsService {
   }
 
   /**
-   * Mark all findings as read for a topic (or all topics if no topicId)
+   * Mark all unread findings as read (single bulk API call).
+   * Optionally filter by topic.
    */
-  async markFindingsAsRead(topicId?: string): Promise<void> {
+  async markFindingsAsRead(topicId?: string): Promise<number> {
     try {
-      const findings = await this.getFindings(topicId);
-      const unreadFindings = findings.filter(f => f.isNew);
-
-      // Mark each unread finding as read
-      await Promise.all(
-        unreadFindings.map(f => this.markFindingAsRead(f.id))
+      const params = topicId ? `?topic_id=${topicId}` : '';
+      const response = await api.put<{ success: boolean; markedCount: number }>(
+        `${this.baseUrl}/mark-all-read${params}`
       );
+
+      if (response.data.success) {
+        return response.data.markedCount;
+      }
+
+      throw new Error('Failed to bulk mark findings as read');
     } catch (error) {
-      logger.error('[FindingsService] Error marking findings as read:', error);
+      logger.error('[FindingsService] Error bulk marking findings as read:', error);
       throw error;
     }
   }

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, ExternalLink, Calendar, Shield, Users, FileText, AlertCircle, TrendingUp } from 'lucide-react';
+import { findingsService } from '@/services/findings.service';
 import type { Finding } from '@/types';
 
 interface FindingDetailDrawerProps {
@@ -10,6 +11,15 @@ interface FindingDetailDrawerProps {
 }
 
 export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: FindingDetailDrawerProps) {
+  // Mark finding as read when drawer opens
+  useEffect(() => {
+    if (isOpen && finding && finding.isNew) {
+      findingsService.markFindingAsRead(finding.id).catch(() => {
+        // Silent fail — marking as read is not critical
+      });
+    }
+  }, [isOpen, finding?.id]);
+
   if (!finding) return null;
 
   // Extract study details from metadata

@@ -432,11 +432,11 @@ cd backend && npm run build
 
 ---
 
-## Phase 2: Fix is_read — Simplify calculateIsNew & Mark on Drawer Open
+## Phase 2: Fix is_read — Simplify calculateIsNew & Mark on Drawer Open ✅ COMPLETE
 
 **Goal**: Fix the broken "new findings" system so unread count is reliable.
 
-### Step 2.1: Simplify `calculateIsNew()` in findings service
+### Step 2.1: Simplify `calculateIsNew()` in findings service ✅
 
 **File**: `src/services/findings.service.ts`
 
@@ -473,7 +473,7 @@ Replace the ENTIRE method with:
   }
 ```
 
-### Step 2.2: Add bulk mark-all-read method to findings service
+### Step 2.2: Add bulk mark-all-read method to findings service ✅
 
 **File**: `src/services/findings.service.ts`
 
@@ -522,7 +522,7 @@ Replace with:
   }
 ```
 
-### Step 2.3: Mark finding as read when detail drawer opens
+### Step 2.3: Mark finding as read when detail drawer opens ✅
 
 **File**: `src/components/research/drawers/FindingDetailDrawer.tsx`
 
@@ -558,7 +558,7 @@ if (isOpen && finding) {
 
 This marks as read unconditionally when the drawer opens, which is safe since the backend is idempotent.
 
-### Step 2.4: Build verification
+### Step 2.4: Build verification ✅
 
 ```bash
 npm run build
@@ -1645,7 +1645,7 @@ If something breaks after deployment:
 | Phase | Task | Completed | Date |
 |-------|------|-----------|------|
 | 1 | Backend: bulk mark-read + dashboard stats endpoint | [x] | Feb 8, 2026 |
-| 2 | Fix is_read: simplify calculateIsNew, mark on drawer open | [ ] | |
+| 2 | Fix is_read: simplify calculateIsNew, mark on drawer open | [x] | Feb 8, 2026 |
 | 3 | Create HomePage + sub-components (hero, filter, highlights, signposts, CTAs) | [ ] | |
 | 4 | Wire into both entry points, delete old pages, remove polling | [ ] | |
 | 5 | Install Recharts, create activity chart + source donut | [ ] | |
