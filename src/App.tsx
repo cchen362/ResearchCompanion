@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { initDB, requestPersistentStorage } from './utils/db/database';
 import { topicsService } from './services/topics.service';
-import Dashboard from './components/Dashboard';
+import { HomePage } from './components/HomePage';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import NotificationCenter from './components/NotificationCenter';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanel';
-import { AnalyticsView } from './components/AnalyticsView';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
 import { notificationStream } from './services/notification-stream.service';
@@ -18,7 +17,7 @@ import './App.css';
 
 function App() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'analytics'>('dashboard');
+  const [currentView, setCurrentView] = useState<'home' | 'topics' | 'agents' | 'findings'>('home');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -73,14 +72,6 @@ function App() {
       refreshTopics();
     }
   }, [currentView, isDbReady]);
-
-  // Also refresh topics periodically to catch any changes
-  useEffect(() => {
-    if (isDbReady) {
-      const interval = setInterval(refreshTopics, 5000); // Refresh every 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [isDbReady]);
 
   // Listen for agent completion and topic creation events
   useEffect(() => {
@@ -168,14 +159,14 @@ function App() {
             {/* Navigation */}
             <nav className="flex space-x-4">
               <button
-                onClick={() => setCurrentView('dashboard')}
+                onClick={() => setCurrentView('home')}
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentView === 'dashboard'
+                  currentView === 'home'
                     ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Dashboard
+                Home
               </button>
               <button
                 onClick={() => setCurrentView('topics')}
@@ -206,16 +197,6 @@ function App() {
                 }`}
               >
                 Findings
-              </button>
-              <button
-                onClick={() => setCurrentView('analytics')}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  currentView === 'analytics'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Research Insights
               </button>
             </nav>
 
@@ -277,7 +258,7 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'dashboard' && <Dashboard setCurrentView={setCurrentView} />}
+        {currentView === 'home' && <HomePage topics={topics} setCurrentView={setCurrentView} />}
         {currentView === 'topics' && (
           <TopicManager
             onTopicsChange={refreshTopics}
@@ -285,7 +266,6 @@ function App() {
         )}
         {currentView === 'agents' && <AgentMonitor />}
         {currentView === 'findings' && <ResearchPage />}
-        {currentView === 'analytics' && <AnalyticsView />}
       </main>
 
       {/* Chat Panel - Slide in from right */}

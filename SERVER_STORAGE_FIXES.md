@@ -496,4 +496,48 @@ The chat relied on localStorage as its primary data store instead of PostgreSQL.
 
 ---
 
+### Dashboard & Research Insights → Unified Home Page (February 8, 2026) — Plan 013
+
+**Problem:** The Dashboard showed meaningless stat cards (fake $0.00 monthly cost, broken "new findings" count using time-based heuristics instead of `is_read`), and Research Insights required per-topic selection before showing anything. Both pages were low-value and fragmented.
+
+**Solution:** Merged Dashboard + Research Insights into a single unified Home page with:
+- Template-based hero section (conditional on unread count, no LLM calls)
+- Topic chip/pill filter (frontend-only state)
+- Unread findings highlights (top 5 teasers)
+- Digest signposts (breakthrough/contradiction/gap counts, not full content)
+- Contextual CTAs (rule-based feature nudges, max 3)
+- Recharts activity timeline + source breakdown donut chart
+- Single aggregated `GET /api/dashboard/stats` endpoint (replaces 5+ API calls)
+- Bulk `PUT /api/findings/mark-all-read` endpoint (replaces N+1 individual calls)
+
+**Backend Changes:**
+- `backend/src/routes/dashboard.routes.ts` — NEW: Aggregated stats endpoint
+- `backend/src/routes/findings.routes.ts` — Added bulk mark-all-read endpoint
+- `backend/src/index.ts` — Registered dashboard routes
+
+**Frontend Changes:**
+- `src/components/HomePage.tsx` — NEW: Unified Home page container
+- `src/components/home/HeroSection.tsx` — NEW: Template-based narrative hero
+- `src/components/home/TopicFilter.tsx` — NEW: Chip/pill topic filter
+- `src/components/home/FindingsHighlights.tsx` — NEW: Unread finding teasers
+- `src/components/home/DigestSignposts.tsx` — NEW: Digest metadata signposts
+- `src/components/home/ContextualCTAs.tsx` — NEW: Rule-based feature nudges
+- `src/components/home/ActivityChart.tsx` — NEW: Recharts area chart + donut
+- `src/AppWithAuth.tsx` — Replaced Dashboard with HomePage, removed Research Insights nav, removed 5-second polling
+- `src/App.tsx` — Same changes as AppWithAuth
+- `src/services/findings.service.ts` — Simplified `calculateIsNew` to pure `is_read` check, updated bulk mark-read to use new endpoint
+- `src/components/research/drawers/FindingDetailDrawer.tsx` — Mark finding as read on drawer open
+
+**Deleted Files:**
+- `src/components/Dashboard.tsx` (302 lines)
+- `src/components/AnalyticsView.tsx` (196 lines)
+- `src/components/ResearchInsightsDashboard.tsx` (615 lines)
+- `src/services/digest.service.ts` — Removed dead `warmCache()` method
+
+**Net Result:** ~346 lines net reduction, single API call for home page data, no more 5-second polling (720 API calls/hour eliminated)
+
+**New Dependency:** `recharts@^3.7.0`
+
+---
+
 *Last Updated: February 8, 2026*

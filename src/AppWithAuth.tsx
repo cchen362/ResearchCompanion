@@ -4,13 +4,12 @@ import { initDB, requestPersistentStorage } from './utils/db/database';
 import { topicsService } from './services/topics.service';
 import { logger } from '@/utils/logger';
 import { authService } from './services/auth.service';
-import Dashboard from './components/Dashboard';
+import { HomePage } from './components/HomePage';
 import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanel';
-import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 import { AuthGuard } from './components/auth/AuthGuard';
@@ -23,7 +22,7 @@ import './App.css';
 
 function MainApp() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'topics' | 'agents' | 'findings' | 'research'>('dashboard');
+  const [currentView, setCurrentView] = useState<'home' | 'topics' | 'agents' | 'findings'>('home');
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -102,14 +101,6 @@ function MainApp() {
     };
   }, []);
 
-  // Also refresh topics periodically
-  useEffect(() => {
-    if (isDbReady) {
-      const interval = setInterval(refreshTopics, 5000); // Refresh every 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [isDbReady]);
-
   const handleLogout = () => {
     authService.logout();
   };
@@ -159,14 +150,14 @@ function MainApp() {
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-2">
               <button
-                onClick={() => setCurrentView('dashboard')}
+                onClick={() => setCurrentView('home')}
                 className={`hidden sm:block px-2 py-1 rounded-md text-sm font-medium ${
-                  currentView === 'dashboard'
+                  currentView === 'home'
                     ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                Dashboard
+                Home
               </button>
               <button
                 onClick={() => setCurrentView('topics')}
@@ -198,17 +189,6 @@ function MainApp() {
               >
                 Findings
               </button>
-              <button
-                onClick={() => setCurrentView('research')}
-                className={`hidden md:block px-2 py-1 rounded-md text-sm font-medium ${
-                  currentView === 'research'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Research Insights
-              </button>
-
               {/* Action icons */}
               <div className="flex items-center space-x-2 ml-4 border-l pl-4">
                 {/* Notification Center */}
@@ -264,16 +244,16 @@ function MainApp() {
           <div className="space-y-1">
             <button
               onClick={() => {
-                setCurrentView('dashboard');
+                setCurrentView('home');
                 setMobileMenuOpen(false);
               }}
               className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
-                currentView === 'dashboard'
+                currentView === 'home'
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              Dashboard
+              Home
             </button>
             <button
               onClick={() => {
@@ -314,19 +294,6 @@ function MainApp() {
             >
               Findings
             </button>
-            <button
-              onClick={() => {
-                setCurrentView('research');
-                setMobileMenuOpen(false);
-              }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
-                currentView === 'research'
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Research Insights
-            </button>
             <hr className="my-2 border-gray-200" />
             <div className="px-3 py-2 text-sm text-gray-600">
               {currentUser?.email}
@@ -344,11 +311,9 @@ function MainApp() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ErrorBoundary>
-          {currentView === 'dashboard' && (
-            <Dashboard
+          {currentView === 'home' && (
+            <HomePage
               topics={topics}
-              selectedTopic={selectedTopic}
-              onSelectTopic={setSelectedTopic}
               setCurrentView={setCurrentView}
             />
           )}
@@ -369,12 +334,6 @@ function MainApp() {
           {currentView === 'findings' && (
             <ResearchPage
               topicId={selectedTopic?.id}
-            />
-          )}
-          {currentView === 'research' && (
-            <AnalyticsView
-              topics={topics}
-              selectedTopic={selectedTopic}
             />
           )}
         </ErrorBoundary>

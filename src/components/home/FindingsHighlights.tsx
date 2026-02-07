@@ -1,0 +1,66 @@
+import { FileText, ArrowRight } from 'lucide-react';
+import { getSourceCategory } from '@/utils/sourceCategory';
+import { SOURCE_CONFIG } from '@/components/digest/SourceIcon';
+
+interface FindingTeaser {
+  id: string;
+  title: string;
+  summary: string;
+  source: any;
+  category: string;
+  created_at: string;
+  topic_id: string;
+}
+
+interface FindingsHighlightsProps {
+  findings: FindingTeaser[];
+  onViewAllFindings: () => void;
+}
+
+export function FindingsHighlights({ findings, onViewAllFindings }: FindingsHighlightsProps) {
+  if (findings.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-indigo-600" />
+          <h3 className="font-semibold text-gray-900">Unread Findings</h3>
+          <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium">
+            {findings.length}
+          </span>
+        </div>
+        <button
+          onClick={onViewAllFindings}
+          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+        >
+          View all <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {findings.map(finding => {
+          const source = typeof finding.source === 'string'
+            ? JSON.parse(finding.source)
+            : finding.source;
+          const sourceCategory = getSourceCategory(source?.type);
+          const sourceLabel = SOURCE_CONFIG[sourceCategory]?.label || 'Research';
+
+          return (
+            <div
+              key={finding.id}
+              className="px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+              onClick={onViewAllFindings}
+            >
+              <h4 className="text-sm font-medium text-gray-900 line-clamp-1">{finding.title}</h4>
+              <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{finding.summary}</p>
+              <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                <span>{sourceLabel}</span>
+                <span>{new Date(finding.created_at).toLocaleDateString()}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

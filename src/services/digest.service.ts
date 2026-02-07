@@ -852,10 +852,6 @@ class DigestService {
       this.queueProcessorInterval = null;
     }
   }
-
-  async warmCache(topicIds?: string[]): Promise<void> {
-    // Cache warming handled by backend
-  }
 }
 
 // Export singleton instance
