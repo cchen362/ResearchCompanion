@@ -57,7 +57,7 @@ router.get('/dashboard/stats', async (req, res) => {
         ? `SELECT d.id, d.topic_id, t.name as topic_name,
                   d.breakthroughs, d.contradictions, d.knowledge_gaps,
                   d.created_at
-           FROM smart_digests d
+           FROM digests d
            JOIN topics t ON t.id = d.topic_id
            WHERE d.user_id = $1 AND d.topic_id = $2
            ORDER BY d.created_at DESC LIMIT 1`
@@ -65,7 +65,7 @@ router.get('/dashboard/stats', async (req, res) => {
                   d.id, d.topic_id, t.name as topic_name,
                   d.breakthroughs, d.contradictions, d.knowledge_gaps,
                   d.created_at
-           FROM smart_digests d
+           FROM digests d
            JOIN topics t ON t.id = d.topic_id
            WHERE d.user_id = $1
            ORDER BY d.topic_id, d.created_at DESC`,
