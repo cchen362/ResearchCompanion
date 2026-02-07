@@ -34,6 +34,7 @@ Each implementation plan includes:
 | 010 | [Finding Label Unification](./010_FINDING_LABEL_UNIFICATION.md) | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
 | 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 | 012 | [Chat Architecture Rebuild](./012_CHAT_ARCHITECTURE_REBUILD.md) | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
+| 013 | [Dashboard Home Redesign](./013_DASHBOARD_HOME_REDESIGN.md) | **Ready** | Merge Dashboard + Research Insights into unified Home page |
 
 ## How to Use
 
@@ -55,4 +56,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 8, 2026*
-*Latest Plan: 012 - Chat Architecture Rebuild*
+*Latest Plan: 013 - Dashboard Home Redesign*

@@ -1,5 +1,6 @@
 import express from 'express';
 import { FindingModel } from '../models/finding.model.js';
+import { pool } from '../db/database.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -297,6 +298,40 @@ router.post('/findings/bulk-delete', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete findings'
+    });
+  }
+});
+
+// PUT /api/findings/mark-all-read - Bulk mark findings as read
+router.put('/findings/mark-all-read', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const { topic_id } = req.query;
+
+    let result;
+    if (topic_id) {
+      result = await pool.query(
+        `UPDATE findings SET is_read = true, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1 AND topic_id = $2 AND is_read = false`,
+        [userId, topic_id]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE findings SET is_read = true, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1 AND is_read = false`,
+        [userId]
+      );
+    }
+
+    res.json({
+      success: true,
+      markedCount: result.rowCount || 0
+    });
+  } catch (error) {
+    console.error('Error bulk marking findings as read:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark findings as read'
     });
   }
 });

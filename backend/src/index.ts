@@ -23,6 +23,7 @@ import audioRoutes from './routes/audio.routes.js';
 import versionRoutes from './routes/version.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import createDigestQueueRouter from './routes/digestQueue.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
@@ -139,6 +140,8 @@ app.use('/api', authenticate, audioRoutes);
 app.use('/api', authenticate, notificationsRoutes);
 // Digest queue routes for server-side queue management (requires authentication)
 app.use('/api/digest-queue', authenticate, createDigestQueueRouter(pool));
+// Dashboard stats for unified home page
+app.use('/api', authenticate, dashboardRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

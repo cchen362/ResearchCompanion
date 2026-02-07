@@ -42,6 +42,7 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 010 | Finding Label Unification | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
 | 011 | Digest Explained Mode Expansion | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 | 012 | Chat Architecture Rebuild | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
+| 013 | Dashboard Home Redesign | Ready | Merge Dashboard + Research Insights into unified Home page |
 
 ### Agent Instructions
 
