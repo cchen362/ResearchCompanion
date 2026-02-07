@@ -1,24 +1,24 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { getSourceCategory } from '@/utils/sourceCategory';
 
 interface ActivityChartProps {
   activityTimeline: { date: string; count: number }[];
   sourceBreakdown: { type: string; count: number }[];
 }
 
+// Match SourceIcon.tsx design system exactly (Tailwind-600 hex equivalents)
 const SOURCE_COLORS: Record<string, string> = {
-  pubmed: '#4f46e5',
-  clinical_trials: '#0891b2',
-  web: '#059669',
-  fda: '#d97706',
-  unknown: '#9ca3af'
+  pubmed: '#2563eb',         // blue-600
+  clinical_trial: '#16a34a', // green-600
+  fda: '#9333ea',            // purple-600
+  web: '#4b5563',            // gray-600
 };
 
 const SOURCE_LABELS: Record<string, string> = {
   pubmed: 'PubMed',
-  clinical_trials: 'Clinical Trials',
-  web: 'Web Search',
+  clinical_trial: 'Clinical Trial',
   fda: 'FDA',
-  unknown: 'Other'
+  web: 'Web',
 };
 
 export function ActivityChart({ activityTimeline, sourceBreakdown }: ActivityChartProps) {
@@ -33,11 +33,17 @@ export function ActivityChart({ activityTimeline, sourceBreakdown }: ActivityCha
     label: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }));
 
-  // Add colors to source breakdown
-  const sourcesWithColor = sourceBreakdown.map(s => ({
-    ...s,
-    color: SOURCE_COLORS[s.type] || SOURCE_COLORS.unknown,
-    label: SOURCE_LABELS[s.type] || s.type
+  // Aggregate raw DB source types into canonical categories (matches SourceIcon.tsx)
+  const categoryMap = new Map<string, number>();
+  sourceBreakdown.forEach(s => {
+    const category = getSourceCategory(s.type);
+    categoryMap.set(category, (categoryMap.get(category) || 0) + s.count);
+  });
+  const sourcesWithColor = Array.from(categoryMap.entries()).map(([category, count]) => ({
+    type: category,
+    count,
+    color: SOURCE_COLORS[category] || SOURCE_COLORS.web,
+    label: SOURCE_LABELS[category] || category
   }));
 
   return (
