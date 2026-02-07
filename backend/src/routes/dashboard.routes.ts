@@ -89,23 +89,7 @@ router.get('/dashboard/stats', async (req, res) => {
       };
     });
 
-    // 6. Source breakdown
-    const sourceRows = await query(
-      topicId
-        ? `SELECT source->>'type' as source_type, COUNT(*) as count
-           FROM findings WHERE user_id = $1 AND topic_id = $2
-           GROUP BY source->>'type' ORDER BY count DESC`
-        : `SELECT source->>'type' as source_type, COUNT(*) as count
-           FROM findings WHERE user_id = $1
-           GROUP BY source->>'type' ORDER BY count DESC`,
-      topicId ? [userId, topicId] : [userId]
-    );
-    const sourceBreakdown = sourceRows.map((r: any) => ({
-      type: r.source_type || 'unknown',
-      count: parseInt(r.count)
-    }));
-
-    // 7. Activity timeline (last 7 days)
+    // 6. Activity timeline (last 7 days)
     const activityRows = await query(
       topicId
         ? `SELECT DATE(created_at) as date, COUNT(*) as count
@@ -131,7 +115,6 @@ router.get('/dashboard/stats', async (req, res) => {
         topicCount,
         recentUnread,
         digestSignposts,
-        sourceBreakdown,
         activityTimeline
       }
     });

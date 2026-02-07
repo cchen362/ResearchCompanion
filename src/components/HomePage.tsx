@@ -141,10 +141,9 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
         onViewFindings={handleViewFindings}
       />
 
-      {/* Charts — activity timeline & source breakdown */}
+      {/* Activity timeline chart */}
       <ActivityChart
         activityTimeline={stats.activityTimeline}
-        sourceBreakdown={stats.sourceBreakdown}
       />
     </div>
   );
