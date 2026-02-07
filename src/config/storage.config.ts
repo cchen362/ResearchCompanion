@@ -75,7 +75,6 @@ export const STORAGE_BOUNDARIES = {
       'research-store',  // selectedTopicId, selectedFindingId only
       'app-store',       // theme, digestTimeframe, explanationMode
       'ui-store',        // viewMode, sortBy, filterBy
-      'chat-store',      // navigation state only
       'user-store'       // user preferences
     ] as const,
     maxSize: 5 * 1024 * 1024 // 5MB

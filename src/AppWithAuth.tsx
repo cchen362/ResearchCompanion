@@ -47,6 +47,11 @@ function MainApp() {
     }
   };
 
+  // One-time cleanup: remove stale chat localStorage data from old persist middleware
+  useEffect(() => {
+    localStorage.removeItem('chat-store');
+  }, []);
+
   useEffect(() => {
     // Initialize database and request persistent storage
     const setupApp = async () => {
