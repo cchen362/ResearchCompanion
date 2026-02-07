@@ -237,12 +237,13 @@ router.post('/stream', async (req: Request, res: Response) => {
       } else if (chunk.type === 'message_stop') {
         logger.debug(`[chat.routes] Streaming response complete. Content: ${fullContent.length} chars, findings: ${enrichedContext.findings?.length || 0}`);
 
-        // Find all citation numbers mentioned in content
+        // Find all citation numbers mentioned in content (handles both [30] and [30, 33])
         const mentionedCitations = new Set<number>();
-        const citationPattern = /\[(\d+)\]/g;
+        const citationPattern = /\[([0-9,\s]+)\]/g;
         let match;
         while ((match = citationPattern.exec(fullContent)) !== null) {
-          mentionedCitations.add(parseInt(match[1]));
+          const nums = match[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+          nums.forEach(n => mentionedCitations.add(n));
         }
         logger.debug(`[chat.routes] Citations mentioned in content: [${Array.from(mentionedCitations).sort((a, b) => a - b).join(', ')}]`);
 
@@ -516,7 +517,8 @@ function extractCitations(
   isPlaceholder?: boolean;
 }> {
   const citations: Array<any> = [];
-  const citationPattern = /\[(\d+)\]/g;
+  // Match both [30] and [30, 33] formats — same regex as frontend ChatMessage.tsx
+  const citationPattern = /\[([0-9,\s]+)\]/g;
   const seenCitations = new Set<number>();
   let match;
 
@@ -537,18 +539,19 @@ function extractCitations(
 
   // Extract all citation numbers from the content first for logging
   const allCitationNumbers: number[] = [];
-  while ((match = citationPattern.exec(content)) !== null) {
-    allCitationNumbers.push(parseInt(match[1]));
+  const logPattern = /\[([0-9,\s]+)\]/g;
+  while ((match = logPattern.exec(content)) !== null) {
+    const nums = match[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+    allCitationNumbers.push(...nums);
   }
 
   logger.debug(`[chat.routes] extractCitations: Found ${allCitationNumbers.length} citation refs in content, ${findings.length} findings, map size: ${mapAsMap?.size || 0}`);
 
-  // Reset pattern for actual extraction
-  citationPattern.lastIndex = 0;
-
   while ((match = citationPattern.exec(content)) !== null) {
-    const citationNum = parseInt(match[1]);
+    // Split comma-separated numbers: [30, 33] -> [30, 33]
+    const nums = match[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
 
+    for (const citationNum of nums) {
     // Skip if we've already processed this citation number
     if (seenCitations.has(citationNum)) continue;
     seenCitations.add(citationNum);
@@ -604,6 +607,7 @@ function extractCitations(
 
       logger.debug(`[chat.routes] extractCitations: Created placeholder for unmapped citation [${citationNum}]`);
     }
+    } // end for (const citationNum of nums)
   }
 
   logger.debug(`[chat.routes] extractCitations: Extracted ${citations.length} citations (${citations.filter(c => !c.isPlaceholder).length} valid, ${citations.filter(c => c.isPlaceholder).length} placeholders)`);
