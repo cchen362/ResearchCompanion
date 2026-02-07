@@ -251,7 +251,7 @@ export function ChatMessage({
           ) : (
             <>
               <div
-                className={`message-content ${!expanded && isLongMessage ? 'line-clamp-6' : ''}`}
+                className={`message-content ${!expanded && !isStreaming && isLongMessage ? 'line-clamp-6' : ''}`}
                 dangerouslySetInnerHTML={{ __html: formattedContent }}
                 onClick={(e) => {
                   // Handle clicks on citation buttons
