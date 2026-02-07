@@ -198,7 +198,7 @@ export function ChatMessage({
       case 'user':
         return <User className="h-5 w-5" />;
       case 'assistant':
-        return isStreaming ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5" />;
+        return <Bot className="h-5 w-5" />;
       case 'system':
         return <AlertCircle className="h-5 w-5" />;
       default:
@@ -243,7 +243,7 @@ export function ChatMessage({
 
         {/* Content */}
         <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words">
-          {isStreaming ? (
+          {isStreaming && !message.content ? (
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-muted-foreground">Generating response...</span>
@@ -263,9 +263,13 @@ export function ChatMessage({
                   }
                 }}
               />
+              {/* Blinking cursor while streaming */}
+              {isStreaming && (
+                <span className="inline-block w-2 h-4 ml-0.5 bg-foreground/70 animate-pulse align-text-bottom" />
+              )}
 
               {/* Show more/less button for long messages */}
-              {isLongMessage && (
+              {!isStreaming && isLongMessage && (
                 <Button
                   variant="ghost"
                   size="sm"
