@@ -31,6 +31,17 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | # | Name | Status | Description |
 |---|------|--------|-------------|
 | 001 | Autonomous Agents & Digest | Ready | Enable autonomous agent scheduling and seamless digest integration |
+| 002 | Digest Issues Investigation | Complete | Investigation into digest generation issues |
+| 003 | Digest UI Improvements | Complete | UI improvements for digest display |
+| 004 | Agent Fixes & Digest UI Simplification | Complete | Fix missing agent, unify notifications, remove themes |
+| 005 | PubMed API Fix & Agent Logging | Complete | Fix silent PubMed failures, add agent execution logging |
+| 006 | PubMed Query Construction Fix | Ready | Fix "2026 latest recent" query breaking PubMed searches |
+| 007 | Digest Pipeline Fix & Dead Field Cleanup | Ready | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
+| 008 | Digest & Findings UX Enhancement | Ready | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
+| 009 | Digest Generation Timeout Fix | Complete | Fix digest generation timeout issues |
+| 010 | Finding Label Unification | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
+| 011 | Digest Explained Mode Expansion | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
+| 012 | Chat Architecture Rebuild | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
 
 ### Agent Instructions
 
@@ -1203,7 +1214,21 @@ When completing work, ensure these sections are current:
   - **Issue 3**: 401 Unauthorized (raw fetch() missing auth headers)
   - **Solution**: ChatPanelMinimal.tsx with zero static imports + dynamic loading
   - **Current State**: Chat functional but needs UI restoration (see CHAT_RESTORATION_GUIDE.md)
-- **v3.0.0** (Planned) - Conversational interface
+- **v3.0.0** - Chat Architecture Rebuild (February 8, 2026)
+  - **Major Rebuild**: Complete rewrite of chat system for server-first architecture
+  - **Problem Solved**: Messages lost on close/reopen, circular dependency crashes, sterile bot persona
+  - **Architecture Changes**:
+    - PostgreSQL is sole source of truth for chat messages (no localStorage/IndexedDB)
+    - Pure API client pattern: `chat.service.ts` has ZERO store imports
+    - Zustand store reduced to ~50 lines (navigation + streaming state only)
+    - POST-based SSE streaming via `fetch()` with `ReadableStream`
+  - **Files Deleted**: ~2,030 net lines removed (ChatPanelMinimal, ChatPanelLazy, deprecated services/stores)
+  - **Bot Personality**: Warm companion persona replacing clinical tone, caregiver-focused suggested questions
+  - **Post-Deployment Fixes**:
+    - Streaming tokens now display incrementally (not hidden behind spinner)
+    - Line-clamp disabled during streaming so tokens flow freely
+    - Backend citation extraction handles comma-separated `[30, 33]` format
+  - **Plan**: See `IMPLEMENTATION_PLANS/012_CHAT_ARCHITECTURE_REBUILD.md`
 - **v4.0.0** (Planned) - Advanced Research Analytics
 
 ## Chat Implementation Lessons (CRITICAL)
@@ -1381,5 +1406,5 @@ Users with existing service workers need to visit `/unregister-sw.html` once to 
 
 ---
 
-*Last Updated: January 26, 2026*
+*Last Updated: February 8, 2026*
 *Maintained by: Development Team*

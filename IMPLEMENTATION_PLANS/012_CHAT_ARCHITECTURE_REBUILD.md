@@ -61,7 +61,7 @@ Agents MUST follow this guide exactly. NO deviations, NO quick fixes, NO creativ
 
 ## Current Status
 
-- **Phase**: Ready for Implementation
+- **Phase**: Complete
 - **Created**: February 7, 2026
 - **Priority**: HIGH - Core feature rebuild, completes server-first migration
 - **Branch**: Create new branch `feat/chat-rebuild` from `fix/digest-findings-race-condition`
@@ -1551,18 +1551,41 @@ If something breaks after deployment:
 
 | Phase | Task | Completed | Date |
 |-------|------|-----------|------|
-| 1 | Backend cleanup: delete dead code, clean logging | [ ] | |
-| 2 | Frontend service consolidation | [ ] | |
-| 3 | Store rewrite: navigation-only, no persist | [ ] | |
-| 4 | Component rebuild: static imports, streaming | [ ] | |
-| 5 | Bot personality enhancement | [ ] | |
-| 6 | End-to-end testing | [ ] | |
-| 7 | Full build verification | [ ] | |
-| 8 | Production deployment | [ ] | |
-| 9 | Production verification (all 14 test scenarios) | [ ] | |
+| 1 | Backend cleanup: delete dead code, clean logging | [x] | Feb 8, 2026 |
+| 2 | Frontend service consolidation | [x] | Feb 8, 2026 |
+| 3 | Store rewrite: navigation-only, no persist | [x] | Feb 8, 2026 |
+| 4 | Component rebuild: static imports, streaming | [x] | Feb 8, 2026 |
+| 5 | Bot personality enhancement | [x] | Feb 8, 2026 |
+| 6 | End-to-end testing | [x] | Feb 8, 2026 |
+| 7 | Full build verification | [x] | Feb 8, 2026 |
+| 8 | Production deployment | [x] | Feb 8, 2026 |
+| 9 | Production verification (all 14 test scenarios) | [x] | Feb 8, 2026 |
+
+## Post-Deployment Fixes
+
+Three issues were discovered during production verification and fixed immediately:
+
+### Fix 1: Streaming Tokens Not Visible (Scenario 9)
+- **Problem**: Streaming showed a static "Generating response..." spinner, then the full response appeared at once
+- **Root Cause**: `ChatMessage.tsx` had `isStreaming ? (spinner) : (content)` — always showed spinner when streaming, ignoring actual `streamingContent`
+- **Fix**: Changed to `isStreaming && !message.content ? (spinner) : (content + blinking cursor)`
+- **Commit**: `03cd6f0`
+
+### Fix 2: Streaming Content Frozen at Line-Clamp Threshold
+- **Problem**: Streaming tokens flowed until ~500 chars, then content appeared frozen behind "Show more" button
+- **Root Cause**: `line-clamp-6` CSS class applied when `content.length > 500`, even during active streaming
+- **Fix**: Added `!isStreaming` to clamp condition: `!expanded && !isStreaming && isLongMessage`
+- **Commit**: `01b15db`
+
+### Fix 3: Comma-Separated Citations Not Extracted (Pre-existing Bug)
+- **Problem**: Citations like `[30, 33]` rendered as plain text with no citation section — 0 citations saved to DB
+- **Root Cause**: Backend `extractCitations()` regex `/\[(\d+)\]/g` only matched `[30]` individually, not `[30, 33]`. Frontend already handled this with `/\[([0-9,\s]+)\]/g`
+- **Fix**: Updated backend regex to match frontend pattern, added comma-split logic to extract individual numbers
+- **Commit**: `e821911`
 
 ---
 
 *Created: February 7, 2026*
+*Completed: February 8, 2026*
 *Plan Author: Claude Code Agent*
 *Estimated Effort: 6 phases, significant but clean*
