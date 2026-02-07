@@ -1,506 +1,323 @@
+/**
+ * Chat Service — Server-first chat operations
+ *
+ * Pure API client: NO store imports, NO circular dependencies.
+ * All chat data lives in PostgreSQL via /api/chats/* endpoints.
+ * Follows the digest.service.ts pattern for transformations.
+ */
+
 import { api } from './api';
 import { logger } from '@/utils/logger';
-import type {
-  ChatMessage,
-  FindingsChat,
-  ChatContext,
-  SourceCitation,
-  Finding,
-  ResearchFinding
-} from '../types';
+import type { FindingsChat, ChatMessage, SourceCitation, ChatContext } from '../types';
 
-interface ChatRequest {
-  message: string;
-  chatId: string;
-  topicId: string;
-  context: ChatContext;
-  citations?: string[]; // Finding IDs to cite
-  stream?: boolean;
+// ============================================
+// API Response Types
+// ============================================
+
+interface ChatsResponse {
+  success: boolean;
+  chats: any[];
 }
 
 interface ChatResponse {
-  message: ChatMessage;
-  context: ChatContext;
+  success: boolean;
+  chat: any;
 }
 
-interface StreamChunk {
-  type: 'text' | 'citation' | 'end';
-  content?: string;
-  citation?: SourceCitation;
+interface MessagesResponse {
+  success: boolean;
+  messages: any[];
 }
+
+interface MessageResponse {
+  success: boolean;
+  message: any;
+}
+
+interface AIChatResponse {
+  content: string;
+  citations: SourceCitation[];
+  suggestedQuestions: string[];
+  relatedFindings: any[];
+  citationMap: Record<string, number>;
+  model: string;
+  tokens: number;
+}
+
+// ============================================
+// Stream Callback Types
+// ============================================
+
+interface StreamCallbacks {
+  onToken: (token: string) => void;
+  onCitation: (citation: SourceCitation) => void;
+  onMetadata: (metadata: { suggestedQuestions?: string[]; relatedFindings?: any[]; citationMap?: Record<string, number> }) => void;
+  onError: (error: string) => void;
+  onDone: () => void;
+}
+
+// ============================================
+// Chat Service
+// ============================================
 
 class ChatService {
+  private baseUrl = '/chats';
+
+  // ==================== Transformations ====================
+
   /**
-   * Send a chat message and get a response
+   * Transform backend snake_case chat to frontend camelCase format
    */
-  async sendMessage(
-    request: ChatRequest,
-    onStream?: (chunk: StreamChunk) => void
-  ): Promise<ChatResponse> {
-    try {
-      // Get context findings with citations
-      const contextFindings = await this.getContextFindings(
-        request.topicId,
-        request.context,
-        request.citations
-      );
-
-      // Get recent messages for context
-      const recentMessages = await this.getRecentMessages(request.chatId);
-
-      // Prepare the API request with context
-      const apiRequest = {
-        message: request.message,
-        chatId: request.chatId,
-        topicId: request.topicId,
-        context: {
-          ...request.context,
-          findings: contextFindings,
-          recentMessages,
-          currentFindings: request.citations || []
-        },
-        stream: request.stream
-      };
-
-      if (request.stream && onStream) {
-        // Handle streaming response
-        return await this.handleStreamingResponse(apiRequest, onStream);
-      } else {
-        // Handle regular response
-        const response = await api.post('/api/chat', apiRequest);
-
-        // Process citations if present
-        if (response.data.message.citations) {
-          response.data.message.citations = await this.processCitations(
-            response.data.message.citations,
-            request.topicId
-          );
-        }
-
-        return response.data;
+  transformToFrontend(apiChat: any): FindingsChat {
+    return {
+      id: apiChat.id,
+      topicId: apiChat.topic_id || apiChat.topicId,
+      title: apiChat.title || 'Untitled Chat',
+      status: apiChat.status || 'active',
+      createdAt: apiChat.created_at || apiChat.createdAt || new Date().toISOString(),
+      lastMessageAt: apiChat.last_message_at || apiChat.lastMessageAt || new Date().toISOString(),
+      messageCount: apiChat.message_count ?? apiChat.messageCount ?? 0,
+      context: apiChat.context || {
+        currentFindings: [],
+        expandedTopics: [],
+        recentInteractions: [],
+        userPreferences: {}
       }
-    } catch (error) {
-      logger.error('[ChatService] Failed to send chat message:', error);
-      throw error;
-    }
+    };
   }
 
   /**
-   * Handle streaming response from the API
+   * Transform backend message to frontend format
+   * Citations come pre-parsed from chat.model.ts parseCitations()
    */
-  private async handleStreamingResponse(
-    request: any,
-    onStream: (chunk: StreamChunk) => void
-  ): Promise<ChatResponse> {
-    return new Promise((resolve, reject) => {
-      const eventSource = new EventSource(`/api/chat/stream?${new URLSearchParams({
-        message: request.message,
-        chatId: request.chatId,
-        topicId: request.topicId,
-        context: JSON.stringify(request.context)
-      })}`);
-
-      let fullContent = '';
-      const citations: SourceCitation[] = [];
-
-      eventSource.onmessage = (event) => {
-        try {
-          const chunk: StreamChunk = JSON.parse(event.data);
-
-          if (chunk.type === 'text' && chunk.content) {
-            fullContent += chunk.content;
-            onStream(chunk);
-          } else if (chunk.type === 'citation' && chunk.citation) {
-            citations.push(chunk.citation);
-            onStream(chunk);
-          } else if (chunk.type === 'end') {
-            eventSource.close();
-
-            // Create the final message
-            const message: ChatMessage = {
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              content: fullContent,
-              timestamp: new Date().toISOString(),
-              citations: citations.length > 0 ? citations : undefined
-            };
-
-            resolve({
-              message,
-              context: request.context
-            });
-          }
-        } catch (error) {
-          logger.error('[ChatService] Error parsing stream chunk:', error);
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        eventSource.close();
-        reject(error);
-      };
-    });
+  transformMessageToFrontend(apiMsg: any): ChatMessage {
+    return {
+      id: apiMsg.id,
+      role: apiMsg.role,
+      content: apiMsg.content,
+      timestamp: apiMsg.created_at || apiMsg.timestamp || new Date().toISOString(),
+      citations: Array.isArray(apiMsg.citations) ? apiMsg.citations : [],
+      metadata: apiMsg.metadata || {},
+      suggestedQuestions: apiMsg.suggestedQuestions,
+      referencedFindingIds: apiMsg.referencedFindingIds
+    };
   }
 
-  /**
-   * Get all chats for a topic
-   */
-  async getChats(topicId: string): Promise<FindingsChat[]> {
+  // ==================== Chat CRUD ====================
+
+  async getChats(topicId?: string): Promise<FindingsChat[]> {
     try {
-      const response = await api.get(`/topics/${topicId}/chats`);
-      return response.data || [];
+      const params = topicId ? `?topic_id=${topicId}` : '';
+      const response = await api.get<ChatsResponse>(`${this.baseUrl}${params}`);
+      if (response.data.success) {
+        return response.data.chats.map(c => this.transformToFrontend(c));
+      }
+      return [];
     } catch (error) {
-      logger.error('[ChatService] Failed to get chats:', error);
+      logger.error('[chatService] Failed to load chats:', error);
       return [];
     }
   }
 
-  /**
-   * Get a specific chat by ID
-   */
-  async getChat(topicId: string, chatId: string): Promise<FindingsChat | null> {
+  async getChat(chatId: string): Promise<FindingsChat | null> {
     try {
-      const response = await api.get(`/topics/${topicId}/chats/${chatId}`);
-      return response.data;
+      const response = await api.get<ChatResponse>(`${this.baseUrl}/${chatId}`);
+      if (response.data.success) {
+        return this.transformToFrontend(response.data.chat);
+      }
+      return null;
     } catch (error) {
-      logger.error('[ChatService] Failed to get chat:', error);
+      logger.error('[chatService] Failed to load chat:', error);
       return null;
     }
   }
 
-  /**
-   * Create a new chat for a topic
-   */
   async createChat(topicId: string, title?: string): Promise<FindingsChat> {
-    try {
-      const response = await api.post(`/topics/${topicId}/chats`, {
-        title: title || 'New Chat',
-        context: {
-          currentFindings: [],
-          recentTopics: []
-        }
-      });
-      return response.data;
-    } catch (error) {
-      logger.error('[ChatService] Failed to create chat:', error);
-      throw error;
+    const response = await api.post<ChatResponse>(this.baseUrl, {
+      topic_id: topicId,
+      title: title || 'New Chat',
+      context: {}
+    });
+    if (response.data.success) {
+      return this.transformToFrontend(response.data.chat);
     }
+    throw new Error('Failed to create chat');
   }
 
-  /**
-   * Update a chat
-   */
-  async updateChat(
-    topicId: string,
-    chatId: string,
-    updates: Partial<FindingsChat>
-  ): Promise<FindingsChat> {
-    try {
-      const response = await api.put(`/topics/${topicId}/chats/${chatId}`, updates);
-      return response.data;
-    } catch (error) {
-      logger.error('[ChatService] Failed to update chat:', error);
-      throw error;
+  async updateChat(chatId: string, updates: { title?: string; status?: string; context?: ChatContext }): Promise<FindingsChat> {
+    const response = await api.put<ChatResponse>(`${this.baseUrl}/${chatId}`, updates);
+    if (response.data.success) {
+      return this.transformToFrontend(response.data.chat);
     }
+    throw new Error('Failed to update chat');
   }
 
-  /**
-   * Delete a chat
-   */
-  async deleteChat(topicId: string, chatId: string): Promise<void> {
-    try {
-      await api.delete(`/topics/${topicId}/chats/${chatId}`);
-    } catch (error) {
-      logger.error('[ChatService] Failed to delete chat:', error);
-      throw error;
-    }
+  async deleteChat(chatId: string): Promise<void> {
+    await api.delete(`${this.baseUrl}/${chatId}`);
   }
 
-  /**
-   * Get messages for a chat
-   */
-  async getMessages(topicId: string, chatId: string): Promise<ChatMessage[]> {
+  // ==================== Message CRUD ====================
+
+  async getMessages(chatId: string, limit = 100): Promise<ChatMessage[]> {
     try {
-      const response = await api.get(`/topics/${topicId}/chats/${chatId}/messages`);
-
-      // Process citations for each message
-      const messages = response.data || [];
-      for (const message of messages) {
-        if (message.citations) {
-          message.citations = await this.processCitations(message.citations, topicId);
-        }
-      }
-
-      return messages;
-    } catch (error) {
-      logger.error('[ChatService] Failed to get messages:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Save a message to a chat
-   */
-  async saveMessage(
-    topicId: string,
-    chatId: string,
-    message: ChatMessage
-  ): Promise<ChatMessage> {
-    try {
-      const response = await api.post(
-        `/topics/${topicId}/chats/${chatId}/messages`,
-        message
+      const response = await api.get<MessagesResponse>(
+        `${this.baseUrl}/${chatId}/messages?limit=${limit}`
       );
-      return response.data;
+      if (response.data.success) {
+        return response.data.messages.map(m => this.transformMessageToFrontend(m));
+      }
+      return [];
     } catch (error) {
-      logger.error('[ChatService] Failed to save message:', error);
-      throw error;
+      logger.error('[chatService] Failed to load messages:', error);
+      return [];
     }
   }
 
-  /**
-   * Delete a message from a chat
-   */
-  async deleteMessage(
-    topicId: string,
+  async saveMessage(
     chatId: string,
-    messageId: string
+    message: { role: string; content: string; citations?: SourceCitation[]; metadata?: any }
+  ): Promise<ChatMessage> {
+    const response = await api.post<MessageResponse>(
+      `${this.baseUrl}/${chatId}/messages`,
+      {
+        role: message.role,
+        content: message.content,
+        citations: message.citations || null,
+        metadata: message.metadata || {}
+      }
+    );
+    if (response.data.success) {
+      return this.transformMessageToFrontend(response.data.message);
+    }
+    throw new Error('Failed to save message');
+  }
+
+  async clearMessages(chatId: string): Promise<void> {
+    await api.delete(`${this.baseUrl}/${chatId}/messages`);
+  }
+
+  // ==================== AI Streaming ====================
+
+  /**
+   * Stream AI response using POST-based SSE.
+   * Uses fetch() directly (not axios) because axios doesn't support streaming responses.
+   * POST avoids the URI-too-large bug that affected the old GET-based EventSource approach.
+   */
+  async streamMessage(
+    chatId: string,
+    topicId: string,
+    message: string,
+    context: any,
+    callbacks: StreamCallbacks
   ): Promise<void> {
-    try {
-      await api.delete(`/topics/${topicId}/chats/${chatId}/messages/${messageId}`);
-    } catch (error) {
-      logger.error('[ChatService] Failed to delete message:', error);
-      throw error;
+    const token = localStorage.getItem('auth_token');
+    const baseURL = api.defaults.baseURL || '/api';
+
+    const response = await fetch(`${baseURL}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, chatId, topicId, context })
+    });
+
+    if (!response.ok) {
+      callbacks.onError(`HTTP ${response.status}: ${response.statusText}`);
+      return;
     }
-  }
 
-  /**
-   * Clear all messages in a chat
-   */
-  async clearMessages(topicId: string, chatId: string): Promise<void> {
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
     try {
-      await api.delete(`/topics/${topicId}/chats/${chatId}/messages`);
-    } catch (error) {
-      logger.error('[ChatService] Failed to clear messages:', error);
-      throw error;
-    }
-  }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-  /**
-   * Search messages across all chats
-   */
-  async searchMessages(topicId: string, query: string): Promise<ChatMessage[]> {
-    try {
-      const response = await api.get(`/topics/${topicId}/messages/search`, {
-        params: { q: query }
-      });
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      // Process citations for each message
-      const messages = response.data || [];
-      for (const message of messages) {
-        if (message.citations) {
-          message.citations = await this.processCitations(message.citations, topicId);
-        }
-      }
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
 
-      return messages;
-    } catch (error) {
-      logger.error('[ChatService] Failed to search messages:', error);
-      return [];
-    }
-  }
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') {
+            callbacks.onDone();
+            return;
+          }
 
-  /**
-   * Export chat history
-   */
-  async exportChat(
-    topicId: string,
-    chatId: string,
-    format: 'json' | 'markdown' = 'markdown'
-  ): Promise<string> {
-    try {
-      const response = await api.get(`/topics/${topicId}/chats/${chatId}/export`, {
-        params: { format }
-      });
-      return response.data;
-    } catch (error) {
-      logger.error('[ChatService] Failed to export chat:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get suggested questions based on context
-   */
-  async getSuggestedQuestions(
-    topicId: string,
-    context: ChatContext
-  ): Promise<string[]> {
-    try {
-      const response = await api.post(`/topics/${topicId}/suggestions`, {
-        context
-      });
-      return response.data || [];
-    } catch (error) {
-      logger.error('[ChatService] Failed to get suggestions:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get findings relevant to the current context
-   */
-  private async getContextFindings(
-    topicId: string,
-    context: ChatContext,
-    citationIds?: string[]
-  ): Promise<ResearchFinding[]> {
-    try {
-      // Dynamically import findingsService to avoid circular dependency
-      const { findingsService } = await import('./findings.service');
-
-      // Get all findings for the topic using the unified service layer
-      const allTopicFindings = await findingsService.getFindings(topicId);
-
-      if (!allTopicFindings || allTopicFindings.length === 0) {
-        logger.debug(`[ChatService] No findings found for topic ${topicId}`);
-        return [];
-      }
-
-      const findings: ResearchFinding[] = [];
-      const addedIds = new Set<string>();
-
-      // Helper to add unique findings
-      const addUnique = (finding: ResearchFinding) => {
-        if (!addedIds.has(finding.id)) {
-          findings.push(finding);
-          addedIds.add(finding.id);
-        }
-      };
-
-      // 1. Add explicitly cited findings first (highest priority)
-      if (citationIds && citationIds.length > 0) {
-        for (const citationId of citationIds) {
-          const cited = allTopicFindings.find(f => f.id === citationId);
-          if (cited) {
-            addUnique(cited);
-          } else {
-            // Try to fetch individually if not in topic findings
-            try {
-              const individualFinding = await findingsService.getFinding(citationId);
-              if (individualFinding) {
-                addUnique(individualFinding);
-              }
-            } catch (err) {
-              logger.warn(`[ChatService] Could not fetch individual finding ${citationId}:`, err);
+          try {
+            const parsed = JSON.parse(data);
+            switch (parsed.type) {
+              case 'token':
+                callbacks.onToken(parsed.content);
+                break;
+              case 'citation':
+                callbacks.onCitation(parsed.citation);
+                break;
+              case 'metadata':
+                callbacks.onMetadata(parsed);
+                break;
+              case 'error':
+                callbacks.onError(parsed.message || 'Unknown streaming error');
+                break;
             }
+          } catch {
+            // Skip malformed SSE lines
           }
         }
       }
-
-      // 2. Add current context findings (user selected)
-      if (context.currentFindings && context.currentFindings.length > 0) {
-        for (const contextId of context.currentFindings) {
-          const contextual = allTopicFindings.find(f => f.id === contextId);
-          if (contextual) {
-            addUnique(contextual);
-          }
-        }
-      }
-
-      // 3. Add recent high-priority findings if we have room
-      // Sort by date (most recent first) and priority
-      const sortedFindings = [...allTopicFindings]
-        .filter(f => !addedIds.has(f.id))
-        .sort((a, b) => {
-          // First sort by priority
-          const priorityOrder = { high: 0, medium: 1, low: 2 };
-          const aPriority = priorityOrder[a.priority || 'medium'];
-          const bPriority = priorityOrder[b.priority || 'medium'];
-          if (aPriority !== bPriority) return aPriority - bPriority;
-
-          // Then by date (most recent first)
-          const aDate = new Date(a.createdAt || 0).getTime();
-          const bDate = new Date(b.createdAt || 0).getTime();
-          return bDate - aDate;
-        });
-
-      // Add all remaining findings for complete context
-      for (const finding of sortedFindings) {
-        addUnique(finding);
-      }
-
-      logger.debug(`[ChatService] Loaded ${findings.length} findings for chat context from topic ${topicId}`);
-      return findings;
-    } catch (error) {
-      logger.error('[ChatService] Failed to get context findings:', error);
-      // Return empty array on error to allow chat to continue
-      return [];
+    } finally {
+      reader.releaseLock();
     }
   }
 
+  // ==================== Non-Streaming Fallback ====================
+
   /**
-   * Get recent messages from a chat for context
+   * Send message without streaming (fallback if streaming fails).
    */
-  private async getRecentMessages(
+  async sendMessageNonStreaming(
     chatId: string,
-    limit: number = 5
-  ): Promise<Array<{ role: string; content: string }>> {
-    try {
-      // Import store lazily to avoid circular dependency
-      const { useChatStore } = await import('../stores/chatStore');
-      const chatStore = useChatStore.getState();
-      const messages = chatStore.messages.get(chatId) || [];
-
-      return messages
-        .slice(-limit * 2) // Get last N message pairs
-        .map(m => ({
-          role: m.role,
-          content: m.content.substring(0, 1000) // Truncate for context
-        }));
-    } catch (error) {
-      logger.error('[ChatService] Failed to get recent messages:', error);
-      // Return empty array on error
-      return [];
-    }
+    topicId: string,
+    message: string,
+    context: any
+  ): Promise<AIChatResponse> {
+    const response = await api.post('/chat/complete', {
+      message,
+      chatId,
+      topicId,
+      context,
+      stream: false
+    });
+    return response.data;
   }
 
-  /**
-   * Process citations by enriching them with finding data
-   */
-  private async processCitations(
-    citations: any[],
-    topicId: string
-  ): Promise<SourceCitation[]> {
-    try {
-      // Dynamically import findingsService to avoid circular dependency
-      const { findingsService } = await import('./findings.service');
+  // ==================== Export ====================
 
-      const processed: SourceCitation[] = [];
+  async exportChat(chatId: string, topicName: string): Promise<string> {
+    const messages = await this.getMessages(chatId);
+    let md = `# Chat: ${topicName}\n`;
+    md += `Exported: ${new Date().toLocaleDateString()}\n\n`;
 
-      for (const raw of citations) {
-        try {
-          const finding = await findingsService.getFinding(raw.findingId);
-          if (finding) {
-            processed.push({
-              id: raw.id || crypto.randomUUID(),
-              findingId: raw.findingId,
-              title: finding.title,
-              source: finding.source,
-              relevance: raw.relevance || 'Related research',
-              snippet: raw.snippet || finding.keyInsights?.[0] || finding.content.substring(0, 200)
-            });
-          }
-        } catch (err) {
-          logger.warn(`[ChatService] Could not process citation for finding ${raw.findingId}:`, err);
+    for (const msg of messages) {
+      const role = msg.role === 'user' ? 'You' : 'Assistant';
+      md += `## ${role}\n${msg.content}\n\n`;
+
+      if (msg.citations && msg.citations.length > 0) {
+        md += `**Sources:**\n`;
+        for (const c of msg.citations) {
+          const source = typeof c.source === 'string' ? c.source : c.source?.name || 'Unknown';
+          md += `- [${c.citationNumber}] ${source}: ${c.citationText || ''}\n`;
         }
+        md += '\n';
       }
-
-      return processed;
-    } catch (error) {
-      logger.error('[ChatService] Failed to process citations:', error);
-      return [];
     }
+
+    return md;
   }
 }
 
