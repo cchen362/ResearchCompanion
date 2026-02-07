@@ -692,7 +692,7 @@ async function enrichFindingsContext(
       // 50 findings provides good context without overwhelming the AI and matches frontend limit
       const topicFindings = await FindingModel.getFiltered(userId, {
         topic_id: topicId,
-        limit: 50  // CRITICAL: This must match the frontend limit in ChatPanelMinimal.tsx
+        limit: 50  // CRITICAL: This must match the frontend limit in ChatPanel.tsx
       });
 
       if (topicFindings.length > 0) {

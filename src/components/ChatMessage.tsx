@@ -39,13 +39,6 @@ export function ChatMessage({
   const formattedContent = useMemo(() => {
     if (!message.content) return '';
 
-    // Debug logging to trace citation issue
-    logger.debug('[ChatMessage] Rendering message with citations:', {
-      citationsArray: message.citations,
-      citationCount: message.citations?.length || 0,
-      firstCitation: message.citations?.[0]
-    });
-
     let content = message.content;
 
     // Remove emojis
@@ -59,12 +52,6 @@ export function ChatMessage({
         // CRITICAL FIX: Find citation by citationNumber property, NOT array index
         const citationNum = parseInt(num);
         const citation = message.citations?.find(c => c.citationNumber === citationNum);
-
-        logger.debug(`[ChatMessage] Looking for citation [${num}]:`, {
-          searchingFor: citationNum,
-          found: !!citation,
-          citationObject: citation
-        });
 
         if (citation) {
           // Check if this is a placeholder citation (reference not available)
@@ -181,9 +168,13 @@ export function ChatMessage({
     // Add citation references if present
     if (message.citations && message.citations.length > 0) {
       plainText += '\n\nReferences:\n';
-      message.citations.forEach((citation, index) => {
-        plainText += `[${index + 1}] ${citation.source || 'Source'}: ${citation.citationText || ''}\n`;
-      });
+      message.citations
+        .sort((a, b) => (a.citationNumber || 0) - (b.citationNumber || 0))
+        .forEach((citation) => {
+          const num = citation.citationNumber || '?';
+          const source = typeof citation.source === 'string' ? citation.source : citation.source?.name || 'Source';
+          plainText += `[${num}] ${source}: ${citation.citationText || ''}\n`;
+        });
     }
 
     return plainText.trim();

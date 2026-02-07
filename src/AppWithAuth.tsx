@@ -9,7 +9,7 @@ import TopicManager from './components/TopicManager';
 import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanelMinimal';
+import { ChatPanel } from './components/ChatPanel';
 import { AnalyticsView } from './components/AnalyticsView';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';

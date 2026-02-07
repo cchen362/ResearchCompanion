@@ -7,7 +7,7 @@ import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import NotificationCenter from './components/NotificationCenter';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ChatPanel } from './components/ChatPanelMinimal';
+import { ChatPanel } from './components/ChatPanel';
 import { AnalyticsView } from './components/AnalyticsView';
 import { useUIStore } from './stores/uiStore';
 import { MessageSquare } from 'lucide-react';
@@ -35,6 +35,11 @@ function App() {
       logger.error('[App] Failed to refresh topics:', err);
     }
   };
+
+  // One-time cleanup: remove stale chat localStorage data from old persist middleware
+  useEffect(() => {
+    localStorage.removeItem('chat-store');
+  }, []);
 
   useEffect(() => {
     // Initialize database and request persistent storage
