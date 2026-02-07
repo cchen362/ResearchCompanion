@@ -1,6 +1,7 @@
 import express from 'express';
 import { ChatModel } from '../models/chat.model.js';
 import { z } from 'zod';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -26,10 +27,9 @@ const AddMessageSchema = z.object({
 
 // GET /api/chats - Get all chats for the user
 router.get('/chats', async (req, res) => {
-  console.log('📋 [Backend] GET /chats - Loading chats:', {
+  logger.info('[chats.routes] GET /chats - Loading chats:', {
     userId: (req as any).user?.id,
-    topicId: req.query.topic_id,
-    timestamp: new Date().toISOString()
+    topicId: req.query.topic_id
   });
 
   try {
@@ -38,10 +38,9 @@ router.get('/chats', async (req, res) => {
 
     const chats = await ChatModel.getAll(userId, topicId);
 
-    console.log('📋 [Backend] Chats loaded:', {
+    logger.info('[chats.routes] Chats loaded:', {
       count: chats.length,
-      topicId: topicId,
-      chatIds: chats.map(c => ({ id: c.id, title: c.title }))
+      topicId: topicId
     });
 
     res.json({
@@ -49,7 +48,7 @@ router.get('/chats', async (req, res) => {
       chats
     });
   } catch (error) {
-    console.error('Error fetching chats:', error);
+    logger.error('[chats.routes] Error fetching chats:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch chats'
@@ -77,7 +76,7 @@ router.get('/chats/:id', async (req, res) => {
       chat
     });
   } catch (error) {
-    console.error('Error fetching chat:', error);
+    logger.error('[chats.routes] Error fetching chat:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch chat'
@@ -87,23 +86,21 @@ router.get('/chats/:id', async (req, res) => {
 
 // POST /api/chats - Create a new chat
 router.post('/chats', async (req, res) => {
-  console.log('📝 [Backend] POST /chats - Creating new chat:', {
+  logger.info('[chats.routes] POST /chats - Creating new chat:', {
     userId: (req as any).user?.id,
     topicId: req.body.topic_id,
-    title: req.body.title,
-    timestamp: new Date().toISOString()
+    title: req.body.title
   });
 
   try {
     const userId = (req as any).user.id;
     const data = CreateChatSchema.parse(req.body);
 
-    // Log before creating
-    console.log('📝 [Backend] Checking for existing chat for topic:', data.topic_id);
+    logger.info('[chats.routes] Checking for existing chat for topic:', data.topic_id);
 
     const chat = await ChatModel.create(userId, data);
 
-    console.log('✅ [Backend] Chat created successfully:', {
+    logger.info('[chats.routes] Chat created successfully:', {
       chatId: chat.id,
       topicId: chat.topic_id,
       title: chat.title
@@ -114,7 +111,7 @@ router.post('/chats', async (req, res) => {
       chat
     });
   } catch (error) {
-    console.error('❌ [Backend] Error creating chat:', error);
+    logger.error('[chats.routes] Error creating chat:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create chat'
@@ -143,7 +140,7 @@ router.put('/chats/:id', async (req, res) => {
       chat
     });
   } catch (error) {
-    console.error('Error updating chat:', error);
+    logger.error('[chats.routes] Error updating chat:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to update chat'
@@ -164,7 +161,7 @@ router.delete('/chats/:id', async (req, res) => {
       message: 'Chat deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting chat:', error);
+    logger.error('[chats.routes] Error deleting chat:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to delete chat'
@@ -186,7 +183,7 @@ router.get('/chats/:id/messages', async (req, res) => {
       messages
     });
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    logger.error('[chats.routes] Error fetching messages:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch messages'
@@ -196,17 +193,12 @@ router.get('/chats/:id/messages', async (req, res) => {
 
 // POST /api/chats/:id/messages - Add a message to a chat
 router.post('/chats/:id/messages', async (req, res) => {
-  console.log('📨 [Backend] POST /chats/:id/messages received:', {
+  logger.info('[chats.routes] POST /chats/:id/messages received:', {
     chatId: req.params.id,
     userId: (req as any).user?.id,
     role: req.body.role,
     contentLength: req.body.content?.length,
-    hasCitations: !!req.body.citations,
-    hasMetadata: !!req.body.metadata,
-    headers: {
-      authorization: !!req.headers.authorization,
-      contentType: req.headers['content-type']
-    }
+    hasCitations: !!req.body.citations
   });
 
   try {
@@ -214,7 +206,7 @@ router.post('/chats/:id/messages', async (req, res) => {
     const chatId = req.params.id;
     const data = AddMessageSchema.parse(req.body);
 
-    console.log('📨 [Backend] Parsed message data:', {
+    logger.info('[chats.routes] Parsed message data:', {
       role: data.role,
       contentLength: data.content.length,
       citationsCount: data.citations?.length || 0
@@ -226,30 +218,29 @@ router.post('/chats/:id/messages', async (req, res) => {
         .map((c: any) => c.citationNumber)
         .filter(Boolean)
         .sort((a: number, b: number) => a - b);
-      console.log(`📝 [CITATION DEBUG - API] Received ${data.citations.length} citations from frontend: [${citationNumbers.join(', ')}]`);
-      console.log(`📝 [CITATION DEBUG - API] First citation:`, data.citations[0]);
+      logger.debug(`[chats.routes] Received ${data.citations.length} citations from frontend: [${citationNumbers.join(', ')}]`);
+      logger.debug('[chats.routes] First citation:', data.citations[0]);
     }
 
     // Verify chat exists and belongs to user
-    console.log('🔍 [Backend] Looking up chat:', { chatId, userId });
+    logger.debug('[chats.routes] Looking up chat:', { chatId, userId });
     const chat = await ChatModel.getById(chatId, userId);
 
     if (!chat) {
-      console.error('❌ [Backend] Chat not found:', { chatId, userId });
+      logger.error('[chats.routes] Chat not found:', { chatId, userId });
       return res.status(404).json({
         success: false,
         error: 'Chat not found'
       });
     }
 
-    console.log('✅ [Backend] Chat found, adding message...');
+    logger.debug('[chats.routes] Chat found, adding message...');
     const message = await ChatModel.addMessage(chatId, userId, data);
 
-    console.log('✅ [Backend] Message added successfully:', {
+    logger.info('[chats.routes] Message added successfully:', {
       messageId: message.id,
       chatId: message.chat_id,
-      role: message.role,
-      timestamp: message.created_at
+      role: message.role
     });
 
     res.json({
@@ -257,7 +248,7 @@ router.post('/chats/:id/messages', async (req, res) => {
       message
     });
   } catch (error) {
-    console.error('❌ [Backend] Error adding message:', error);
+    logger.error('[chats.routes] Error adding message:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to add message'
@@ -288,39 +279,7 @@ router.delete('/chats/:id/messages', async (req, res) => {
       message: 'Messages cleared successfully'
     });
   } catch (error) {
-    console.error('Error clearing messages:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear messages'
-    });
-  }
-});
-
-// Alternative route for topic-based URL structure
-// DELETE /api/topics/:topicId/chats/:chatId/messages
-router.delete('/topics/:topicId/chats/:chatId/messages', async (req, res) => {
-  try {
-    const userId = (req as any).user.id;
-    const chatId = req.params.chatId;
-
-    // Verify chat exists and belongs to user
-    const chat = await ChatModel.getById(chatId, userId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        error: 'Chat not found'
-      });
-    }
-
-    // Clear all messages from the chat
-    await ChatModel.clearMessages(chatId, userId);
-
-    res.json({
-      success: true,
-      message: 'Messages cleared successfully'
-    });
-  } catch (error) {
-    console.error('Error clearing messages:', error);
+    logger.error('[chats.routes] Error clearing messages:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to clear messages'

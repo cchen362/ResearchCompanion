@@ -16,7 +16,6 @@ import findingsRoutes from './routes/findings.routes.js';
 // New CRUD routes for server storage
 import agentsRoutes from './routes/agents.routes.js';
 import digestsCrudRoutes from './routes/digests.crud.routes.js';
-import conversationsRoutes from './routes/conversations.routes.js';
 import chatsRoutes from './routes/chats.routes.js';
 // Voice recording and timeline routes
 import timelineRoutes from './routes/timeline.routes.js';
@@ -132,7 +131,6 @@ app.use('/api', authenticate, findingsRoutes);
 // New CRUD routes for server storage
 app.use('/api', authenticate, agentsRoutes);
 app.use('/api', authenticate, digestsCrudRoutes);
-app.use('/api', authenticate, conversationsRoutes);
 app.use('/api', authenticate, chatsRoutes);
 // Voice recording and timeline routes
 app.use('/api', authenticate, timelineRoutes);

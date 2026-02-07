@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { aiService } from '../services/ai.service.js';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { FindingModel } from '../models/finding.model.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
@@ -85,9 +86,9 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     // Log request size for debugging
     const requestSize = JSON.stringify({ system: systemPrompt, messages }).length;
-    console.log(`📊 [chat.routes] AI Request size: ${requestSize} bytes (${(requestSize / 1024).toFixed(2)} KB)`);
-    console.log(`📊 [chat.routes] System prompt tokens (est): ${Math.ceil(systemPrompt.length / 4)}`);
-    console.log(`📊 [chat.routes] Total findings in context: ${enrichedContext.findings?.length || 0}`);
+    logger.info(`[chat.routes] AI Request size: ${requestSize} bytes (${(requestSize / 1024).toFixed(2)} KB)`);
+    logger.debug(`[chat.routes] System prompt tokens (est): ${Math.ceil(systemPrompt.length / 4)}`);
+    logger.debug(`[chat.routes] Total findings in context: ${enrichedContext.findings?.length || 0}`);
 
     // Get AI response with built-in retry from SDK
     const response = await aiService.client.messages.create({
@@ -131,11 +132,11 @@ router.post('/complete', async (req: Request, res: Response) => {
       citationMap: enrichedContext.citationMap // Include citation map for persistence
     });
   } catch (error: any) {
-    console.error('Chat completion error:', error);
+    logger.error('[chat.routes] Chat completion error:', error);
 
     // Check for specific error types
     if (error?.status === 529 || error?.error?.error?.type === 'overloaded_error') {
-      console.log('⚠️ [chat.routes] Anthropic API overloaded (529), SDK should have retried 3 times');
+      logger.warn('[chat.routes] Anthropic API overloaded (529), SDK should have retried 3 times');
       return res.status(503).json({
         error: 'Service temporarily unavailable',
         message: 'The AI service is currently overloaded. Please try again in a few moments.',
@@ -144,7 +145,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     }
 
     if (error?.status === 429) {
-      console.log('⚠️ [chat.routes] Rate limit hit (429)');
+      logger.warn('[chat.routes] Rate limit hit (429)');
       return res.status(429).json({
         error: 'Rate limit exceeded',
         message: 'Too many requests. Please slow down and try again in a moment.',
@@ -153,7 +154,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     }
 
     if (error?.status === 401) {
-      console.error('❌ [chat.routes] API key invalid or missing');
+      logger.error('[chat.routes] API key invalid or missing');
       return res.status(500).json({
         error: 'Configuration error',
         message: 'AI service is not properly configured. Please contact support.'
@@ -234,10 +235,7 @@ router.post('/stream', async (req: Request, res: Response) => {
 
         // Don't extract citations during streaming - wait until message is complete
       } else if (chunk.type === 'message_stop') {
-        // Debug log the content and findings before citation extraction
-        console.log(`🔍 [CITATION DEBUG - STREAMING] Response complete. Analyzing citations...`);
-        console.log(`🔍 [CITATION DEBUG - STREAMING] Content length: ${fullContent.length} chars`);
-        console.log(`🔍 [CITATION DEBUG - STREAMING] Available findings: ${enrichedContext.findings?.length || 0}`);
+        logger.debug(`[chat.routes] Streaming response complete. Content: ${fullContent.length} chars, findings: ${enrichedContext.findings?.length || 0}`);
 
         // Find all citation numbers mentioned in content
         const mentionedCitations = new Set<number>();
@@ -246,14 +244,12 @@ router.post('/stream', async (req: Request, res: Response) => {
         while ((match = citationPattern.exec(fullContent)) !== null) {
           mentionedCitations.add(parseInt(match[1]));
         }
-        console.log(`🔍 [CITATION DEBUG - STREAMING] Citations mentioned in content: [${Array.from(mentionedCitations).sort((a, b) => a - b).join(', ')}]`);
+        logger.debug(`[chat.routes] Citations mentioned in content: [${Array.from(mentionedCitations).sort((a, b) => a - b).join(', ')}]`);
 
         // Extract ALL citations now that the response is complete using the citation map
         const citations = extractCitations(fullContent, enrichedContext.findings || [], enrichedContext.citationMap);
         if (citations.length > 0) {
-          console.log(`📝 [CITATION DEBUG - STREAMING] Extracted ${citations.length} citations from complete response`);
-          const extractedNumbers = citations.map(c => c.citationNumber).sort((a, b) => a - b);
-          console.log(`📝 [CITATION DEBUG - STREAMING] Extracted citation numbers: [${extractedNumbers.join(', ')}]`);
+          logger.debug(`[chat.routes] Extracted ${citations.length} citations from complete response`);
 
           // Send all citations at once
           for (const citation of citations) {
@@ -263,7 +259,7 @@ router.post('/stream', async (req: Request, res: Response) => {
             })}\n\n`);
           }
         } else {
-          console.log(`⚠️ [CITATION DEBUG - STREAMING] No citations extracted despite ${mentionedCitations.size} being mentioned`);
+          logger.debug(`[chat.routes] No citations extracted despite ${mentionedCitations.size} being mentioned`);
         }
 
         // Generate metadata at the end
@@ -292,22 +288,22 @@ router.post('/stream', async (req: Request, res: Response) => {
       }
     }
   } catch (error: any) {
-    console.error('Streaming error:', error);
+    logger.error('[chat.routes] Streaming error:', error);
 
     let errorMessage = 'Stream failed';
     let shouldRetry = false;
 
     // Check for specific error types
     if (error?.status === 529 || error?.error?.error?.type === 'overloaded_error') {
-      console.log('⚠️ [streaming] Anthropic API overloaded (529)');
+      logger.warn('[chat.routes] Anthropic API overloaded (529)');
       errorMessage = 'The AI service is currently overloaded. Please try again in a few moments.';
       shouldRetry = true;
     } else if (error?.status === 429) {
-      console.log('⚠️ [streaming] Rate limit hit (429)');
+      logger.warn('[chat.routes] Rate limit hit (429)');
       errorMessage = 'Too many requests. Please slow down and try again.';
       shouldRetry = true;
     } else if (error?.status === 401) {
-      console.error('❌ [streaming] API key invalid or missing');
+      logger.error('[chat.routes] API key invalid or missing');
       errorMessage = 'AI service configuration error. Please contact support.';
     }
 
@@ -343,7 +339,7 @@ router.post('/generate-title', async (req: Request, res: Response) => {
 
     res.json({ title });
   } catch (error) {
-    console.error('Title generation error:', error);
+    logger.error('[chat.routes] Title generation error:', error);
     res.status(500).json({
       error: 'Failed to generate title',
       title: 'New Conversation'
@@ -366,7 +362,7 @@ router.post('/suggestions', async (req: Request, res: Response) => {
 
     res.json({ questions });
   } catch (error) {
-    console.error('Suggestions error:', error);
+    logger.error('[chat.routes] Suggestions error:', error);
     res.status(500).json({
       error: 'Failed to generate suggestions',
       questions: []
@@ -400,10 +396,7 @@ function createCitationMapping(findings: any[], existingMap?: Map<string, number
     }
   }
 
-  console.log(`🗺️ [createCitationMapping] Created citation map with ${citationMap.size} entries`);
-  console.log(`🗺️ [createCitationMapping] Sample mappings:`,
-    Array.from(citationMap.entries()).slice(0, 5).map(([id, num]) => `${id.substring(0, 8)}... => [${num}]`)
-  );
+  logger.debug(`[chat.routes] createCitationMapping: ${citationMap.size} entries`);
 
   return citationMap;
 }
@@ -452,7 +445,7 @@ Available research findings with their assigned citation numbers:`;
   if (context.findings && context.findings.length > 0) {
     const findingsToInclude = context.findings;
 
-    console.log(`📚 [buildSystemPrompt] Including ${findingsToInclude.length} findings with stable citation numbers`);
+    logger.debug(`[chat.routes] buildSystemPrompt: Including ${findingsToInclude.length} findings with stable citation numbers`);
 
     // Sort findings by their citation number for consistent presentation
     const findingsWithNumbers = findingsToInclude.map((finding: any) => ({
@@ -528,13 +521,7 @@ function extractCitations(
     allCitationNumbers.push(parseInt(match[1]));
   }
 
-  console.log(`🔍 [extractCitations] Found citation numbers in content:`, {
-    citationNumbers: [...new Set(allCitationNumbers)].sort((a, b) => a - b),
-    findingsCount: findings.length,
-    hasMap: !!mapAsMap,
-    mapSize: mapAsMap?.size || 0,
-    reversMapEntries: reverseMap.size
-  });
+  logger.debug(`[chat.routes] extractCitations: Found ${allCitationNumbers.length} citation refs in content, ${findings.length} findings, map size: ${mapAsMap?.size || 0}`);
 
   // Reset pattern for actual extraction
   citationPattern.lastIndex = 0;
@@ -554,14 +541,14 @@ function extractCitations(
       findingId = reverseMap.get(citationNum)!;
       finding = findings.find(f => f.id === findingId);
 
-      console.log(`🗺️ [extractCitations] Using citation map: [${citationNum}] => ${findingId.substring(0, 8)}...`);
+      logger.debug(`[chat.routes] extractCitations: Using citation map: [${citationNum}] => ${findingId.substring(0, 8)}...`);
     } else if (!mapAsMap) {
       // Fallback to array index if no map exists (backward compatibility)
       const arrayIndex = citationNum - 1;
       if (arrayIndex >= 0 && arrayIndex < findings.length) {
         finding = findings[arrayIndex];
         findingId = finding.id;
-        console.log(`⚠️ [extractCitations] No map available, using array index fallback: [${citationNum}] => index ${arrayIndex}`);
+        logger.debug(`[chat.routes] extractCitations: No map available, using array index fallback: [${citationNum}] => index ${arrayIndex}`);
       }
     }
 
@@ -580,10 +567,10 @@ function extractCitations(
         highlightEnd: match.index + match[0].length
       });
 
-      console.log(`✅ [extractCitations] Citation [${citationNum}] successfully mapped to finding ${findingId} (${finding.title?.substring(0, 30)}...)`);
+      logger.debug(`[chat.routes] extractCitations: Citation [${citationNum}] mapped to finding ${findingId}`);
     } else {
       // Create a placeholder citation for unmapped citations
-      console.warn(`⚠️ [extractCitations] Citation [${citationNum}] not found in citation map or findings`);
+      logger.warn(`[chat.routes] extractCitations: Citation [${citationNum}] not found in citation map or findings`);
 
       citations.push({
         findingId: null,
@@ -595,11 +582,11 @@ function extractCitations(
         isPlaceholder: true
       });
 
-      console.log(`📝 [extractCitations] Created placeholder for unmapped citation [${citationNum}]`);
+      logger.debug(`[chat.routes] extractCitations: Created placeholder for unmapped citation [${citationNum}]`);
     }
   }
 
-  console.log(`📚 [extractCitations] Final result: Extracted ${citations.length} citations (${citations.filter(c => !c.isPlaceholder).length} valid, ${citations.filter(c => c.isPlaceholder).length} placeholders)`);
+  logger.debug(`[chat.routes] extractCitations: Extracted ${citations.length} citations (${citations.filter(c => !c.isPlaceholder).length} valid, ${citations.filter(c => c.isPlaceholder).length} placeholders)`);
   return citations;
 }
 
@@ -639,7 +626,7 @@ Return only a JSON array of question strings, no other formatting.`;
       ];
     }
   } catch (error) {
-    console.error('Failed to generate suggestions:', error);
+    logger.error('[chat.routes] Failed to generate suggestions:', error);
     return [];
   }
 }
@@ -685,16 +672,11 @@ async function enrichFindingsContext(
     const contextFindings = context.findings || [];
     const currentFindingIds = context.currentFindings || [];
 
-    console.log(`📚 [enrichFindingsContext] Received from frontend:`, {
-      findingsCount: contextFindings.length,
-      currentFindingsCount: currentFindingIds.length,
-      hasFindings: contextFindings.length > 0,
-      topicId
-    });
+    logger.debug(`[chat.routes] enrichFindingsContext: Received ${contextFindings.length} findings from frontend, topicId: ${topicId}`);
 
     // If frontend provided findings in the correct format, use them directly
     if (contextFindings.length > 0) {
-      console.log(`✅ [enrichFindingsContext] Using ${contextFindings.length} findings from frontend`);
+      logger.debug(`[chat.routes] enrichFindingsContext: Using ${contextFindings.length} findings from frontend`);
       return {
         ...context,
         findings: contextFindings
@@ -714,7 +696,7 @@ async function enrichFindingsContext(
       });
 
       if (topicFindings.length > 0) {
-        console.log(`📚 [BACKEND] Loaded ${topicFindings.length} recent findings (max 50) for context - matches frontend limit`);
+        logger.info(`[chat.routes] Loaded ${topicFindings.length} recent findings (max 50) for context`);
         return {
           ...context,
           findings: topicFindings.map(f => ({
@@ -730,7 +712,7 @@ async function enrichFindingsContext(
       }
 
       // If no findings in DB either, use whatever context was provided
-      console.log(`⚠️ [BACKEND] No findings found for topic ${topicId}`);
+      logger.warn(`[chat.routes] No findings found for topic ${topicId}`);
       return context;
     }
 
@@ -793,7 +775,7 @@ async function enrichFindingsContext(
       findings: enrichedFindings
     };
   } catch (error) {
-    console.error('Error enriching findings context:', error);
+    logger.error('[chat.routes] Error enriching findings context:', error);
     // Return original context on error
     return context;
   }

@@ -1,5 +1,6 @@
 import { query, queryOne } from '../db/database.js';
 import { validateCitations, type Citation } from '../utils/validation/citations.js';
+import { logger } from '../utils/logger.js';
 
 export interface Chat {
   id: string;
@@ -32,9 +33,9 @@ export class ChatModel {
     const validated = validateCitations(citations);
 
     if (validated && validated.length > 0) {
-      console.log(`✅ [CITATION PARSE] Successfully parsed ${validated.length} valid citations`);
+      logger.debug(`[chat.model] Successfully parsed ${validated.length} valid citations`);
     } else if (citations) {
-      console.warn(`⚠️ [CITATION PARSE] No valid citations parsed from input`);
+      logger.warn(`[chat.model] No valid citations parsed from input`);
     }
 
     return validated;
@@ -171,7 +172,7 @@ export class ChatModel {
       [chatId, userId, limit]
     );
 
-    console.log(`📚 [CITATION DEBUG - getMessages] Retrieved ${messages.length} messages from DB`);
+    logger.debug(`[chat.model] getMessages: Retrieved ${messages.length} messages from DB`);
 
     // Parse JSON fields that PostgreSQL returns as strings
     return messages.map((msg, index) => {
@@ -180,9 +181,9 @@ export class ChatModel {
 
       if (citationCount > 0 && parsedCitations) {
         const citationNumbers = parsedCitations.map((c: any) => c.citationNumber).filter(Boolean).sort((a: number, b: number) => a - b);
-        console.log(`📖 [CITATION DEBUG - getMessages] Message ${index} (${msg.role}) has ${citationCount} citations: [${citationNumbers.join(', ')}]`);
+        logger.debug(`[chat.model] getMessages: Message ${index} (${msg.role}) has ${citationCount} citations: [${citationNumbers.join(', ')}]`);
       } else if (msg.role === 'assistant') {
-        console.log(`⚠️ [CITATION DEBUG - getMessages] Assistant message ${index} has NO citations`);
+        logger.debug(`[chat.model] getMessages: Assistant message ${index} has NO citations`);
       }
 
       return {
@@ -208,14 +209,12 @@ export class ChatModel {
       ? validatedCitations.map(c => c.citationNumber).filter(Boolean).sort((a, b) => a - b)
       : [];
 
-    console.log(`📝 [CITATION DEBUG - addMessage] Saving message with ${citationCount} validated citations`);
+    logger.debug(`[chat.model] addMessage: Saving message with ${citationCount} validated citations`);
     if (citationCount > 0) {
-      console.log(`📝 [CITATION DEBUG - addMessage] Citation numbers: [${citationNumbers.join(', ')}]`);
-      console.log(`📝 [CITATION DEBUG - addMessage] First citation:`, validatedCitations?.[0]);
+      logger.debug(`[chat.model] addMessage: Citation numbers: [${citationNumbers.join(', ')}]`);
     }
 
     const citationsJson = validatedCitations ? JSON.stringify(validatedCitations) : null;
-    console.log(`📝 [CITATION DEBUG - addMessage] Serialized citations length: ${citationsJson ? citationsJson.length : 0} chars`);
 
     const message = await queryOne<ChatMessage>(
       `INSERT INTO chat_messages (
@@ -242,21 +241,10 @@ export class ChatModel {
       ? (message.citations === 'null' ? 0 : JSON.parse(message.citations).length)
       : (Array.isArray(message.citations) ? message.citations.length : 0);
 
-    console.log(`✅ [CITATION DEBUG - addMessage] Message saved to DB with ${savedCitationCount} citations`);
-    if (savedCitationCount > 0) {
-      const savedCitations = typeof message.citations === 'string' ? JSON.parse(message.citations) : message.citations;
-      const savedNumbers = savedCitations.map((c: any) => c.citationNumber).filter(Boolean).sort((a: number, b: number) => a - b);
-      console.log(`✅ [CITATION DEBUG - addMessage] Saved citation numbers: [${savedNumbers.join(', ')}]`);
-    }
+    logger.debug(`[chat.model] addMessage: Message saved to DB with ${savedCitationCount} citations`);
 
-    // Update chat's last message time and count
-    await query(
-      `UPDATE chats
-       SET last_message_at = CURRENT_TIMESTAMP,
-           message_count = message_count + 1
-       WHERE id = $1`,
-      [chatId]
-    );
+    // Note: chat's last_message_at and message_count are updated by the
+    // update_chat_updated_at() PostgreSQL trigger on chat_messages INSERT
 
     // Parse JSON fields that PostgreSQL returns as strings
     const parsedMessage = {
@@ -266,7 +254,7 @@ export class ChatModel {
     };
 
     const finalCitationCount = Array.isArray(parsedMessage.citations) ? parsedMessage.citations.length : 0;
-    console.log(`✅ [CITATION DEBUG - addMessage] Returning message with ${finalCitationCount} citations to frontend`);
+    logger.debug(`[chat.model] addMessage: Returning message with ${finalCitationCount} citations to frontend`);
 
     return parsedMessage;
   }
