@@ -440,4 +440,60 @@ Deployed to production at 100.94.82.35 on February 4, 2026
 
 ---
 
-*Last Updated: February 4, 2026*
+## Issue 12: Chat Architecture Rebuild (Plan 012) (FIXED)
+
+**Date**: February 7-8, 2026
+
+### Problem
+The chat system had four critical issues:
+1. **Messages lost on close/reopen** — Zustand `persist` middleware with fragile Map serialization to localStorage
+2. **Dual service confusion** — Two frontend services (`chat.service.ts` and `chat.api.service.ts`) with conflicting endpoints
+3. **Circular dependency crash** — `ChatPanel -> chatStore -> chat.service -> chatStore` caused production build failures
+4. **Sterile bot persona** — Clinical, cold system prompt unsuitable for caregivers navigating medical conditions
+
+### Root Cause
+The chat relied on localStorage as its primary data store instead of PostgreSQL. The `chatStore.ts` (758 lines) used Zustand `persist` middleware with custom Map serialization that silently failed. Dynamic `import()` was used as a band-aid for circular dependencies, breaking TypeScript type safety and introducing race conditions.
+
+### Fix — 5-Phase Rebuild
+**Phase 1**: Deleted dead `conversation.model.ts` and `conversations.routes.ts` (575 lines removed). Replaced all `console.log` with `logger` in chat backend files.
+
+**Phase 2**: Rewrote `chat.service.ts` as a pure API client with ZERO store imports. Deleted deprecated `chat.api.service.ts` stub. This breaks the circular dependency chain permanently.
+
+**Phase 3**: Rewrote `chatStore.ts` from 758 lines to ~50 lines. Navigation + streaming state only. No persist middleware, no localStorage, no service imports.
+
+**Phase 4**: Rebuilt `ChatPanel.tsx` with static imports (no dynamic `import()`), server-first loading from PostgreSQL, POST-based SSE streaming. Deleted old `ChatPanelMinimal.tsx` (658 lines).
+
+**Phase 5**: Updated `buildSystemPrompt()` with warm companion persona for caregivers. Updated title generation and suggested questions prompts for natural, empathetic language.
+
+### Files Modified
+- `backend/src/models/conversation.model.ts` — DELETED (253 lines)
+- `backend/src/routes/conversations.routes.ts` — DELETED (322 lines)
+- `backend/src/index.ts` — Removed conversation route registration
+- `backend/src/routes/chats.routes.ts` — Replaced console.log with logger, removed duplicate route
+- `backend/src/routes/chat.routes.ts` — Replaced console.log with logger, updated system prompts
+- `backend/src/models/chat.model.ts` — Replaced console.log with logger
+- `src/services/chat.api.service.ts` — DELETED (181 lines)
+- `src/services/chat.service.ts` — REWRITTEN as pure API client (~200 lines)
+- `src/stores/chatStore.ts` — REWRITTEN navigation-only (~50 lines)
+- `src/components/ChatPanelMinimal.tsx` — DELETED (658 lines)
+- `src/components/ChatPanel.tsx` — CREATED server-first component (~280 lines)
+- `src/components/ChatMessage.tsx` — Removed debug logs, fixed copy citation numbering
+- `src/components/ChatInput.tsx` — Removed dead attachment/voice code
+- `src/App.tsx` — Updated import, added localStorage cleanup
+
+### Architecture After Rebuild
+- **Storage**: PostgreSQL is the SOLE source of truth for chat data
+- **Dependencies**: Zero circular dependencies (chatService has no store imports)
+- **Imports**: All static (no dynamic `import()`)
+- **Net reduction**: ~2,030 lines removed
+
+### Result
+- Messages persist across close/reopen, page refresh, logout/login, and browser data clear
+- Streaming tokens appear in real-time via POST-based SSE
+- Citations render as clickable blue pill buttons
+- Bot persona is warm and supportive for caregivers
+- No circular dependency crashes
+
+---
+
+*Last Updated: February 8, 2026*

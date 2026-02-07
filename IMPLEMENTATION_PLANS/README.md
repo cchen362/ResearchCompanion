@@ -33,7 +33,7 @@ Each implementation plan includes:
 | 009 | [Digest Generation Timeout Fix](./009_DIGEST_GENERATION_TIMEOUT_FIX.md) | Complete | Fix digest generation timeout issues |
 | 010 | [Finding Label Unification](./010_FINDING_LABEL_UNIFICATION.md) | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
 | 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
-| 012 | [Chat Architecture Rebuild](./012_CHAT_ARCHITECTURE_REBUILD.md) | **Ready** | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
+| 012 | [Chat Architecture Rebuild](./012_CHAT_ARCHITECTURE_REBUILD.md) | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
 
 ## How to Use
 
@@ -54,5 +54,5 @@ When creating a new implementation plan:
 
 ---
 
-*Last Updated: February 7, 2026*
-*Latest Plan: 011 - Digest Explained Mode Expansion*
+*Last Updated: February 8, 2026*
+*Latest Plan: 012 - Chat Architecture Rebuild*
