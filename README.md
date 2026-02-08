@@ -1,88 +1,101 @@
 # Medical Research Companion PWA
 
-An autonomous medical research companion Progressive Web App designed to help caregivers of rare disease patients stay up-to-date with the latest medical research, clinical trials, and treatment breakthroughs.
+An autonomous medical research companion that helps caregivers of rare disease patients stay up-to-date with the latest medical research, clinical trials, and treatment breakthroughs. Built with a server-first architecture and AI-powered intelligence.
 
-## 🎯 Version 2.0 - Major Update
+## Current Features
 
-### What's New
-- **PostgreSQL Persistent Storage**: All data now persists in PostgreSQL database
-- **Multi-Device Sync**: Access your research from any device
-- **User Authentication**: Secure login with JWT tokens
-- **Automatic Backups**: Data is automatically backed up to PostgreSQL
-- **Improved Performance**: Connection pooling and optimized queries
+### Autonomous Research Agents (3 Active)
 
-## 🌟 Current Features
+Three parallel research agents continuously scan medical databases for new findings:
 
-### Autonomous Research Agents (2 Active, 2 Planned)
+- **PubMed Literature Monitor**: Searches peer-reviewed medical journals and publications via PubMed E-utilities
+- **Clinical Trial Scanner**: Tracks new trials, enrollment changes, and trial results via ClinicalTrials.gov API
+- **Medical Literature & Web Researcher**: Monitors FDA approvals and supplementary research via Brave Search and FDA APIs
 
-**Currently Active:**
-- **Treatment Breakthrough Monitor**: Continuously scans FDA approvals, new therapies, and treatment guidelines
-- **Clinical Trial Scanner**: Tracks new trials, enrollment changes, and trial results
-
-**Planned for Phase 3:**
-- **Medical Literature Researcher**: Will monitor medical journals and research publications
-- **Pattern Recognition Agent**: Will identify patterns and connections across research findings
+Agents run autonomously on configurable schedules (hourly, daily, weekly, or adaptive) with manual "Run Now" available anytime.
 
 ### Smart Digest System
-- AI-powered analysis of research findings
-- Executive summaries with key themes and contradictions
-- Breakthrough detection and knowledge gap identification
-- Daily, weekly, and monthly digest generation
-- Automatic prioritization of critical findings
 
-### Conversational Interface (85% Complete)
-- Real-time chat with AI about research findings
-- Streaming responses for immediate feedback
-- Citation linking to specific findings
-- Suggested follow-up questions
-- Message persistence and search
-- Export conversations to TXT/JSON
+AI-powered weekly digests synthesize research findings into magazine-style summaries:
 
-**Still in development:**
-- Citation click navigation (currently logs only)
-- Chat history sidebar UI
-- Message feedback buttons
-- Context accumulation from finding clicks
+- **Featured Discovery**: Highlighted breakthrough with full context
+- **Themes & Contradictions**: Grouped analysis of research patterns
+- **Breakthroughs**: Notable advances with evidence grading
+- **Knowledge Gaps**: Areas where more research is needed
+- **Questions for Doctor**: Evidence-based questions to bring to appointments
+- **Warning Signs**: Safety-critical signals from the research
+- **Technical/Explained Toggle**: Every section offers dual modes — full technical detail or plain-language explanation
+- **Digest TOC with Scroll-Spy**: Sidebar navigation for long digests (desktop)
 
-### Research Insights Dashboard
-- Research progress tracking and metrics
-- Source diversity analysis
-- Finding patterns over time
-- Knowledge gap visualization
-- Research velocity metrics
-- Replaced the deprecated Knowledge Graph feature
+### AI Chat Companion
 
-### Patient Care Management
-- Timeline-based event tracking
-- Voice recording and transcription for doctor visits
-- Event categorization (appointments, symptoms, treatments)
-- Chronological health journey visualization
+Server-first persistent chat rebuilt for reliability and warmth:
+
+- **Streaming Responses**: Real-time token streaming via POST-based SSE
+- **Citation Integration**: Clickable citation buttons linking directly to source findings
+- **Warm Companion Persona**: Caregiver-focused language, not clinical bot tone
+- **Suggested Questions**: Context-aware follow-up questions based on your research
+- **Message Persistence**: All messages stored in PostgreSQL, accessible across devices
+- **Push/Reflow Layout**: Chat panel pushes content aside on wide screens, overlays on narrow
+
+### Companion Intelligence
+
+AI-driven features that surface insights proactively:
+
+- **Research Pulse**: A one-sentence AI companion summary per topic (e.g., "Your Haemophilia research has 3 new breakthroughs this week...")
+- **Worth Revisiting**: AI identifies connections between older findings and new breakthroughs, showing reasoning like "Shared therapeutic target" or "Confirms earlier hypothesis" in a center modal with side-by-side comparison
+- **Explained Mode**: Technical/Explained toggle on Worth Revisiting cards for accessibility
+
+### Unified Home Page
+
+A single dashboard merging the former Dashboard and Research Insights views:
+
+- **Bento Grid Layout**: 3-column responsive grid on desktop, stacks on mobile
+- **Topic Filtering**: Filter all content by medical condition
+- **Findings Highlights**: Teaser preview cards for recent findings
+- **Digest Signposts**: Key insights from latest digest at a glance
+- **Research Pulse Cards**: AI companion intelligence front and center
+- **Source Breakdown**: PubMed / Clinical / Web categorization badges
+
+### Design System
+
+A comprehensive design token foundation:
+
+- **Medical Blue Palette**: Evolved from indigo to HSL 222 medical blue
+- **System Dark Mode**: Automatic via `prefers-color-scheme: dark`
+- **60+ CSS Custom Properties**: Colors, surfaces, shadows, spacing, typography
+- **Typography**: Figtree (headings) + Noto Sans (body)
+- **Responsive Layouts**: Mobile-first to 1920px+ with adaptive containers (1600-1680px max)
+- **Accessibility**: WCAG AA contrast ratios, 44x44px touch targets, `prefers-reduced-motion` support
 
 ### User Authentication
-- Secure login and registration system
-- JWT-based authentication
-- Password reset functionality
-- Session management
+
+- **Redesigned Auth Page**: Split layout with gradient branding panel and pill toggle (Sign In / Create Account)
+- **JWT Authentication**: 30-day token expiry with multi-device session management
+- **Secure Storage**: bcrypt password hashing, PostgreSQL session tracking
+- **Responsive**: Desktop split layout collapses to single column on mobile
 
 ### Data Export
+
 - Professional PDF reports with research summaries
-- Formatted for medical professionals
-- Includes findings, timeline events, and insights
+- CSV and JSON export for research data
+- Formatted for sharing with medical professionals
 
-### Privacy-First Design
-- **Hybrid Storage**: PostgreSQL for persistence, IndexedDB for offline cache
+### Privacy & Security
+
+- **Server-First Architecture**: PostgreSQL is the sole source of truth for all data
 - **Data Encryption**: Passwords hashed with bcrypt, JWT for sessions
-- **User-Controlled**: You own your data, can export or delete anytime
-- **HIPAA-Ready Architecture**: Designed for healthcare compliance
-- **Offline Support**: Full functionality without network via local cache
+- **User Isolation**: Row-level security for multi-tenant data
+- **User-Controlled**: Export or delete your data anytime
+- **HIPAA-Ready**: Architecture designed for healthcare compliance
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
-- Docker and Docker Compose (for PostgreSQL)
-- Modern web browser with IndexedDB support
+
+- Node.js 20+
+- Docker and Docker Compose
+- Modern web browser
 
 ### Quick Start with Docker (Recommended)
 
@@ -92,47 +105,36 @@ git clone [repository-url]
 cd medical-companion-pwa
 ```
 
-2. Copy environment template:
+2. Copy environment template and configure:
 ```bash
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit .env and add your API keys:
+#   ANTHROPIC_API_KEY - Required for AI features (Claude)
+#   OPENAI_API_KEY    - Required for voice transcription (Whisper)
+#   BRAVE_API_KEY     - Required for web research agent
+#   PUBMED_API_KEY    - Optional, improves PubMed rate limits
+#   JWT_SECRET        - Generate a secure random string
 ```
 
 3. Start with Docker Compose:
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
-4. Initialize the database and start the application:
-```bash
-npm run start:postgres
-```
+4. Open your browser at `http://localhost:6767`
 
-5. Open your browser and navigate to `http://localhost:5173`
+**Important:** Never commit API keys or passwords to version control. All `.env` files are gitignored.
 
-### Manual Installation (Alternative)
+### Manual Development Setup
 
-1. Clone the repository:
-```bash
-git clone [repository-url]
-cd medical-companion-pwa
-```
-
-2. Install frontend dependencies:
+1. Install dependencies:
 ```bash
 npm install
+cd backend && npm install && cd ..
 ```
 
-3. Install backend dependencies:
+2. Start PostgreSQL:
 ```bash
-cd backend
-npm install
-cd ..
-```
-
-4. Set up PostgreSQL:
-```bash
-# Start PostgreSQL with Docker
 docker run -d \
   --name medcompanion-postgres \
   -e POSTGRES_DB=medcompanion \
@@ -140,41 +142,31 @@ docker run -d \
   -e POSTGRES_PASSWORD=medpass123 \
   -p 5432:5432 \
   postgres:15-alpine
-
-# Initialize database schema
-psql -h localhost -U meduser -d medcompanion -f backend/src/db/init.sql
 ```
 
-5. Configure environment variables:
+3. Configure environment:
 ```bash
-# Copy the example files
 cp .env.example .env
 cp backend/.env.example backend/.env
-
-# Edit both .env files and add:
-# - API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, BRAVE_API_KEY)
-# - Database URL: postgresql://meduser:medpass123@localhost:5432/medcompanion
-# - JWT_SECRET: generate a secure random string
-# - Set USE_POSTGRESQL=true
+# Edit both .env files with your API keys and:
+#   DATABASE_URL=postgresql://meduser:medpass123@localhost:5432/medcompanion
 ```
 
-**Important:** Never commit API keys or passwords to version control. All `.env` files are gitignored by default.
+4. Start both servers:
 
-6. Start both servers:
-
-**Terminal 1 - Backend:**
+**Terminal 1 — Backend:**
 ```bash
 cd backend
 npm run build
 npm start
 ```
 
-**Terminal 2 - Frontend:**
+**Terminal 2 — Frontend:**
 ```bash
 npm run dev
 ```
 
-6. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser at `http://localhost:5176`
 
 ### Building for Production
 
@@ -187,90 +179,84 @@ cd backend
 npm run build
 ```
 
-The built files will be in the `dist` directory (frontend) and `backend/dist` (backend).
+The built files will be in `dist/` (frontend) and `backend/dist/` (backend).
 
-## 📱 PWA Installation
+## PWA Installation
 
-This app can be installed as a Progressive Web App on your device:
+This app can be installed on your device for quick access:
 
 1. Open the app in Chrome or Edge
 2. Click the install icon in the address bar
 3. Follow the prompts to add to your home screen
 
-## 🏗️ Project Structure
+Note: The app requires a network connection for all features (AI, research agents, data persistence).
+
+## Project Structure
 
 ```
 medical-companion-pwa/
 ├── src/
-│   ├── types/              # TypeScript type definitions
+│   ├── types/                  # TypeScript type definitions
 │   ├── utils/
-│   │   ├── db/             # IndexedDB operations
-│   │   └── logger.ts       # Centralized logging
-│   ├── services/           # Business logic (13+ files)
-│   ├── stores/             # Zustand state management
-│   ├── components/         # React components
-│   │   ├── agents/         # Agent-specific components
-│   │   ├── auth/           # Authentication components
-│   │   └── ui/             # Radix UI components
-│   └── App.tsx            # Main application component
+│   │   ├── db/                 # IndexedDB cache operations
+│   │   ├── sourceCategory.ts   # Canonical source categorization
+│   │   └── logger.ts           # Centralized logging
+│   ├── services/               # API client services
+│   ├── stores/                 # Zustand state management
+│   │   ├── uiStore.ts          # UI state, modals, view settings
+│   │   └── chatStore.ts        # Chat streaming state only
+│   ├── components/
+│   │   ├── home/               # Home page (bento grid, pulse, signposts)
+│   │   ├── research/           # Findings page (cards, drawers, digest, toolbar)
+│   │   ├── chat/               # Chat panel and suggested questions
+│   │   ├── agents/             # Agent monitoring components
+│   │   ├── digest/             # Digest display components
+│   │   ├── auth/               # Auth page and guard
+│   │   └── ui/                 # Radix UI base components
+│   └── App.tsx                 # Routing and app shell
 ├── backend/
 │   ├── src/
-│   │   ├── routes/         # API endpoints
-│   │   ├── services/       # Backend services
-│   │   └── middleware/     # Auth middleware
-│   └── dist/              # Compiled JavaScript
-├── public/                 # Static assets
-└── vite.config.ts         # Vite configuration
+│   │   ├── routes/             # API endpoints
+│   │   ├── services/           # Business logic (AI, agents, search, digest)
+│   │   ├── models/             # PostgreSQL data models
+│   │   ├── middleware/         # Auth middleware
+│   │   ├── schemas/            # Zod validation schemas
+│   │   └── db/                 # Database init and migrations
+│   └── dist/                   # Compiled JavaScript
+├── IMPLEMENTATION_PLANS/       # Feature implementation blueprints
+├── docker-compose.yml          # Production containerization
+├── Dockerfile                  # Multi-stage build (frontend + backend + nginx)
+└── vite.config.ts              # Vite configuration
 ```
 
-## 💡 Usage Guide
+## Usage Guide
+
+### Navigation
+
+The app has four main tabs:
+
+| Tab | Purpose |
+|-----|---------|
+| **Home** | Dashboard with findings highlights, digest signposts, research pulse |
+| **Topics** | Create and manage medical conditions to track |
+| **Agents** | Monitor and configure autonomous research agents |
+| **Findings** | Browse all research findings, view digests, explore sources |
+
+The chat panel is accessible from any page via the message icon in the header.
 
 ### Adding a Disease Topic
 
-1. Navigate to the "Topics" tab
-2. Click "Add Topic"
-3. Enter:
-   - Topic name (e.g., "My Child's Condition")
-   - Disease name (e.g., "Mitochondrial Disease")
-   - Update frequency preference (hourly, daily, weekly, or adaptive)
-   - Patient age group
+1. Navigate to the **Topics** tab
+2. Click **Add Topic**
+3. Enter the topic name, disease name, update frequency, and patient age group
+4. The app automatically creates 3 monitoring agents for your topic
 
-The app will automatically create 2 monitoring agents for your topic.
+### Viewing Research
 
-### Running Agents
-
-Agents can run in two modes:
-
-1. **Automatic**: Agents run on schedule based on update frequency
-   - Hourly: Fast-changing conditions
-   - Daily: Most conditions
-   - Weekly: Stable conditions
-   - Adaptive: AI determines frequency
-
-2. **Manual**: Click "Run Now" on any agent in the Agents tab
-
-### Using the Chat Interface
-
-1. Select a topic with findings
-2. Click the chat icon in the top toolbar
-3. Ask questions about your research findings
-4. Citations link to specific findings (navigation coming soon)
-5. Export conversations for medical appointments
-
-### Viewing Research Findings
-
-- **Dashboard**: See recent findings and agent updates
-- **Research Insights**: Analyze patterns and metrics
-- **Smart Digests**: Review AI-generated summaries
-- **Timeline**: Track your health journey chronologically
-
-### Cost Management
-
-- Monthly budget: $20 (configurable)
-- Real-time cost tracking on dashboard
-- Automatic throttling when approaching budget limit
-
-## 🔧 Configuration
+- **Home**: At-a-glance overview with AI companion intelligence
+- **Findings tab**: Full findings list with source filtering (PubMed / Clinical / Web), date filtering, and list/digest view toggle
+- **Smart Digests**: Click the digest view to see AI-synthesized summaries with the Technical/Explained toggle
+- **Chat**: Ask questions about your findings — responses include clickable citation buttons
 
 ### Agent Configuration
 
@@ -279,166 +265,113 @@ Agents can be customized per topic:
 - Search depth (quick, standard, deep)
 - Priority (critical, high, medium, low)
 
-Location filters for clinical trials are defined in types but not yet exposed in UI.
-
-## 🛡️ Privacy & Security
-
-### Data Storage
-- **PostgreSQL Database**: Primary persistent storage for all data
-- **IndexedDB Cache**: Local cache for offline access and performance
-- **Automatic Sync**: Changes sync between local and server storage
-- **Multi-Device**: Access your data from any device with login
-- **Backup & Recovery**: Automatic PostgreSQL backups
-- **Encryption**: Passwords hashed with bcrypt, JWT for sessions
-
-### API Usage
-- Secure API endpoints with JWT authentication
-- All health data stored in PostgreSQL with user isolation
-- Row-level security for multi-tenant data
-- SSL/TLS encryption for production deployments
-
-## 📊 Technical Stack
+## Technical Stack
 
 ### Frontend
 - **Framework**: React 19.2.0 + TypeScript 5.9.3
 - **Build Tool**: Vite 7.2.4
-- **Styling**: Tailwind CSS + Radix UI
-- **Local Cache**: IndexedDB via idb
-- **State**: Zustand (installed, minimally used)
-- **PWA**: Vite PWA Plugin + Workbox
+- **Styling**: Tailwind CSS 3.4 + Radix UI components
+- **State**: Zustand 5.0.9
+- **Local Cache**: IndexedDB via idb 8.0.3
+- **Routing**: React Router 7.12
+- **Charts**: Recharts 3.7
+- **Icons**: Lucide React
 
 ### Backend
-- **Runtime**: Node.js + Express
-- **Language**: TypeScript
-- **Database**:
-  - PostgreSQL 15 (primary storage)
-  - SQLite 3 (legacy fallback)
-  - Connection pooling with pg library
-- **Authentication**:
-  - JWT tokens (30-day expiry)
-  - bcrypt password hashing
-  - Multi-device sessions
+- **Runtime**: Node.js 20 + Express 4.19
+- **Language**: TypeScript (strict mode)
+- **Database**: PostgreSQL 15 with connection pooling (pg 8.17)
+- **Authentication**: JWT (jsonwebtoken 9.0) + bcrypt 6.0
+- **Validation**: Zod 4.3.5
 - **AI Services**:
-  - Anthropic Claude Sonnet 4.5 (reasoning)
-  - OpenAI Whisper (transcription)
+  - Anthropic Claude Sonnet 4.5 (reasoning, digests, chat) via SDK 0.71
+  - OpenAI Whisper (voice transcription) via SDK 6.15
 - **Search APIs**:
   - PubMed E-utilities
   - ClinicalTrials.gov API
   - FDA API
-  - Brave Search API (requires key)
+  - Brave Search API
 
 ### Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Web Server**: Nginx (production)
-- **Process Manager**: PM2 (production)
+- **Containerization**: Docker with multi-stage builds
+- **Web Server**: Nginx (production static serving)
+- **Database**: PostgreSQL 15 Alpine in Docker
+- **Deployment**: Docker Compose on Debian Linux
 
-## 🔄 Database Migration
+## Database
 
-### Migrating from IndexedDB to PostgreSQL
+PostgreSQL 15 with 16 tables:
 
-If you have existing data in IndexedDB:
+| Table | Purpose |
+|-------|---------|
+| `users` | Authentication and profiles |
+| `user_devices` | Multi-device session tracking |
+| `user_sessions` | JWT session management |
+| `topics` | Medical conditions being monitored |
+| `agents` | Research agent configurations |
+| `agent_executions` | Agent run history and logs |
+| `findings` | Research findings from all sources |
+| `digests` | AI-generated smart digest content |
+| `digest_queue` | Background digest generation queue |
+| `chats` | Chat conversation metadata |
+| `chat_messages` | Individual chat messages with citations |
+| `audio_recordings` | Voice recording metadata and transcriptions |
+| `notifications` | Agent and system notifications |
+| `timeline_events` | Health timeline events |
+| `user_preferences` | User settings and preferences |
+| `api_usage` | API call analytics |
 
-1. Export your data before migration:
+Flexible metadata stored as JSONB fields (source info, themes, breakthroughs, worth revisiting patterns, etc.).
+
+## Architecture Principles
+
+- **Facts, Not Scores**: Only factual, verifiable information — no arbitrary metrics or invented scores
+- **Server-First**: PostgreSQL is the sole source of truth; IndexedDB is a performance cache only
+- **No Offline Mode**: All core features (AI, agents, data) require network connectivity
+- **Transparent Attribution**: Every finding clearly attributed to its source with direct links
+
+## Development
+
+### Logging
+
+The application uses a centralized logging utility (`src/utils/logger.ts`) that automatically disables console output in production builds.
+
+### Scripts
+
 ```bash
-# In the browser console:
-await exportAllData(); // Exports to JSON file
-```
+# Frontend
+npm run dev              # Start Vite dev server (port 5176)
+npm run build            # Build for production
+npm run build:typecheck  # Type check then build
+npm run lint             # Run ESLint
+npm run preview          # Preview production build
 
-2. Start PostgreSQL and initialize:
-```bash
-docker-compose up -d
-npm run migrate:db
-```
-
-3. Import your exported data:
-```bash
-npm run import:data path/to/exported-data.json
+# Backend
+cd backend
+npm run dev              # Start with tsx watch (hot reload)
+npm run build            # Compile TypeScript
+npm start                # Run compiled JavaScript
 ```
 
 ### Database Backup & Recovery
 
 ```bash
-# Backup PostgreSQL database
+# Backup
 docker exec medcompanion-postgres pg_dump -U meduser medcompanion > backup.sql
 
-# Restore from backup
+# Restore
 docker exec -i medcompanion-postgres psql -U meduser medcompanion < backup.sql
 ```
 
-## 🔮 Development Roadmap
+## Implementation Plans
 
-### ✅ Phase 1 - Core Platform (COMPLETED)
-- ✅ 2 Autonomous research agents
-- ✅ Smart digest generation
-- ✅ Voice recording & transcription
-- ✅ Timeline event management
-- ✅ Research Insights Dashboard
-- ✅ User authentication system
-- ✅ PDF export functionality
-- ✅ Backend API server
-- ✅ Real API integrations
+Feature development is tracked through detailed implementation plans in `/IMPLEMENTATION_PLANS/`. Each plan is a strict actionable blueprint with step-by-step instructions. See [IMPLEMENTATION_PLANS/README.md](IMPLEMENTATION_PLANS/README.md) for the full list and format details.
 
-### 🔄 Phase 2 - Conversational Interface (85% COMPLETE)
-- ✅ Chat UI with streaming responses
-- ✅ Citation linking system
-- ✅ Message persistence
-- ✅ Suggested questions
-- ✅ Search through messages
-- ✅ Export to TXT/JSON
-- ⏳ Citation click navigation
-- ⏳ Chat history management UI
-- ⏳ Context accumulation from clicks
-- ⏳ Message feedback UI
+## License
 
-### 📋 Phase 3 - Enhanced Research (PLANNED)
-- [ ] Medical Literature Agent implementation
-- [ ] Pattern Recognition Agent implementation
-- [ ] Advanced chat features (threading, branching)
-- [ ] Message regeneration and editing
-- [ ] Chat settings panel (model, temperature)
-- [ ] PDF export for chat conversations
+This project is licensed under the MIT License — see the LICENSE file for details.
 
-### 🚀 Future Enhancements
-- [ ] Data encryption (AES-GCM)
-- [ ] Family collaboration features
-- [ ] Smart learning & adaptation from user patterns
-- [ ] OCR for lab results
-- [ ] Additional export formats (Excel, FHIR)
-- [ ] Multi-language support
-- [ ] Advanced symptom tracking
-
-## 🐛 Known Limitations
-
-### Current Limitations
-1. Only 2 of 4 planned agents are available
-2. No UI to manually add additional agents
-3. Chat citation clicks don't navigate to findings yet
-4. Excel/FHIR exports implemented but disabled in UI
-5. Voice recording and attachments in chat disabled by default
-6. Brave Search returns empty results without API key
-
-### Deprecated Features
-- **Knowledge Graph**: Removed as it violated "Facts, Not Scores™" principle
-- **Insurance Access Agent**: Dropped due to complexity and regional variations
-
-## 🔧 Development
-
-### Logging
-
-The application uses a centralized logging utility (`src/utils/logger.ts`) that automatically disables console output in production builds. All debug statements are wrapped to only appear in development mode.
-
-### Running Tests
-
-```bash
-npm run test        # Run tests (when implemented)
-npm run type-check  # Check TypeScript types
-```
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Built with love for caregivers managing rare diseases, inspired by the need for better autonomous medical research tools.
 
