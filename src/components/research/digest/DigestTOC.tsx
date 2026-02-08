@@ -15,6 +15,7 @@ import {
 
 interface DigestTOCProps {
   digest: SmartDigest;
+  onViewSources: () => void;
 }
 
 interface TOCEntry {
@@ -23,7 +24,7 @@ interface TOCEntry {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export function DigestTOC({ digest }: DigestTOCProps) {
+export function DigestTOC({ digest, onViewSources }: DigestTOCProps) {
   // Build TOC entries dynamically — only sections with content
   const entries: TOCEntry[] = useMemo(() => {
     const result: TOCEntry[] = [];
@@ -64,6 +65,10 @@ export function DigestTOC({ digest }: DigestTOCProps) {
   const activeId = useScrollSpy({ sectionIds });
 
   const handleClick = (id: string) => {
+    if (id === DIGEST_SECTION_IDS.sources) {
+      onViewSources();
+      return;
+    }
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });

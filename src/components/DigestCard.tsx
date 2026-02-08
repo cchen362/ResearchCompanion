@@ -82,11 +82,11 @@ export function DigestCard({
         return new Set(parsed);
       } catch {
         // If parse fails, use default
-        return new Set(['takeaways']);
+        return new Set(['takeaways', 'questions']);
       }
     }
-    // Default: auto-expand takeaways
-    return new Set(['takeaways']);
+    // Default: auto-expand takeaways and questions for doctor
+    return new Set(['takeaways', 'questions']);
   });
 
   // Save preferences whenever they change

@@ -114,7 +114,7 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFindin
       <div className="flex gap-6">
         {/* TOC Sidebar — visible only on xl (1280px+) */}
         <aside className="hidden xl:block w-52 shrink-0">
-          <DigestTOC digest={digest} />
+          <DigestTOC digest={digest} onViewSources={onViewSources} />
         </aside>
 
         {/* Digest Content */}
