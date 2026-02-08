@@ -48,7 +48,7 @@ Agents MUST follow this guide exactly. NO deviations, NO quick fixes, NO creativ
 
 ## Current Status
 
-- **Phase**: NOT STARTED
+- **Phase**: COMPLETE
 - **Created**: February 8, 2026
 - **Priority**: HIGH — Immediate follow-up to Plan 015c
 - **Branch**: `feat/ui-overhaul` (continue from Plan 015c)
@@ -748,13 +748,19 @@ Expected: `oldFindingSummary`, `newBreakthroughSummary`, and `connectionExplanat
 
 | Phase | Description | Status | Date |
 |-------|-------------|--------|------|
-| 1 | Frontend — Modal Enhancement + Tooltips + Finding Links | ⬜ Not Started | |
-| 2 | Backend Pipeline — DualModeText for WR Fields | ⬜ Not Started | |
-| 3 | Integration Build Verification | ⬜ Not Started | |
-| 4 | Deployment & Verification | ⬜ Not Started | |
+| 1 | Frontend — Modal Enhancement + Tooltips + Finding Links | ✅ Complete | 2026-02-08 |
+| 2 | Backend Pipeline — DualModeText for WR Fields | ✅ Complete | 2026-02-08 |
+| 3 | Integration Build Verification | ✅ Complete | 2026-02-08 |
+| 4 | Deployment & Verification | ✅ Complete | 2026-02-08 |
+
+### Post-Deployment Fixes (Phase 4)
+- Fixed AI skipping `worthRevisiting` — increased `max_tokens` to 12000, strengthened then softened prompt
+- Fixed "View finding" links — changed to "View source" opening external article in new tab
+- Formatted Research Pulse from wall-of-text to lead + bullet points with count validation
 
 ---
 
 *Created: February 8, 2026*
+*Completed: February 8, 2026*
 *Author: Claude Opus 4.6*
 *Predecessor: Plan 015c (Companion Intelligence — Complete)*
