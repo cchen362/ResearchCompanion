@@ -235,14 +235,16 @@ export class DigestProcessorService {
         breakthroughs, knowledge_gaps, next_steps, key_takeaways,
         trends, clinical_implications, lifestyle_considerations,
         questions_for_doctor, warning_signs, finding_ids, metadata,
-        featured_discovery, top_findings, source_breakdown
+        featured_discovery, top_findings, source_breakdown,
+        research_pulse, worth_revisiting
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9,
         $10, $11, $12, $13,
         $14, $15, $16,
         $17, $18, $19, $20,
-        $21, $22, $23
+        $21, $22, $23,
+        $24, $25
       )`,
       [
         digestId,
@@ -274,7 +276,9 @@ export class DigestProcessorService {
         }),
         JSON.stringify((digest as any).featuredDiscovery || null),
         JSON.stringify((digest as any).topFindings || []),
-        JSON.stringify((digest as any).sourceBreakdown || countSourcesByType(findings))
+        JSON.stringify((digest as any).sourceBreakdown || countSourcesByType(findings)),
+        (digest as any).researchPulse || '',
+        JSON.stringify((digest as any).worthRevisiting || [])
       ]
     );
 

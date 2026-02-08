@@ -526,6 +526,17 @@ export interface SourceBreakdown {
   web: number;
 }
 
+export interface WorthRevisiting {
+  oldFindingId: string;
+  oldFindingTitle: string;
+  oldFindingSummary: string;
+  newBreakthroughId: string;
+  newBreakthroughTitle: string;
+  newBreakthroughSummary: string;
+  connectionExplanation: string;
+  connectionBasis: string;
+}
+
 export interface SmartDigest {
   id: string;
   topicId: string;
@@ -597,6 +608,10 @@ export interface SmartDigest {
   featuredDiscovery?: FeaturedDiscovery;
   topFindings?: TopFinding[];
   sourceBreakdown?: SourceBreakdown;
+
+  // Companion Intelligence fields (Plan 015c)
+  researchPulse?: string;
+  worthRevisiting?: WorthRevisiting[];
 }
 
 export interface DigestTheme {

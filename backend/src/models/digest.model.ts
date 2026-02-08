@@ -17,6 +17,8 @@ export interface Digest {
   featured_discovery?: any;
   top_findings?: any[];
   source_breakdown?: any;
+  research_pulse?: string;
+  worth_revisiting?: any[];
   created_at: Date;
 }
 
@@ -35,6 +37,8 @@ export interface CreateDigestData {
   featured_discovery?: any;
   top_findings?: any[];
   source_breakdown?: any;
+  research_pulse?: string;
+  worth_revisiting?: any[];
 }
 
 export class DigestModel {
@@ -86,9 +90,10 @@ export class DigestModel {
          user_id, topic_id, type, title, executive_summary,
          themes, contradictions, breakthroughs, knowledge_gaps, next_steps,
          finding_ids, metadata,
-         featured_discovery, top_findings, source_breakdown
+         featured_discovery, top_findings, source_breakdown,
+         research_pulse, worth_revisiting
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         userId,
@@ -105,7 +110,9 @@ export class DigestModel {
         JSON.stringify(data.metadata || {}),
         JSON.stringify(data.featured_discovery || null),
         JSON.stringify(data.top_findings || []),
-        JSON.stringify(data.source_breakdown || null)
+        JSON.stringify(data.source_breakdown || null),
+        data.research_pulse || '',
+        JSON.stringify(data.worth_revisiting || [])
       ]
     );
 
@@ -120,7 +127,8 @@ export class DigestModel {
   static async update(id: string, userId: string, updates: Partial<Digest>): Promise<Digest | null> {
     const allowedFields = [
       'title', 'executive_summary', 'themes', 'contradictions',
-      'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata'
+      'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata',
+      'research_pulse', 'worth_revisiting'
     ];
     const setClause: string[] = [];
     const values: any[] = [];
@@ -128,7 +136,7 @@ export class DigestModel {
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
-        if (['themes', 'contradictions', 'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata'].includes(key)) {
+        if (['themes', 'contradictions', 'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata', 'worth_revisiting'].includes(key)) {
           setClause.push(`${key} = $${paramCount}`);
           values.push(JSON.stringify(value));
         } else {

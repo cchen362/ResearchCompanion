@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { HeroSection } from './home/HeroSection';
 import { TopicFilter } from './home/TopicFilter';
 import { FindingsHighlights } from './home/FindingsHighlights';
-import { DigestSignposts } from './home/DigestSignposts';
+import { ResearchPulseCard } from './home/ResearchPulseCard';
+import { WorthRevisitingModal } from './home/WorthRevisitingModal';
+import type { WorthRevisiting } from '@/types';
 import { ContextualCTAs } from './home/ContextualCTAs';
 import { api } from '@/services/api';
 import { findingsService } from '@/services/findings.service';
@@ -30,6 +32,10 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
 
   const setChatPanelOpen = useUIStore(state => state.setChatPanelOpen);
+  const modals = useUIStore(state => state.modals);
+  const modalData = useUIStore(state => state.modalData);
+  const openModal = useUIStore(state => state.openModal);
+  const closeModal = useUIStore(state => state.closeModal);
 
   const loadStats = useCallback(async (topicId?: string | null) => {
     try {
@@ -89,6 +95,14 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
     setChatPanelOpen(true);
   };
 
+  const handleWorthRevisitingClick = (item: WorthRevisiting) => {
+    openModal('worthRevisiting', item);
+  };
+
+  const handleOpenDigest = (topicId: string) => {
+    setCurrentView('findings');
+  };
+
   if (loading && !stats) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -143,16 +157,24 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           </div>
         )}
 
-        {/* Digest Signposts — only when there are digests with content */}
+        {/* Research Pulse — only when there are digests */}
         {stats.digestSignposts.length > 0 && (
           <div className="sm:col-span-2 lg:col-span-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-xl">
-            <DigestSignposts
+            <ResearchPulseCard
               signposts={stats.digestSignposts}
-              onViewFindings={handleViewFindings}
+              onOpenDigest={handleOpenDigest}
+              onWorthRevisitingClick={handleWorthRevisitingClick}
             />
           </div>
         )}
       </div>
+
+      {/* Worth Revisiting Modal */}
+      <WorthRevisitingModal
+        item={modalData as WorthRevisiting | null}
+        isOpen={modals.worthRevisiting}
+        onClose={() => closeModal('worthRevisiting')}
+      />
     </div>
   );
 }

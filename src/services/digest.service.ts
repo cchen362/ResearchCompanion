@@ -186,7 +186,10 @@ class DigestService {
       // Magazine editorial fields (triple fallback: camelCase alias → snake_case → metadata blob)
       featuredDiscovery: apiDigest.featuredDiscovery || apiDigest.featured_discovery || apiDigest.metadata?.featuredDiscovery || undefined,
       topFindings: apiDigest.topFindings || apiDigest.top_findings || apiDigest.metadata?.topFindings || [],
-      sourceBreakdown: apiDigest.sourceBreakdown || apiDigest.source_breakdown || apiDigest.metadata?.sourceBreakdown || undefined
+      sourceBreakdown: apiDigest.sourceBreakdown || apiDigest.source_breakdown || apiDigest.metadata?.sourceBreakdown || undefined,
+      // Companion Intelligence fields (triple fallback: camelCase alias → snake_case → metadata blob)
+      researchPulse: apiDigest.researchPulse || apiDigest.research_pulse || apiDigest.metadata?.researchPulse || '',
+      worthRevisiting: apiDigest.worthRevisiting || apiDigest.worth_revisiting || apiDigest.metadata?.worthRevisiting || []
     };
 
     if (responseContext) {
@@ -224,6 +227,8 @@ class DigestService {
       featured_discovery: digest.featuredDiscovery || null,
       top_findings: digest.topFindings || [],
       source_breakdown: digest.sourceBreakdown || null,
+      research_pulse: digest.researchPulse || '',
+      worth_revisiting: digest.worthRevisiting || [],
       metadata: {
         statistics: digest.statistics,
         status: digest.status,

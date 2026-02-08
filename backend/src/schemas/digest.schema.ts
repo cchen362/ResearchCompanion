@@ -69,6 +69,18 @@ export const SmartDigestSchema = z.object({
   featuredDiscovery: z.lazy(() => FeaturedDiscoverySchema),
   topFindings: z.array(z.lazy(() => TopFindingSchema)).max(12),
   sourceBreakdown: z.lazy(() => SourceBreakdownSchema),
+  // Companion Intelligence fields (Plan 015c)
+  researchPulse: z.string().optional().default(''),
+  worthRevisiting: z.array(z.object({
+    oldFindingId: z.string(),
+    oldFindingTitle: z.string(),
+    oldFindingSummary: z.string(),
+    newBreakthroughId: z.string(),
+    newBreakthroughTitle: z.string(),
+    newBreakthroughSummary: z.string(),
+    connectionExplanation: z.string(),
+    connectionBasis: z.string()
+  })).optional().default([]),
   // Legacy fields (kept optional for backward compat with old digests)
   themes: z.array(DigestThemeSchema).optional().default([]),
   trends: z.object({
@@ -425,6 +437,53 @@ export const digestJSONSchema = {
           }
         },
         required: ['technical', 'explained']
+      }
+    },
+    researchPulse: {
+      type: 'string',
+      description: 'A single warm, companion-voice sentence summarizing the state of research for this topic. Address the user directly with "Your". Example: "Your Haemophilia research has 3 new breakthroughs this week, including a promising gene therapy trial that could change treatment approaches." Write in a caring, knowledgeable companion tone — not clinical, not overly casual. 1-2 sentences max.'
+    },
+    worthRevisiting: {
+      type: 'array',
+      description: 'Identify 0-3 meaningful connections between OLDER findings and RECENT breakthroughs. Only include genuinely significant connections with strong reasoning. Return empty array [] if no meaningful connections exist. Each connection MUST reference real finding IDs from the data.',
+      maxItems: 3,
+      items: {
+        type: 'object',
+        properties: {
+          oldFindingId: {
+            type: 'string',
+            description: 'UUID of the older finding — MUST be exact ID from the "ID:" field in the finding data'
+          },
+          oldFindingTitle: {
+            type: 'string',
+            description: 'Title of the older finding (for immediate display without DB lookup)'
+          },
+          oldFindingSummary: {
+            type: 'string',
+            description: 'Brief 1-2 sentence summary of the older finding'
+          },
+          newBreakthroughId: {
+            type: 'string',
+            description: 'UUID of the recent breakthrough finding — MUST be exact ID from the "ID:" field in the finding data'
+          },
+          newBreakthroughTitle: {
+            type: 'string',
+            description: 'Title of the recent breakthrough (for immediate display)'
+          },
+          newBreakthroughSummary: {
+            type: 'string',
+            description: 'Brief 1-2 sentence summary of the recent breakthrough'
+          },
+          connectionExplanation: {
+            type: 'string',
+            description: 'WHY these two findings connect. 1-2 sentences explaining the meaningful link. Must be specific — cite the mechanism, pathway, or evidence, not vague associations.'
+          },
+          connectionBasis: {
+            type: 'string',
+            description: 'Brief qualifier phrase (2-5 words). Examples: "Shared therapeutic target", "Same gene pathway", "Contradictory dosing evidence", "Complementary mechanisms"'
+          }
+        },
+        required: ['oldFindingId', 'oldFindingTitle', 'oldFindingSummary', 'newBreakthroughId', 'newBreakthroughTitle', 'newBreakthroughSummary', 'connectionExplanation', 'connectionBasis']
       }
     }
   },

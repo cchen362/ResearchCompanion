@@ -56,6 +56,7 @@ router.get('/dashboard/stats', async (req, res) => {
       topicId
         ? `SELECT d.id, d.topic_id, t.name as topic_name,
                   d.breakthroughs, d.contradictions, d.knowledge_gaps,
+                  d.research_pulse, d.worth_revisiting,
                   d.created_at
            FROM digests d
            JOIN topics t ON t.id = d.topic_id
@@ -64,6 +65,7 @@ router.get('/dashboard/stats', async (req, res) => {
         : `SELECT DISTINCT ON (d.topic_id)
                   d.id, d.topic_id, t.name as topic_name,
                   d.breakthroughs, d.contradictions, d.knowledge_gaps,
+                  d.research_pulse, d.worth_revisiting,
                   d.created_at
            FROM digests d
            JOIN topics t ON t.id = d.topic_id
@@ -104,6 +106,8 @@ router.get('/dashboard/stats', async (req, res) => {
         contradictionCount: Array.isArray(contradictions) ? contradictions.length : 0,
         knowledgeGapCount: Array.isArray(knowledgeGaps) ? knowledgeGaps.length : 0,
         topBreakthroughs,
+        researchPulse: d.research_pulse || '',
+        worthRevisiting: typeof d.worth_revisiting === 'string' ? JSON.parse(d.worth_revisiting) : (d.worth_revisiting || []),
         createdAt: d.created_at
       };
     });

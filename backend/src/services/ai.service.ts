@@ -503,7 +503,37 @@ QUESTIONS FOR DOCTOR (generate 3-5 evidence-based questions):
 
 WARNING SIGNS (generate 2-4 relevant symptoms/signs to monitor):
 - technical: Clinical terminology with specific thresholds (e.g., "fever >38.5°C persisting >48h")
-- explained: Everyday descriptions anyone would recognize (e.g., "a high fever that doesn't go away after 2 days")`,
+- explained: Everyday descriptions anyone would recognize (e.g., "a high fever that doesn't go away after 2 days")
+
+## COMPANION INTELLIGENCE
+
+### RESEARCH PULSE
+Generate a single warm, companion-voice sentence summarizing the current state of this topic's research landscape. This sentence appears on the home page as the user's "research companion" speaking to them.
+
+RULES:
+1. Address the user directly with "Your" (e.g., "Your Haemophilia research...")
+2. Reference specific counts from the findings (breakthroughs, new studies, contradictions)
+3. Highlight the SINGLE most noteworthy development
+4. Warm, knowledgeable tone — like a research-savvy friend, not a clinical report
+5. Maximum 2 sentences. Aim for 1 when possible.
+6. Never use generic phrases like "Things are progressing" or "Research continues"
+
+EXAMPLES:
+- "Your Haemophilia research has 3 new breakthroughs this week, including a gene therapy trial showing 94% factor VIII restoration in Phase 2 participants."
+- "Two recent PubMed studies on your Acromegaly topic present conflicting findings about pegvisomant dosing — worth reviewing with your endocrinologist."
+- "A quiet week for your Cancer research, but one FDA fast-track designation for pembrolizumab in microsatellite-unstable tumors could be significant."
+
+### WORTH REVISITING
+Examine ALL findings (old and new) and identify 0-3 meaningful connections between OLDER findings and RECENT breakthroughs. Only surface genuinely significant connections.
+
+RULES:
+1. Return EMPTY ARRAY [] if no meaningful connections exist — NEVER force connections
+2. The oldFindingId and newBreakthroughId MUST be exact UUIDs from the "ID:" field in the finding data
+3. connectionExplanation must be SPECIFIC: cite the mechanism, pathway, or evidence that links them
+4. connectionBasis must be a SHORT qualifier (2-5 words): "Shared therapeutic target", "Same gene pathway", etc.
+5. Prefer connections where the newer finding VALIDATES, CONTRADICTS, or EXTENDS the older one
+6. Do NOT create connections based solely on both mentioning the same disease — that is too vague
+7. Include inline titles and summaries so the UI can display without database lookups`,
       messages: [
         {
           role: 'user',
@@ -528,6 +558,10 @@ MAGAZINE EDITORIAL SECTIONS (REQUIRED):
 - featuredDiscovery: The SINGLE most impactful finding as hero content. The findingId MUST be the exact UUID string from the "ID:" field (e.g. "5c00622b-2343-40d3-ba50-e9d1dc39d865"), NOT a number. Include sourceType, technical version (medical terminology), explained version (analogies/metaphors), and sourceMetadata
 - topFindings: Up to 12 additional notable findings. Each findingId MUST be the exact UUID from the "ID:" field. Include sourceType, technical version, explained version, and a metadata display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"
 - sourceBreakdown: Count ALL findings by source type (pubmed, clinicalTrials, fda, web)
+
+COMPANION INTELLIGENCE (REQUIRED):
+- researchPulse: A single warm companion-voice sentence about this topic's research state. Address the user directly with "Your". Reference specific counts.
+- worthRevisiting: 0-3 connections between older findings and recent breakthroughs. Use exact finding UUIDs from the ID fields above. Return empty array [] if no meaningful connections exist.
 
 Focus on practical, actionable information that helps with treatment decisions.`
         }
@@ -589,6 +623,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
           featuredDiscovery: digestData.featuredDiscovery || undefined,
           topFindings: Array.isArray(digestData.topFindings) ? digestData.topFindings : [],
           sourceBreakdown: digestData.sourceBreakdown || undefined,
+          // Companion Intelligence fields
+          researchPulse: digestData.researchPulse || '',
+          worthRevisiting: Array.isArray(digestData.worthRevisiting) ? digestData.worthRevisiting : [],
           // Legacy fields (optional, for backward compat)
           themes: Array.isArray(digestData.themes) ? digestData.themes : [],
           trends: { emerging: [], declining: [], stable: [] }
@@ -612,6 +649,8 @@ Focus on practical, actionable information that helps with treatment decisions.`
           featuredDiscovery: null,
           topFindings: [],
           sourceBreakdown: null,
+          researchPulse: '',
+          worthRevisiting: [],
           themes: [],
           trends: { emerging: [], declining: [], stable: [] }
         };
@@ -689,6 +728,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
       featuredDiscovery: digestData.featuredDiscovery || null,
       topFindings: digestData.topFindings || [],
       sourceBreakdown: digestData.sourceBreakdown || null,
+      // Companion Intelligence fields
+      researchPulse: digestData.researchPulse || '',
+      worthRevisiting: digestData.worthRevisiting || [],
       // Legacy fields (empty - AI no longer generates these)
       themes: digestData.themes || [],
       trends: digestData.trends || { emerging: [], declining: [], stable: [] }
@@ -716,7 +758,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
         // NEW magazine editorial fields (null for timeout fallback)
         featuredDiscovery: null,
         topFindings: [],
-        sourceBreakdown: null
+        sourceBreakdown: null,
+        researchPulse: '',
+        worthRevisiting: []
       };
     }
 
@@ -763,7 +807,9 @@ Source: ${f.source.name} (${f.source.type})`
         // NEW magazine editorial fields (null for simple digest fallback)
         featuredDiscovery: null,
         topFindings: [],
-        sourceBreakdown: null
+        sourceBreakdown: null,
+        researchPulse: '',
+        worthRevisiting: []
       };
     } catch (fallbackError) {
       console.error('Both tools and simple approaches failed:', fallbackError);

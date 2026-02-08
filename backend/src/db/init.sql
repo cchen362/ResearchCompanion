@@ -108,6 +108,8 @@ CREATE TABLE IF NOT EXISTS digests (
     featured_discovery JSONB DEFAULT NULL, -- Hero content with technical/explained versions
     top_findings JSONB DEFAULT '[]'::jsonb, -- Up to 5 secondary findings with dual versions
     source_breakdown JSONB DEFAULT NULL, -- Finding counts by source type
+    research_pulse TEXT,                          -- AI companion pulse sentence (Plan 015c)
+    worth_revisiting JSONB DEFAULT '[]'::jsonb,   -- AI-identified finding connections (Plan 015c)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -26,7 +26,9 @@ const CreateDigestSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   featured_discovery: z.any().optional(),
   top_findings: z.array(z.any()).optional(),
-  source_breakdown: z.any().optional()
+  source_breakdown: z.any().optional(),
+  research_pulse: z.string().optional(),
+  worth_revisiting: z.array(z.any()).optional()
 });
 
 const UpdateDigestSchema = CreateDigestSchema.partial();
