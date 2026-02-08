@@ -80,11 +80,11 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg px-4 py-5 sm:px-6">
+      <div className="bg-[var(--color-surface)] shadow-sm rounded-lg px-4 py-5 sm:px-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-lg leading-6 font-medium text-gray-900">Disease Topics</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-lg leading-6 font-medium text-[var(--color-text-primary)]">Disease Topics</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
               Manage the diseases and conditions you're monitoring
             </p>
           </div>
@@ -97,68 +97,54 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
         </div>
       </div>
 
-      {/* Topics List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {topics.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No topics yet. Add a disease topic to start monitoring.</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {topics.map(topic => (
-              <li key={topic.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary-600">
-                              {topic.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{topic.name}</div>
-                          <div className="text-sm text-gray-500">{topic.diseaseProfile.name}</div>
-                        </div>
-                      </div>
-                      <div className="mt-2 sm:flex sm:justify-between">
-                        <div className="sm:flex sm:space-x-4">
-                          {topic.patientContext && (
-                            <p className="flex items-center text-sm text-gray-500">
-                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded capitalize">
-                                {topic.patientContext.ageGroup}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                          <p>{agentCounts[topic.id] || 0} agents</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-shrink-0 flex space-x-2">
-                      <button
-                        onClick={() => setEditingTopic(topic)}
-                        className="text-primary-600 hover:text-primary-900 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTopic(topic.id)}
-                        className="text-red-600 hover:text-red-900 text-sm font-medium"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+      {/* Topics Grid */}
+      {topics.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-[var(--color-text-muted)]">No topics yet. Add a disease topic to start monitoring.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {topics.map(topic => (
+            <div key={topic.id} className="rounded-lg border border-[var(--color-border-muted)] shadow-sm bg-[var(--color-surface)] hover:shadow-md transition-shadow p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-medium text-primary-600">
+                    {topic.name.charAt(0).toUpperCase()}
+                  </span>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">{topic.name}</div>
+                  <div className="text-sm text-[var(--color-text-muted)] truncate">{topic.diseaseProfile.name}</div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {topic.patientContext && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary-50 text-primary-700 capitalize">
+                    {topic.patientContext.ageGroup}
+                  </span>
+                )}
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary-50 text-primary-700">
+                  {agentCounts[topic.id] || 0} agents
+                </span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)] flex justify-end gap-2">
+                <button
+                  onClick={() => setEditingTopic(topic)}
+                  className="text-primary-600 hover:text-primary-900 text-sm font-medium"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteTopic(topic.id)}
+                  className="text-red-600 hover:text-red-900 text-sm font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* New Topic Form Modal */}
       {showNewTopicForm && (
@@ -248,13 +234,13 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Disease Topic</h3>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-[var(--color-surface)] rounded-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">Add New Disease Topic</h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="name" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Topic Name
             </label>
             <input
@@ -262,14 +248,14 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
               placeholder="e.g., My Child's Condition"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="disease" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="disease" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Disease Name
             </label>
             <input
@@ -277,41 +263,41 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="disease"
               value={diseaseName}
               onChange={(e) => setDiseaseName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
               placeholder="e.g., Mitochondrial Disease"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="progression" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="progression" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               How Often to Check for Updates
             </label>
             <select
               id="progression"
               value={progressionRate}
               onChange={(e) => setProgressionRate(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
               <option value="slow">Weekly (Stable conditions)</option>
               <option value="variable">Adaptive (Let AI decide)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               This controls how frequently agents search for new research
             </p>
           </div>
 
           <div>
-            <label htmlFor="age" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="age" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Patient Age Group
             </label>
             <select
               id="age"
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="pediatric">Pediatric</option>
               <option value="adolescent">Adolescent</option>
@@ -324,7 +310,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="px-4 py-2 border border-[var(--color-border)] rounded-md shadow-sm text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               Cancel
             </button>
@@ -382,13 +368,13 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Disease Topic</h3>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-[var(--color-surface)] rounded-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">Edit Disease Topic</h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="edit-name" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Topic Name
             </label>
             <input
@@ -396,14 +382,14 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
               placeholder="e.g., My Child's Condition"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="edit-disease" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="edit-disease" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Disease Name
             </label>
             <input
@@ -411,41 +397,41 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-disease"
               value={diseaseName}
               onChange={(e) => setDiseaseName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
               placeholder="e.g., Mitochondrial Disease"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="edit-progression" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="edit-progression" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               How Often to Check for Updates
             </label>
             <select
               id="edit-progression"
               value={progressionRate}
               onChange={(e) => setProgressionRate(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
               <option value="slow">Weekly (Stable conditions)</option>
               <option value="variable">Adaptive (Let AI decide)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               This controls how frequently agents search for new research
             </p>
           </div>
 
           <div>
-            <label htmlFor="edit-age" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="edit-age" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Patient Age Group
             </label>
             <select
               id="edit-age"
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="pediatric">Pediatric</option>
               <option value="adolescent">Adolescent</option>
@@ -458,7 +444,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="px-4 py-2 border border-[var(--color-border)] rounded-md shadow-sm text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               Cancel
             </button>

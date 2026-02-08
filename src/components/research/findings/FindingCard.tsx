@@ -33,14 +33,14 @@ interface FindingCardProps {
 export function FindingCard({ finding, onClick, className }: FindingCardProps) {
   return (
     <Card
-      className={`cursor-pointer hover:shadow-md transition-shadow ${className || ''}`}
+      className={`cursor-pointer border border-[var(--color-border-muted)] hover:shadow-md hover:border-primary-200/50 transition-all ${className || ''}`}
       onClick={() => onClick(finding)}
     >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-base line-clamp-2">{finding.title}</CardTitle>
         </div>
-        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+        <div className="flex gap-2 mt-2 text-xs text-[var(--color-text-muted)]">
           <span>{SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}</span>
           <span>-</span>
           <span>{finding.source.displayName || 'Research Database'}</span>
@@ -49,7 +49,7 @@ export function FindingCard({ finding, onClick, className }: FindingCardProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground line-clamp-3">
+        <p className="text-sm text-[var(--color-text-muted)] line-clamp-3">
           {finding.summary}
         </p>
       </CardContent>

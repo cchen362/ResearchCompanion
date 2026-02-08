@@ -79,12 +79,12 @@ export function ContextualCTAs({
         <button
           key={cta.id}
           onClick={cta.action}
-          className="flex items-center gap-3 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-primary-200 hover:shadow-md transition-all text-left"
+          className="flex items-center gap-3 p-4 bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)] hover:border-primary-200 hover:shadow-md transition-all text-left"
         >
           <div className="shrink-0">{cta.icon}</div>
           <div>
-            <div className="text-sm font-medium text-gray-900">{cta.label}</div>
-            <div className="text-xs text-gray-500">{cta.description}</div>
+            <div className="text-sm font-medium text-[var(--color-text-primary)]">{cta.label}</div>
+            <div className="text-xs text-[var(--color-text-muted)]">{cta.description}</div>
           </div>
         </button>
       ))}

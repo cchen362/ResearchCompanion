@@ -44,7 +44,7 @@ interface SheetContentProps {
 
 export function SheetContent({ className = '', children }: SheetContentProps) {
   return (
-    <div className={`bg-white h-full shadow-xl ${className}`}>
+    <div className={`bg-[var(--color-surface)] h-full shadow-xl rounded-l-xl ${className}`}>
       {children}
     </div>
   );
@@ -57,7 +57,7 @@ interface SheetHeaderProps {
 
 export function SheetHeader({ className = '', children }: SheetHeaderProps) {
   return (
-    <div className={`p-6 border-b ${className}`}>
+    <div className={`p-6 border-b border-[var(--color-border)] ${className}`}>
       {children}
     </div>
   );
@@ -83,7 +83,7 @@ interface SheetDescriptionProps {
 
 export function SheetDescription({ className = '', children }: SheetDescriptionProps) {
   return (
-    <p className={`text-sm text-gray-500 mt-1 ${className}`}>
+    <p className={`text-sm text-[var(--color-text-muted)] mt-1 ${className}`}>
       {children}
     </p>
   );

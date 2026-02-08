@@ -83,17 +83,17 @@ export function SuggestedQuestions({
     >
       {/* Sparkles Icon */}
       <div className="flex-shrink-0">
-        <Sparkles className="w-4 h-4 text-blue-500 animate-pulse-soft" />
+        <Sparkles className="w-4 h-4 text-primary-500 animate-pulse-soft" />
       </div>
 
       {/* Left Arrow */}
       {showLeftArrow && (
         <button
           onClick={() => handleScroll('left')}
-          className="flex-shrink-0 p-1 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-700/80 transition-all duration-200"
+          className="flex-shrink-0 p-1 rounded-full bg-[var(--color-surface)]/80 backdrop-blur-sm border border-[var(--color-border)]/60 hover:bg-[var(--color-surface-sunken)] transition-all duration-200"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+          <ChevronLeft className="w-3 h-3 text-[var(--color-text-secondary)]" />
         </button>
       )}
 
@@ -109,15 +109,15 @@ export function SuggestedQuestions({
             onClick={() => handleQuestionClick(question)}
             className={cn(
               "flex-shrink-0 text-xs px-3 py-1.5",
-              "bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm",
-              "border border-gray-200/60 dark:border-gray-700/60",
+              "bg-[var(--color-surface)]/90 backdrop-blur-sm",
+              "border border-[var(--color-border)]/60",
               "rounded-full",
-              "hover:bg-blue-50 dark:hover:bg-blue-900/20",
-              "hover:border-blue-300 dark:hover:border-blue-700",
+              "hover:bg-primary-50",
+              "hover:border-primary-200",
               "cursor-pointer transition-all duration-200",
               "hover:scale-[1.02] hover:shadow-sm",
-              "text-gray-700 dark:text-gray-300",
-              "hover:text-blue-700 dark:hover:text-blue-400",
+              "text-[var(--color-text-secondary)]",
+              "hover:text-primary-700",
               "animate-slide-up-fade"
             )}
             style={{
@@ -133,20 +133,11 @@ export function SuggestedQuestions({
       {showRightArrow && (
         <button
           onClick={() => handleScroll('right')}
-          className="flex-shrink-0 p-1 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-700/80 transition-all duration-200"
+          className="flex-shrink-0 p-1 rounded-full bg-[var(--color-surface)]/80 backdrop-blur-sm border border-[var(--color-border)]/60 hover:bg-[var(--color-surface-sunken)] transition-all duration-200"
           aria-label="Scroll right"
         >
-          <ChevronRight className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+          <ChevronRight className="w-3 h-3 text-[var(--color-text-secondary)]" />
         </button>
-      )}
-
-      {/* Auto-hide indicator */}
-      {autoHideDelay > 0 && !isHovered && (
-        <div className="absolute -top-1 right-4">
-          <div className="text-[10px] text-gray-400 dark:text-gray-600 animate-pulse">
-            auto-hide
-          </div>
-        </div>
       )}
     </div>
   );

@@ -26,7 +26,7 @@ export function SourceStatsBar({ breakdown, totalFindings, className = '' }: Sou
         {stats.map(({ type, count }) => (
           <div
             key={type}
-            className="flex flex-col items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800 min-w-[80px]"
+            className="flex flex-col items-center p-3 rounded-lg bg-[var(--color-surface-sunken)] min-w-[80px]"
           >
             <SourceIcon type={type} size="md" />
             <span className="text-lg font-bold mt-1">{count}</span>

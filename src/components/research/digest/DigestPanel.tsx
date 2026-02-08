@@ -87,11 +87,11 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFindin
       <Card className="p-8 text-center">
         <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
         <CardTitle className="mb-2">Generating AI-Powered Insights</CardTitle>
-        <p className="text-muted-foreground mb-4">
+        <p className="text-[var(--color-text-muted)] mb-4">
           Analyzing {filteredFindingsCount} findings to create your personalized digest...
         </p>
         <Progress value={progress} className="max-w-xs mx-auto" />
-        <p className="text-xs text-muted-foreground mt-2">{message || 'Processing...'}</p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">{message || 'Processing...'}</p>
       </Card>
     );
   }
@@ -101,8 +101,8 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFindin
   if (isLoading && !digest && !isGenerating) {
     return (
       <Card className="p-8 text-center">
-        <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
-        <p className="text-muted-foreground">Loading digest...</p>
+        <Sparkles className="h-12 w-12 mx-auto mb-4 text-[var(--color-text-muted)] animate-pulse" />
+        <p className="text-[var(--color-text-muted)]">Loading digest...</p>
       </Card>
     );
   }
@@ -142,7 +142,7 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFindin
           </div>
           <div className="text-center space-y-2">
             <CardTitle className="text-xl">Ready to Generate Insights</CardTitle>
-            <p className="text-muted-foreground max-w-md mx-auto">
+            <p className="text-[var(--color-text-muted)] max-w-md mx-auto">
               Transform your {filteredFindingsCount} research findings into an AI-powered digest
               with breakthroughs and actionable insights.
             </p>

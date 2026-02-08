@@ -57,7 +57,7 @@ export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
   // Loading state
   if (isLoading) {
     return (
-      <Card className="p-12 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+      <Card className="p-12 bg-gradient-to-br from-primary-50/50 to-primary-100/30">
         <div className="flex flex-col items-center justify-center gap-4">
           <div className="relative">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -65,7 +65,7 @@ export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
           </div>
           <div className="text-center space-y-2">
             <h3 className="text-lg font-semibold">Loading Research Findings</h3>
-            <p className="text-sm text-muted-foreground max-w-md">
+            <p className="text-sm text-[var(--color-text-muted)] max-w-md">
               We're gathering the latest research data for your topic...
             </p>
           </div>
@@ -83,7 +83,7 @@ export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
   // List view - use filteredFindings
   if (viewMode === 'list') {
     return (
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filteredFindings.map((finding) => (
           <FindingCard
             key={finding.id}

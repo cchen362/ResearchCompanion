@@ -192,7 +192,7 @@ export function DigestCard({
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mb-2">
+              <p className="text-sm text-[var(--color-text-muted)] mb-2">
                 Updated {formatDistanceToNow(digest.generatedAt, { addSuffix: true })}
                 {digest.cacheMetadata?.deduplicated && (
                   <span className="ml-2 text-primary">
@@ -230,7 +230,7 @@ export function DigestCard({
             {/* Source Stats Inline */}
             {digest.sourceBreakdown && (
               <div className="flex items-center gap-2 flex-wrap text-xs">
-                <span className="text-muted-foreground font-medium">{digest.statistics.totalFindings} findings:</span>
+                <span className="text-[var(--color-text-muted)] font-medium">{digest.statistics.totalFindings} findings:</span>
                 {digest.sourceBreakdown.pubmed > 0 && (
                   <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 rounded-full px-2.5 py-0.5">
                     <BookOpen className="h-3 w-3" />
@@ -250,7 +250,7 @@ export function DigestCard({
                   </span>
                 )}
                 {digest.sourceBreakdown.web > 0 && (
-                  <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full px-2.5 py-0.5">
+                  <span className="inline-flex items-center gap-1 bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] rounded-full px-2.5 py-0.5">
                     <Globe className="h-3 w-3" />
                     {digest.sourceBreakdown.web} Web
                   </span>
@@ -271,7 +271,7 @@ export function DigestCard({
 
             {/* Fallback to old Key Insight if no featured discovery */}
             {!digest.featuredDiscovery && (
-              <div className="p-4 bg-background/50 rounded-lg border">
+              <div className="p-4 bg-[var(--color-surface)]/50 rounded-lg border">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <Lightbulb className="h-4 w-4 text-yellow-500" />
                   Key Insight
@@ -296,7 +296,7 @@ export function DigestCard({
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Also In This Digest</CardTitle>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-[var(--color-text-muted)]">
                 {digest.topFindings.length} of {digest.statistics.totalFindings}
               </span>
             </div>
@@ -398,7 +398,7 @@ export function DigestCard({
               {digest.breakthroughs.map(breakthrough => (
                 <div
                   key={breakthrough.id}
-                  className="p-3 bg-background/80 rounded-lg border"
+                  className="p-3 bg-[var(--color-surface)]/80 rounded-lg border"
                 >
                   <div className="flex items-start justify-between mb-1">
                     <h4 className="font-semibold text-sm">{resolveText(breakthrough.title, explanationMode)}</h4>
@@ -415,10 +415,10 @@ export function DigestCard({
                       {breakthrough.impact.replace('-', ' ')}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[var(--color-text-muted)]">
                     {resolveText(breakthrough.description, explanationMode)}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
                     Source: {breakthrough.source}
                   </p>
                 </div>
@@ -452,14 +452,14 @@ export function DigestCard({
           </CardHeader>
           {expandedSections.has('questions') && (
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-[var(--color-text-muted)] mb-4">
                 Use these evidence-based questions at your next appointment.
               </p>
               <div className="space-y-2">
                 {digest.questionsForDoctor.map((question, index) => (
                   <div
                     key={index}
-                    className="p-3 bg-background/80 rounded-md border border-border/50"
+                    className="p-3 bg-[var(--color-surface)]/80 rounded-md border border-[var(--color-border)]/50"
                   >
                     <p className="text-sm leading-relaxed">
                       "{resolveText(question, explanationMode)}"
@@ -482,14 +482,14 @@ export function DigestCard({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
               Based on the research, be aware of these signs:
             </p>
             <div className="space-y-2">
               {digest.warningSigns.map((sign, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-3 p-3 bg-background/80 rounded-md"
+                  className="flex items-start gap-3 p-3 bg-[var(--color-surface)]/80 rounded-md"
                 >
                   <span className="text-amber-600 mt-0.5">●</span>
                   <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
@@ -498,7 +498,7 @@ export function DigestCard({
                 </div>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground italic mt-4">
+            <p className="text-sm text-[var(--color-text-muted)] italic mt-4">
               If you experience any of these symptoms, contact your healthcare provider promptly.
             </p>
           </CardContent>
@@ -519,7 +519,7 @@ export function DigestCard({
               {digest.contradictions.map(contradiction => (
                 <div
                   key={contradiction.id}
-                  className="p-3 bg-background/80 rounded-lg border"
+                  className="p-3 bg-[var(--color-surface)]/80 rounded-lg border"
                 >
                   <h4 className="font-semibold text-sm mb-2">
                     {resolveText(contradiction.topic, explanationMode)}
@@ -527,19 +527,19 @@ export function DigestCard({
                   <div className="space-y-2">
                     <div className="pl-3 border-l-2 border-red-300">
                       <p className="text-sm">{resolveText(contradiction.findingA.claim, explanationMode)}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[var(--color-text-muted)]">
                         — {contradiction.findingA.source}
                       </p>
                     </div>
                     <div className="pl-3 border-l-2 border-blue-300">
                       <p className="text-sm">{resolveText(contradiction.findingB.claim, explanationMode)}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[var(--color-text-muted)]">
                         — {contradiction.findingB.source}
                       </p>
                     </div>
                   </div>
                   {contradiction.explanation && (
-                    <p className="text-xs text-muted-foreground mt-2 italic">
+                    <p className="text-xs text-[var(--color-text-muted)] mt-2 italic">
                       Note: {resolveText(contradiction.explanation, explanationMode)}
                     </p>
                   )}

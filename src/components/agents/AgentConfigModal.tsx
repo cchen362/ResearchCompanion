@@ -41,67 +41,67 @@ export default function AgentConfigModal({ agent, onClose, onUpdate }: AgentConf
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-[var(--color-surface)] rounded-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">
           Configure {formatAgentType(agent.type)}
         </h3>
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="frequency" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="frequency" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Update Frequency
             </label>
             <select
               id="frequency"
               value={updateFrequency}
               onChange={(e) => setUpdateFrequency(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="hourly">Hourly</option>
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="adaptive">Adaptive (AI decides)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               How often this agent searches for new information
             </p>
           </div>
 
           <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="priority" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Priority
             </label>
             <select
               id="priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               Higher priority agents run first when resources are limited
             </p>
           </div>
 
           <div>
-            <label htmlFor="depth" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="depth" className="block text-sm font-medium text-[var(--color-text-secondary)]">
               Search Depth
             </label>
             <select
               id="depth"
               value={searchDepth}
               onChange={(e) => setSearchDepth(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-[var(--color-border)] rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border bg-[var(--color-surface)]"
             >
               <option value="shallow">Shallow (Quick scan)</option>
               <option value="standard">Standard (Balanced)</option>
               <option value="deep">Deep (Comprehensive)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               Deeper searches find more results but cost more
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function AgentConfigModal({ agent, onClose, onUpdate }: AgentConf
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            className="px-4 py-2 border border-[var(--color-border)] rounded-md shadow-sm text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             Cancel
           </button>

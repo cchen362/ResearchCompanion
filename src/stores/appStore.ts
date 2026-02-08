@@ -107,16 +107,11 @@ interface AppStore {
   reset: () => void;
 }
 
-// Apply theme to document
-const applyTheme = (theme: Theme) => {
-  const isDark = theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-  if (isDark) {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
+// Dark mode handled by CSS @media (prefers-color-scheme: dark)
+// No class toggling needed — Tailwind darkMode: 'media' uses native CSS
+const applyTheme = (_theme: Theme) => {
+  // Intentionally empty — CSS custom properties in index.css
+  // handle light/dark via @media (prefers-color-scheme: dark)
 };
 
 export const useAppStore = create<AppStore>()(

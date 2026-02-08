@@ -157,9 +157,9 @@ export function ResearchContainer({
   if (topics.length === 0) {
     return (
       <Card className="p-8 text-center">
-        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-[var(--color-text-muted)]" />
         <CardTitle className="mb-2">No Research Topics</CardTitle>
-        <p className="text-muted-foreground">
+        <p className="text-[var(--color-text-muted)]">
           Add a research topic to start tracking medical findings.
         </p>
       </Card>
@@ -208,7 +208,7 @@ export function ResearchContainer({
 
       {/* Hydration Loading */}
       {!isHydrated ? (
-        <Card className="p-12 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+        <Card className="p-12 bg-gradient-to-br from-primary-50/50 to-primary-100/30">
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="relative">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -216,7 +216,7 @@ export function ResearchContainer({
             </div>
             <div className="text-center space-y-2">
               <h3 className="text-lg font-semibold">Loading Saved Data</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
+              <p className="text-sm text-[var(--color-text-muted)] max-w-md">
                 Retrieving your research findings and insights...
               </p>
             </div>

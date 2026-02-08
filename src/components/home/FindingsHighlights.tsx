@@ -21,11 +21,11 @@ export function FindingsHighlights({ findings, onViewAllFindings }: FindingsHigh
   if (findings.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)]">
+      <div className="px-5 py-4 border-b border-[var(--color-border-muted)] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary-600" />
-          <h3 className="font-semibold text-gray-900">Unread Findings</h3>
+          <h3 className="font-semibold text-[var(--color-text-primary)]">Unread Findings</h3>
           <span className="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-xs font-medium">
             {findings.length}
           </span>
@@ -37,7 +37,7 @@ export function FindingsHighlights({ findings, onViewAllFindings }: FindingsHigh
           View all <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-[var(--color-border-muted)]">
         {findings.map(finding => {
           const source = typeof finding.source === 'string'
             ? JSON.parse(finding.source)
@@ -48,12 +48,12 @@ export function FindingsHighlights({ findings, onViewAllFindings }: FindingsHigh
           return (
             <div
               key={finding.id}
-              className="px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+              className="px-5 py-3 hover:bg-[var(--color-surface-sunken)] cursor-pointer transition-colors"
               onClick={onViewAllFindings}
             >
-              <h4 className="text-sm font-medium text-gray-900 line-clamp-1">{finding.title}</h4>
-              <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{finding.summary}</p>
-              <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+              <h4 className="text-sm font-medium text-[var(--color-text-primary)] line-clamp-1">{finding.title}</h4>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-1">{finding.summary}</p>
+              <div className="mt-1 flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                 <span>{sourceLabel}</span>
                 <span>{new Date(finding.created_at).toLocaleDateString()}</span>
               </div>

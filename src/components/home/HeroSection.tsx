@@ -58,9 +58,9 @@ export function HeroSection({
   const { headline, message, showAction } = getHeroContent();
 
   return (
-    <div className="bg-gradient-to-r from-primary-50 to-primary-100/30 border border-primary-200/50 rounded-xl p-6">
-      <h2 className="text-xl font-semibold text-gray-900">{headline}</h2>
-      <p className="mt-2 text-gray-600">{message}</p>
+    <div className="bg-gradient-to-r from-primary-50 to-primary-100/30 border border-primary-200/50 rounded-xl p-8">
+      <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">{headline}</h2>
+      <p className="mt-2 text-[var(--color-text-secondary)]">{message}</p>
       {showAction && (
         <div className="mt-4 flex items-center gap-3">
           <button
@@ -71,7 +71,7 @@ export function HeroSection({
           </button>
           <button
             onClick={onMarkAllRead}
-            className="px-4 py-2 text-gray-600 text-sm font-medium hover:text-gray-800 transition-colors"
+            className="px-4 py-2 text-[var(--color-text-secondary)] text-sm font-medium hover:text-[var(--color-text-primary)] transition-colors"
           >
             Mark all as read
           </button>

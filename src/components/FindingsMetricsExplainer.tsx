@@ -188,7 +188,7 @@ export function ScoreDisplay({ label, score, max, metric, className = '' }: Scor
         </span>
         <span className="text-sm font-semibold">{score.toFixed(1)}/{max}</span>
       </div>
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+      <div className="w-full bg-[var(--color-border)] rounded-full h-2">
         <div
           className={`h-2 rounded-full transition-all ${getColorClass()}`}
           style={{ width: `${percentage}%` }}

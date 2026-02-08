@@ -47,7 +47,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 h-full w-full md:w-[500px] bg-white shadow-xl transform transition-transform z-50 ${
+        className={`fixed right-0 top-0 h-full w-full md:w-[500px] bg-[var(--color-surface)] shadow-xl rounded-l-xl transform transition-transform z-50 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -56,7 +56,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
           <div className="px-6 py-4 border-b bg-gradient-to-r from-primary-50 to-primary-100/30">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h2 className="text-xl font-semibold text-gray-900 pr-4">
+                <h2 className="text-xl font-semibold text-[var(--color-text-primary)] pr-4">
                   {finding.title}
                 </h2>
                 <div className="flex items-center gap-4 mt-2">
@@ -69,7 +69,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
               </div>
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1 rounded-lg hover:bg-[var(--color-surface-sunken)] transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -91,37 +91,37 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
 
             {/* Study Details */}
             <div>
-              <h3 className="font-medium text-gray-900 mb-3">Study Information</h3>
+              <h3 className="font-medium text-[var(--color-text-primary)] mb-3">Study Information</h3>
               <div className="space-y-2">
                 <div className="flex items-start gap-3">
-                  <FileText className="h-4 w-4 text-gray-400 mt-1" />
+                  <FileText className="h-4 w-4 text-[var(--color-text-muted)] mt-1" />
                   <div className="flex-1">
-                    <span className="text-sm text-gray-600">Study Type:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-900">{studyDetails.type}</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">Study Type:</span>
+                    <span className="ml-2 text-sm font-medium text-[var(--color-text-primary)]">{studyDetails.type}</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Users className="h-4 w-4 text-gray-400 mt-1" />
+                  <Users className="h-4 w-4 text-[var(--color-text-muted)] mt-1" />
                   <div className="flex-1">
-                    <span className="text-sm text-gray-600">Participants:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-900">{studyDetails.participants}</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">Participants:</span>
+                    <span className="ml-2 text-sm font-medium text-[var(--color-text-primary)]">{studyDetails.participants}</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Calendar className="h-4 w-4 text-gray-400 mt-1" />
+                  <Calendar className="h-4 w-4 text-[var(--color-text-muted)] mt-1" />
                   <div className="flex-1">
-                    <span className="text-sm text-gray-600">Published:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-900">{studyDetails.publicationDate}</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">Published:</span>
+                    <span className="ml-2 text-sm font-medium text-[var(--color-text-primary)]">{studyDetails.publicationDate}</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Shield className="h-4 w-4 text-gray-400 mt-1" />
+                  <Shield className="h-4 w-4 text-[var(--color-text-muted)] mt-1" />
                   <div className="flex-1">
-                    <span className="text-sm text-gray-600">Source:</span>
-                    <span className="ml-2 text-sm font-medium text-gray-900">{finding.source.displayName || 'Research Database'}</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">Source:</span>
+                    <span className="ml-2 text-sm font-medium text-[var(--color-text-primary)]">{finding.source.displayName || 'Research Database'}</span>
                   </div>
                 </div>
               </div>
@@ -143,10 +143,10 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
             {/* Limitations */}
             {finding.limitations && finding.limitations.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-900 mb-2">Study Limitations</h3>
+                <h3 className="font-medium text-[var(--color-text-primary)] mb-2">Study Limitations</h3>
                 <ul className="list-disc list-inside space-y-1">
                   {finding.limitations.map((limitation, index) => (
-                    <li key={index} className="text-sm text-gray-600">
+                    <li key={index} className="text-sm text-[var(--color-text-secondary)]">
                       {limitation}
                     </li>
                   ))}
@@ -157,12 +157,12 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
             {/* Related Keywords */}
             {finding.keywords && finding.keywords.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-900 mb-2">Related Topics</h3>
+                <h3 className="font-medium text-[var(--color-text-primary)] mb-2">Related Topics</h3>
                 <div className="flex flex-wrap gap-2">
                   {finding.keywords.map((keyword, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
+                      className="px-2 py-1 text-xs bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] rounded-full"
                     >
                       {keyword}
                     </span>
@@ -173,14 +173,14 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
 
             {/* Source Links */}
             <div className="border-t pt-4">
-              <h3 className="font-medium text-gray-900 mb-3">Access Full Study</h3>
+              <h3 className="font-medium text-[var(--color-text-primary)] mb-3">Access Full Study</h3>
               <div className="space-y-2">
                 {finding.source?.url && (
                   <a
                     href={finding.source.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+                    className="flex items-center gap-2 text-primary-600 hover:text-primary-800 transition-colors"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span className="text-sm">View on {finding.source.displayName || 'Research Database'}</span>
@@ -191,7 +191,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                     href={`https://doi.org/${studyDetails.doi}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+                    className="flex items-center gap-2 text-primary-600 hover:text-primary-800 transition-colors"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span className="text-sm">DOI: {studyDetails.doi}</span>
@@ -202,7 +202,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                     href={`https://pubmed.ncbi.nlm.nih.gov/${studyDetails.pubmedId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+                    className="flex items-center gap-2 text-primary-600 hover:text-primary-800 transition-colors"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span className="text-sm">PubMed: {studyDetails.pubmedId}</span>
@@ -213,7 +213,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
           </div>
 
           {/* Footer Actions */}
-          <div className="px-6 py-4 border-t bg-gray-50">
+          <div className="px-6 py-4 border-t bg-[var(--color-surface-sunken)]">
             <div className="flex gap-3">
               {onAddToChat && (
                 <button
@@ -228,7 +228,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
               )}
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-border)] transition-colors"
               >
                 Close
               </button>

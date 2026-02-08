@@ -196,7 +196,7 @@ export default function AgentMonitor() {
       case 'scheduled':
         return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)]';
     }
   };
 
@@ -226,11 +226,11 @@ export default function AgentMonitor() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg px-4 py-5 sm:px-6">
+      <div className="bg-[var(--color-surface)] shadow-sm rounded-lg px-4 py-5 sm:px-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-lg leading-6 font-medium text-gray-900">Autonomous Agents</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-lg leading-6 font-medium text-[var(--color-text-primary)]">Autonomous Agents</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
               Monitor and manage your research agents
             </p>
           </div>
@@ -259,12 +259,12 @@ export default function AgentMonitor() {
       {/* Agents Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map(agent => (
-          <div key={agent.id} className="bg-white shadow rounded-lg overflow-hidden">
+          <div key={agent.id} className="bg-[var(--color-surface)] shadow-sm rounded-lg overflow-hidden border border-[var(--color-border-muted)]">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center mb-4">
                 <span className="text-2xl mr-2">{getTypeIcon(agent.type)}</span>
                 <div className="flex-1">
-                  <h3 className="text-sm font-medium text-gray-900">{agent.name}</h3>
+                  <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{agent.name}</h3>
                   {AGENT_TYPE_CONFIG[agent.type]?.sourceTypes.length > 0 && (
                     <div className="flex items-center gap-2 mt-0.5">
                       {AGENT_TYPE_CONFIG[agent.type].sourceTypes.map(st => (
@@ -280,11 +280,11 @@ export default function AgentMonitor() {
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-[var(--color-text-secondary)] mb-4">
                 {agent.description || AGENT_TYPE_CONFIG[agent.type]?.description || ''}
               </p>
 
-              <div className="space-y-2 text-xs text-gray-500">
+              <div className="space-y-2 text-xs text-[var(--color-text-muted)]">
                 <div className="flex justify-between">
                   <span>Update Frequency:</span>
                   <span className="font-medium">{agent.config.updateFrequency}</span>
@@ -337,16 +337,16 @@ export default function AgentMonitor() {
                 </button>
                 <button
                   onClick={() => setConfiguringAgent(agent)}
-                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-[var(--color-border)] text-xs font-medium rounded-md text-[var(--color-text-secondary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Configure
                 </button>
               </div>
 
               {agent.learningProfile && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs font-medium text-gray-700 mb-2">Learning Profile</p>
-                  <div className="space-y-1 text-xs text-gray-500">
+                <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">Learning Profile</p>
+                  <div className="space-y-1 text-xs text-[var(--color-text-muted)]">
                     <div className="flex justify-between">
                       <span>Click Rate:</span>
                       <span>{(agent.learningProfile.userInteractionPatterns.clickRate * 100).toFixed(1)}%</span>
@@ -366,8 +366,8 @@ export default function AgentMonitor() {
       </div>
 
       {agents.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <p className="text-gray-500">No agents configured yet. Add a topic to create agents automatically.</p>
+        <div className="text-center py-12 bg-[var(--color-surface)] rounded-lg shadow-sm border border-[var(--color-border-muted)]">
+          <p className="text-[var(--color-text-muted)]">No agents configured yet. Add a topic to create agents automatically.</p>
         </div>
       )}
 

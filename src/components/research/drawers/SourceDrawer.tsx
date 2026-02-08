@@ -149,7 +149,7 @@ export function SourceDrawer({
       case 'medium':
         return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950';
       case 'low':
-        return 'text-gray-600 bg-gray-50 dark:bg-gray-950';
+        return 'text-[var(--color-text-secondary)] bg-[var(--color-surface-sunken)]';
       default:
         return '';
     }
@@ -173,7 +173,7 @@ export function SourceDrawer({
           <SheetTitle>
             Research Sources
             {digestThemeName && (
-              <span className="text-muted-foreground font-normal ml-2">
+              <span className="text-[var(--color-text-muted)] font-normal ml-2">
                 for "{digestThemeName}"
               </span>
             )}
@@ -187,7 +187,7 @@ export function SourceDrawer({
           {/* Search and Filters */}
           <div className="space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-muted)]" />
               <Input
                 placeholder="Search findings..."
                 value={searchQuery}
@@ -210,7 +210,7 @@ export function SourceDrawer({
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="px-3 py-1 text-sm border rounded-md bg-background"
+                className="px-3 py-1 text-sm border rounded-md bg-[var(--color-surface)]"
               >
                 <option value="all">All Sources</option>
                 <option value="pubmed">PubMed</option>
@@ -222,7 +222,7 @@ export function SourceDrawer({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-1 text-sm border rounded-md bg-background"
+                className="px-3 py-1 text-sm border rounded-md bg-[var(--color-surface)]"
               >
                 <option value="date">Sort by Date</option>
                 <option value="type">Sort by Source</option>
@@ -276,7 +276,7 @@ export function SourceDrawer({
                                 </Badge>
                               )}
                               {digestFindingIds?.includes(finding.id) && featuredFindingId !== finding.id && (
-                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-xs text-[var(--color-text-muted)]">
                                   In Digest
                                 </Badge>
                               )}
@@ -316,12 +316,12 @@ export function SourceDrawer({
                         </div>
 
                         {/* Summary */}
-                        <p className="text-sm text-muted-foreground line-clamp-2">
+                        <p className="text-sm text-[var(--color-text-muted)] line-clamp-2">
                           {finding.summary}
                         </p>
 
                         {/* Metadata */}
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                           <div className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
                             {finding.source.displayName || 'Research Database'}
@@ -349,24 +349,24 @@ export function SourceDrawer({
                                       <div className="space-y-2">
                                         {parsed.keyFinding && (
                                           <div>
-                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Key Finding</h4>
+                                            <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">Key Finding</h4>
                                             <p className="text-sm">{parsed.keyFinding}</p>
                                           </div>
                                         )}
                                         {parsed.method && (
                                           <div>
-                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Method</h4>
+                                            <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">Method</h4>
                                             <p className="text-sm">{parsed.method}</p>
                                           </div>
                                         )}
                                         {parsed.implications && (
                                           <div>
-                                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Why It Matters</h4>
+                                            <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">Why It Matters</h4>
                                             <p className="text-sm">{parsed.implications}</p>
                                           </div>
                                         )}
                                         {parsed.source && (
-                                          <p className="text-xs text-muted-foreground italic">{parsed.source}</p>
+                                          <p className="text-xs text-[var(--color-text-muted)] italic">{parsed.source}</p>
                                         )}
                                       </div>
                                     );
@@ -378,7 +378,7 @@ export function SourceDrawer({
                                 return (
                                   <div>
                                     <h4 className="text-sm font-medium mb-1">Full Details</h4>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                    <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-wrap">
                                       {finding.details.replace(/[#*`_]/g, '').trim()}
                                     </p>
                                   </div>
@@ -409,7 +409,7 @@ export function SourceDrawer({
 
                             {finding.source.url && (
                               <div className="flex items-center justify-between">
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-[var(--color-text-muted)]">
                                   {finding.source.authors?.join(', ')}
                                 </div>
                                 <Button
@@ -431,7 +431,7 @@ export function SourceDrawer({
               })}
 
               {sortedFindings.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-[var(--color-text-muted)]">
                   <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">No findings match your filters.</p>
                 </div>
@@ -454,7 +454,7 @@ export function SourceDrawer({
                         {sourceFindings.map(finding => (
                           <div
                             key={finding.id}
-                            className="p-2 bg-muted/50 rounded-md cursor-pointer hover:bg-muted/70"
+                            className="p-2 bg-[var(--color-surface-sunken)]/50 rounded-md cursor-pointer hover:bg-[var(--color-surface-sunken)]/70"
                             onClick={() => toggleFinding(finding.id)}
                           >
                             <div className="flex items-center justify-between">
@@ -463,7 +463,7 @@ export function SourceDrawer({
                                   {finding.title}
                                 </p>
                                 {finding.summary && (
-                                  <p className="text-xs text-muted-foreground line-clamp-1">
+                                  <p className="text-xs text-[var(--color-text-muted)] line-clamp-1">
                                     {finding.summary}
                                   </p>
                                 )}
@@ -471,7 +471,7 @@ export function SourceDrawer({
                                   <Badge variant="outline" className="text-xs">
                                     {SOURCE_CONFIG[getSourceCategory(finding.source?.type)].label}
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs text-[var(--color-text-muted)]">
                                     {formatDistanceToNow(finding.timestamp, {
                                       addSuffix: true
                                     })}
@@ -479,7 +479,7 @@ export function SourceDrawer({
                                 </div>
                               </div>
                               {finding.source.url && (
-                                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                <ExternalLink className="h-3 w-3 text-[var(--color-text-muted)]" />
                               )}
                             </div>
                           </div>
