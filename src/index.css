@@ -234,39 +234,31 @@ body {
   display: none;  /* Chrome, Safari and Opera */
 }
 
-/* Auth page gradient animation (Plan 016) */
-@keyframes auth-gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
+/* Auth page — dark base + animated orbs (Plan 016) */
 .auth-gradient-bg {
-  background: linear-gradient(
-    135deg,
-    #1a2a6c 0%,
-    #2054d9 25%,
-    #3b6cf2 50%,
-    #1a45b8 75%,
-    #0f1a4a 100%
-  );
-  background-size: 300% 300%;
-  animation: auth-gradient-shift 12s ease-in-out infinite;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   .auth-gradient-bg {
-    background: linear-gradient(
-      135deg,
-      #0a0e1a 0%,
-      #1c3160 25%,
-      #264694 50%,
-      #152240 75%,
-      #0a0e13 100%
-    );
-    background-size: 300% 300%;
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
   }
+}
+
+@keyframes auth-orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+@keyframes auth-orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-25px, 30px) scale(1.1); }
+  66% { transform: translate(35px, -15px) scale(0.9); }
+}
+
+@keyframes auth-orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, 25px) scale(1.08); }
+  66% { transform: translate(-30px, -20px) scale(0.95); }
 }
