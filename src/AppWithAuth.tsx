@@ -10,8 +10,7 @@ import AgentMonitor from './components/agents/AgentMonitor';
 import { ResearchPage } from './components/research';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ChatPanel } from './components/ChatPanel';
-import { LoginPage } from './components/auth/LoginPage';
-import { RegisterPage } from './components/auth/RegisterPage';
+import { AuthPage } from './components/auth/AuthPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import NotificationCenter from './components/NotificationCenter';
 import { useUIStore } from './stores/uiStore';
@@ -398,8 +397,8 @@ export default function AppWithAuth() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
         <Route
           path="/"
           element={

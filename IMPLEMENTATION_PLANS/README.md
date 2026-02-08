@@ -37,6 +37,9 @@ Each implementation plan includes:
 | 013 | [Dashboard Home Redesign](./013_DASHBOARD_HOME_REDESIGN.md) | Complete | Merge Dashboard + Research Insights into unified Home page |
 | 014 | [UI/UX Design System Overhaul](./014_UI_UX_DESIGN_SYSTEM_OVERHAUL.md) | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign |
 | 015a | [Layout & Spatial Design](./015a_LAYOUT_SPATIAL_DESIGN.md) | Complete | Bento grid home, chat push/reflow, wider containers, improved grid density for all pages |
+| 015b | [Layout & Spatial Design (Refinements)](./015b_LAYOUT_SPATIAL_REFINEMENTS.md) | Complete | Digest TOC sidebar, drawer/chat mutual exclusivity, home page bottom row, bento grid polish |
+| 015c | [Companion Intelligence](./015c_COMPANION_INTELLIGENCE.md) | Ready | Research Pulse + Worth Revisiting AI features for home page |
+| 016 | [Auth Page UI Redesign](./016_AUTH_PAGE_REDESIGN.md) | **Ready** | Split layout auth page with pill toggle, gradient branding panel, browser tab fix |
 
 ## How to Use
 
@@ -58,4 +61,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 8, 2026*
-*Latest Plan: 015a - Layout & Spatial Design*
+*Latest Plan: 016 - Auth Page UI Redesign*
