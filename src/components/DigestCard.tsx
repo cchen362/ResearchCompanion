@@ -35,6 +35,18 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 
+/** Section IDs for scroll-spy and TOC navigation */
+export const DIGEST_SECTION_IDS = {
+  header: 'digest-header',
+  topFindings: 'digest-top-findings',
+  takeaways: 'digest-takeaways',
+  breakthroughs: 'digest-breakthroughs',
+  questions: 'digest-questions',
+  warningSigns: 'digest-warning-signs',
+  contradictions: 'digest-contradictions',
+  sources: 'digest-sources',
+} as const;
+
 /** Resolve a DualModeText object to its technical or explained string */
 function resolveText(item: DualModeText, mode: ExplanationMode): string {
   return mode === 'technical' ? item.technical : item.explained;
@@ -158,7 +170,7 @@ export function DigestCard({
   return (
     <div className="space-y-4">
       {/* Header Card with Executive Summary */}
-      <Card className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-transparent">
+      <Card id={DIGEST_SECTION_IDS.header} className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -292,7 +304,7 @@ export function DigestCard({
 
       {/* Also In This Digest */}
       {digest.topFindings && digest.topFindings.length > 0 && (
-        <Card>
+        <Card id={DIGEST_SECTION_IDS.topFindings}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Also In This Digest</CardTitle>
@@ -352,7 +364,7 @@ export function DigestCard({
 
       {/* Key Takeaways */}
       {digest.keyTakeaways.length > 0 && (
-        <Card>
+        <Card id={DIGEST_SECTION_IDS.takeaways}>
           <CardHeader
             className="cursor-pointer"
             onClick={() => toggleSection('takeaways')}
@@ -386,7 +398,7 @@ export function DigestCard({
 
       {/* Breakthroughs */}
       {digest.breakthroughs && digest.breakthroughs.length > 0 && (
-        <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+        <Card id={DIGEST_SECTION_IDS.breakthroughs} className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
@@ -430,7 +442,7 @@ export function DigestCard({
 
       {/* Questions for Doctor */}
       {digest.questionsForDoctor && digest.questionsForDoctor.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+        <Card id={DIGEST_SECTION_IDS.questions} className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
           <CardHeader
             className="cursor-pointer"
             onClick={() => toggleSection('questions')}
@@ -474,7 +486,7 @@ export function DigestCard({
 
       {/* Warning Signs */}
       {digest.warningSigns && digest.warningSigns.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+        <Card id={DIGEST_SECTION_IDS.warningSigns} className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -507,7 +519,7 @@ export function DigestCard({
 
       {/* Contradictions/Conflicts */}
       {digest.contradictions && digest.contradictions.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-950/20">
+        <Card id={DIGEST_SECTION_IDS.contradictions} className="border-yellow-200 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-950/20">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
@@ -559,7 +571,7 @@ export function DigestCard({
       {/* Will be replaced with real temporal analysis when we have actual historical data */}
 
       {/* View All Sources Button */}
-      <div className="flex justify-center">
+      <div id={DIGEST_SECTION_IDS.sources} className="flex justify-center">
         <Button
           variant="outline"
           onClick={onViewSources}

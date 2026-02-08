@@ -6,3 +6,4 @@
 export { DigestProgress } from './DigestProgress';
 export { DigestActions } from './DigestActions';
 export { DigestPanel } from './DigestPanel';
+export { DigestTOC } from './DigestTOC';

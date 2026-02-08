@@ -16,6 +16,7 @@ import { DigestCard } from '@/components/DigestCard';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Brain, Info, Sparkles } from 'lucide-react';
+import { DigestTOC } from './DigestTOC';
 
 // ============================================
 // Types
@@ -110,23 +111,31 @@ export function DigestPanel({ topicId, onViewSources, onThemeClick, onViewFindin
   // Show digest if available
   if (digest && !isLoading) {
     return (
-      <div className="space-y-4">
-        <DigestCard
-          digest={digest}
-          explanationMode={explanationMode}
-          setExplanationMode={setExplanationMode}
-          onThemeClick={handleThemeClick}
-          onViewSources={onViewSources}
-          onViewFinding={onViewFinding}
-        />
-        <DigestActions
-          canGenerate={filteredFindingsCount > 0}
-          isGenerating={isGenerating}
-          hasDigest={true}
-          onGenerate={handleGenerate}
-          onRefresh={handleRefresh}
-          findingsCount={filteredFindingsCount}
-        />
+      <div className="flex gap-6">
+        {/* TOC Sidebar — visible only on xl (1280px+) */}
+        <aside className="hidden xl:block w-52 shrink-0">
+          <DigestTOC digest={digest} />
+        </aside>
+
+        {/* Digest Content */}
+        <div className="flex-1 min-w-0 space-y-4">
+          <DigestCard
+            digest={digest}
+            explanationMode={explanationMode}
+            setExplanationMode={setExplanationMode}
+            onThemeClick={handleThemeClick}
+            onViewSources={onViewSources}
+            onViewFinding={onViewFinding}
+          />
+          <DigestActions
+            canGenerate={filteredFindingsCount > 0}
+            isGenerating={isGenerating}
+            hasDigest={true}
+            onGenerate={handleGenerate}
+            onRefresh={handleRefresh}
+            findingsCount={filteredFindingsCount}
+          />
+        </div>
       </div>
     );
   }
