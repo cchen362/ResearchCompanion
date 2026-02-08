@@ -103,7 +103,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
           <p className="text-[var(--color-text-muted)]">No topics yet. Add a disease topic to start monitoring.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {topics.map(topic => (
             <div key={topic.id} className="rounded-lg border border-[var(--color-border-muted)] shadow-sm bg-[var(--color-surface)] hover:shadow-md transition-shadow p-4">
               <div className="flex items-center gap-3">

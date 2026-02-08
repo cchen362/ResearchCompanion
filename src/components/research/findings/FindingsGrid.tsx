@@ -83,7 +83,7 @@ export function FindingsGrid({ topicId, onFindingClick }: FindingsGridProps) {
   // List view - use filteredFindings
   if (viewMode === 'list') {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {filteredFindings.map((finding) => (
           <FindingCard
             key={finding.id}
