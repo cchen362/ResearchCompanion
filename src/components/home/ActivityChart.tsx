@@ -16,9 +16,9 @@ export function ActivityChart({ activityTimeline }: ActivityChartProps) {
   }));
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)] p-5">
+    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)] p-5 h-full">
       <h3 className="font-semibold text-[var(--color-text-primary)] mb-4">Research Activity (Last 7 Days)</h3>
-      <ResponsiveContainer width="100%" height={200}>
+      <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={formattedTimeline}>
           <defs>
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">

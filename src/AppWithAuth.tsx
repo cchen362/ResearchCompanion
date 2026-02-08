@@ -311,7 +311,7 @@ function MainApp() {
 
       {/* Main Content */}
       <main className="py-8">
-        <Container variant={currentView === 'home' ? 'dashboard' : 'grid'}>
+        <Container variant={currentView === 'home' ? 'wide' : 'grid'}>
           <ErrorBoundary>
             {currentView === 'home' && (
               <HomePage

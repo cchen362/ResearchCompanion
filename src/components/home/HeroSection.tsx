@@ -58,7 +58,7 @@ export function HeroSection({
   const { headline, message, showAction } = getHeroContent();
 
   return (
-    <div className="bg-gradient-to-r from-primary-50 to-primary-100/30 border border-primary-200/50 rounded-xl p-8">
+    <div className="bg-gradient-to-r from-primary-50 to-primary-100/30 border border-primary-200/50 rounded-xl p-8 h-full">
       <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">{headline}</h2>
       <p className="mt-2 text-[var(--color-text-secondary)]">{message}</p>
       {showAction && (

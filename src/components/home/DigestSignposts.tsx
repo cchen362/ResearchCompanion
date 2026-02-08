@@ -26,7 +26,7 @@ export function DigestSignposts({ signposts, onViewFindings }: DigestSignpostsPr
   if (meaningfulSignposts.length === 0) return null;
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)]">
+    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border-muted)] h-full">
       <div className="px-5 py-4 border-b border-[var(--color-border-muted)] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-purple-600" />

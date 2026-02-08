@@ -103,48 +103,61 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Topic Filter (chip/pill sub-nav) */}
+      {/* Topic Filter — full width, outside bento grid */}
       <TopicFilter
         topics={topics}
         selectedTopicId={selectedTopicId}
         onSelectTopic={handleTopicSelect}
       />
 
-      {/* Hero Section — template-based narrative */}
-      <HeroSection
-        unreadCount={stats.unreadCount}
-        totalFindings={stats.totalFindings}
-        topicCount={stats.topicCount}
-        onViewFindings={handleViewFindings}
-        onMarkAllRead={handleMarkAllRead}
-      />
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Hero — spans 2 cols on sm+, 2 of 3 on lg */}
+        <div className="sm:col-span-2 lg:col-span-2">
+          <HeroSection
+            unreadCount={stats.unreadCount}
+            totalFindings={stats.totalFindings}
+            topicCount={stats.topicCount}
+            onViewFindings={handleViewFindings}
+            onMarkAllRead={handleMarkAllRead}
+          />
+        </div>
 
-      {/* Contextual CTAs — rule-based feature nudges */}
-      <ContextualCTAs
-        topicCount={stats.topicCount}
-        totalFindings={stats.totalFindings}
-        hasChatEnabled={topics.length > 0}
-        hasDigests={stats.digestSignposts.length > 0}
-        onNavigate={setCurrentView}
-        onOpenChat={handleOpenChat}
-      />
+        {/* CTAs — full width on sm (2col), narrow 1-col on lg */}
+        <div className="sm:col-span-2 lg:col-span-1">
+          <ContextualCTAs
+            topicCount={stats.topicCount}
+            totalFindings={stats.totalFindings}
+            hasChatEnabled={topics.length > 0}
+            hasDigests={stats.digestSignposts.length > 0}
+            onNavigate={setCurrentView}
+            onOpenChat={handleOpenChat}
+          />
+        </div>
 
-      {/* Findings Highlights — teasers for unread findings */}
-      <FindingsHighlights
-        findings={stats.recentUnread}
-        onViewAllFindings={handleViewFindings}
-      />
+        {/* Findings Highlights — full width across all 3 cols */}
+        <div className="sm:col-span-2 lg:col-span-3">
+          <FindingsHighlights
+            findings={stats.recentUnread}
+            onViewAllFindings={handleViewFindings}
+          />
+        </div>
 
-      {/* Digest Signposts — metadata references, not full content */}
-      <DigestSignposts
-        signposts={stats.digestSignposts}
-        onViewFindings={handleViewFindings}
-      />
+        {/* Digest Signposts — 2 of 3 cols on lg */}
+        <div className="sm:col-span-2 lg:col-span-2">
+          <DigestSignposts
+            signposts={stats.digestSignposts}
+            onViewFindings={handleViewFindings}
+          />
+        </div>
 
-      {/* Activity timeline chart */}
-      <ActivityChart
-        activityTimeline={stats.activityTimeline}
-      />
+        {/* Activity Chart — 1 of 3 cols on lg */}
+        <div className="sm:col-span-2 lg:col-span-1">
+          <ActivityChart
+            activityTimeline={stats.activityTimeline}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -74,7 +74,7 @@ export function ContextualCTAs({
   if (displayCtas.length === 0) return null;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 grid-cols-1 h-full content-start">
       {displayCtas.map(cta => (
         <button
           key={cta.id}
