@@ -38,8 +38,8 @@ Each implementation plan includes:
 | 014 | [UI/UX Design System Overhaul](./014_UI_UX_DESIGN_SYSTEM_OVERHAUL.md) | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign |
 | 015a | [Layout & Spatial Design](./015a_LAYOUT_SPATIAL_DESIGN.md) | Complete | Bento grid home, chat push/reflow, wider containers, improved grid density for all pages |
 | 015b | [Layout & Spatial Design (Refinements)](./015b_LAYOUT_SPATIAL_REFINEMENTS.md) | Complete | Digest TOC sidebar, drawer/chat mutual exclusivity, home page bottom row, bento grid polish |
-| 015c | [Companion Intelligence](./015c_COMPANION_INTELLIGENCE.md) | Ready | Research Pulse + Worth Revisiting AI features for home page |
-| 016 | [Auth Page UI Redesign](./016_AUTH_PAGE_REDESIGN.md) | **Ready** | Split layout auth page with pill toggle, gradient branding panel, browser tab fix |
+| 015c | [Companion Intelligence](./015c_COMPANION_INTELLIGENCE.md) | Complete | Research Pulse + Worth Revisiting AI features for home page |
+| 016 | [Auth Page UI Redesign](./016_AUTH_PAGE_REDESIGN.md) | Complete | Split layout auth page with pill toggle, gradient branding panel, browser tab fix |
 
 ## How to Use
 
