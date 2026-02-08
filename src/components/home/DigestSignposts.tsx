@@ -1,4 +1,4 @@
-import { BookOpen, AlertTriangle, HelpCircle, ArrowRight } from 'lucide-react';
+import { BookOpen, AlertTriangle, HelpCircle, ArrowRight, TrendingUp } from 'lucide-react';
 
 interface DigestSignpost {
   id: string;
@@ -7,6 +7,7 @@ interface DigestSignpost {
   breakthroughCount: number;
   contradictionCount: number;
   knowledgeGapCount: number;
+  topBreakthroughs?: string[];
   createdAt: string;
 }
 
@@ -39,7 +40,7 @@ export function DigestSignposts({ signposts, onViewFindings }: DigestSignpostsPr
           Open digests <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="p-5 grid gap-4 sm:grid-cols-2">
+      <div className="p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {meaningfulSignposts.map(signpost => (
           <div key={signpost.id} className="border border-[var(--color-border-muted)] rounded-lg p-4">
             <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{signpost.topicName}</h4>
@@ -63,6 +64,19 @@ export function DigestSignposts({ signposts, onViewFindings }: DigestSignpostsPr
                 </div>
               )}
             </div>
+            {/* Top breakthrough titles — enrichment from backend */}
+            {signpost.topBreakthroughs && signpost.topBreakthroughs.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
+                <div className="space-y-1.5">
+                  {signpost.topBreakthroughs.map((title, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-[var(--color-text-muted)]">
+                      <TrendingUp className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
+                      <span className="line-clamp-1">{title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mt-2 text-xs text-[var(--color-text-muted)]">
               Updated {new Date(signpost.createdAt).toLocaleDateString()}
             </div>

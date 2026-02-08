@@ -78,6 +78,24 @@ router.get('/dashboard/stats', async (req, res) => {
       const contradictions = typeof d.contradictions === 'string' ? JSON.parse(d.contradictions) : d.contradictions;
       const knowledgeGaps = typeof d.knowledge_gaps === 'string' ? JSON.parse(d.knowledge_gaps) : d.knowledge_gaps;
 
+      // Extract top 3 breakthrough titles for home page signpost enrichment
+      // Breakthrough.title is DualModeText: { technical: string, explained: string }
+      const topBreakthroughs: string[] = [];
+      if (Array.isArray(breakthroughs)) {
+        for (const bt of breakthroughs.slice(0, 3)) {
+          if (typeof bt === 'object' && bt !== null) {
+            const title = bt.title;
+            if (typeof title === 'string') {
+              topBreakthroughs.push(title);
+            } else if (typeof title === 'object' && title !== null && title.technical) {
+              topBreakthroughs.push(title.technical);
+            }
+          } else if (typeof bt === 'string') {
+            topBreakthroughs.push(bt);
+          }
+        }
+      }
+
       return {
         id: d.id,
         topicId: d.topic_id,
@@ -85,6 +103,7 @@ router.get('/dashboard/stats', async (req, res) => {
         breakthroughCount: Array.isArray(breakthroughs) ? breakthroughs.length : 0,
         contradictionCount: Array.isArray(contradictions) ? contradictions.length : 0,
         knowledgeGapCount: Array.isArray(knowledgeGaps) ? knowledgeGaps.length : 0,
+        topBreakthroughs,
         createdAt: d.created_at
       };
     });

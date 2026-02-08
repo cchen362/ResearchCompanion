@@ -4,7 +4,6 @@ import { TopicFilter } from './home/TopicFilter';
 import { FindingsHighlights } from './home/FindingsHighlights';
 import { DigestSignposts } from './home/DigestSignposts';
 import { ContextualCTAs } from './home/ContextualCTAs';
-import { ActivityChart } from './home/ActivityChart';
 import { api } from '@/services/api';
 import { findingsService } from '@/services/findings.service';
 import { useUIStore } from '@/stores/uiStore';
@@ -18,7 +17,6 @@ interface DashboardStats {
   recentUnread: any[];
   digestSignposts: any[];
   sourceBreakdown: { type: string; count: number }[];
-  activityTimeline: { date: string; count: number }[];
 }
 
 interface HomePageProps {
@@ -143,18 +141,11 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           />
         </div>
 
-        {/* Digest Signposts — 2 of 3 cols on lg */}
-        <div className="sm:col-span-2 lg:col-span-2">
+        {/* Digest Signposts — full width, 3 of 3 cols on lg */}
+        <div className="sm:col-span-2 lg:col-span-3">
           <DigestSignposts
             signposts={stats.digestSignposts}
             onViewFindings={handleViewFindings}
-          />
-        </div>
-
-        {/* Activity Chart — 1 of 3 cols on lg */}
-        <div className="sm:col-span-2 lg:col-span-1">
-          <ActivityChart
-            activityTimeline={stats.activityTimeline}
           />
         </div>
       </div>
