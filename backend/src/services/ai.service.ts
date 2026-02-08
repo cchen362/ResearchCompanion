@@ -505,6 +505,13 @@ WARNING SIGNS (generate 2-4 relevant symptoms/signs to monitor):
 - technical: Clinical terminology with specific thresholds (e.g., "fever >38.5°C persisting >48h")
 - explained: Everyday descriptions anyone would recognize (e.g., "a high fever that doesn't go away after 2 days")
 
+WORTH REVISITING (oldFindingSummary, newBreakthroughSummary, connectionExplanation):
+- technical: Medical terminology, mechanisms, specific biomarkers, trial references
+- explained: Plain language with analogies anyone could understand
+- CRITICAL: Both versions must contain the SAME FACTS
+- connectionBasis remains a plain string (not dual-mode)
+- Titles remain plain strings (not dual-mode)
+
 ## COMPANION INTELLIGENCE
 
 ### RESEARCH PULSE
@@ -561,7 +568,7 @@ MAGAZINE EDITORIAL SECTIONS (REQUIRED):
 
 COMPANION INTELLIGENCE (REQUIRED):
 - researchPulse: A single warm companion-voice sentence about this topic's research state. Address the user directly with "Your". Reference specific counts.
-- worthRevisiting: 0-3 connections between older findings and recent breakthroughs. Use exact finding UUIDs from the ID fields above. Return empty array [] if no meaningful connections exist.
+- worthRevisiting: 0-3 connections between older findings and recent breakthroughs. Use exact finding UUIDs from the ID fields above. Return empty array [] if no meaningful connections exist. Each connection's oldFindingSummary, newBreakthroughSummary, and connectionExplanation must be dual-mode objects with {technical, explained} versions.
 
 Focus on practical, actionable information that helps with treatment decisions.`
         }

@@ -74,11 +74,11 @@ export const SmartDigestSchema = z.object({
   worthRevisiting: z.array(z.object({
     oldFindingId: z.string(),
     oldFindingTitle: z.string(),
-    oldFindingSummary: z.string(),
+    oldFindingSummary: z.union([z.string(), DualModeTextSchema]),
     newBreakthroughId: z.string(),
     newBreakthroughTitle: z.string(),
-    newBreakthroughSummary: z.string(),
-    connectionExplanation: z.string(),
+    newBreakthroughSummary: z.union([z.string(), DualModeTextSchema]),
+    connectionExplanation: z.union([z.string(), DualModeTextSchema]),
     connectionBasis: z.string()
   })).optional().default([]),
   // Legacy fields (kept optional for backward compat with old digests)
@@ -459,8 +459,13 @@ export const digestJSONSchema = {
             description: 'Title of the older finding (for immediate display without DB lookup)'
           },
           oldFindingSummary: {
-            type: 'string',
-            description: 'Brief 1-2 sentence summary of the older finding'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: '1-2 sentence summary using medical terminology, mechanisms, and specific biomarkers' },
+              explained: { type: 'string', description: 'Same summary in plain everyday language anyone could understand, using analogies where helpful' }
+            },
+            required: ['technical', 'explained'],
+            description: 'Brief summary of the older finding in both technical and explained modes'
           },
           newBreakthroughId: {
             type: 'string',
@@ -471,12 +476,22 @@ export const digestJSONSchema = {
             description: 'Title of the recent breakthrough (for immediate display)'
           },
           newBreakthroughSummary: {
-            type: 'string',
-            description: 'Brief 1-2 sentence summary of the recent breakthrough'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: '1-2 sentence summary using medical terminology, mechanisms, and specific biomarkers' },
+              explained: { type: 'string', description: 'Same summary in plain everyday language anyone could understand, using analogies where helpful' }
+            },
+            required: ['technical', 'explained'],
+            description: 'Brief summary of the recent breakthrough in both technical and explained modes'
           },
           connectionExplanation: {
-            type: 'string',
-            description: 'WHY these two findings connect. 1-2 sentences explaining the meaningful link. Must be specific — cite the mechanism, pathway, or evidence, not vague associations.'
+            type: 'object',
+            properties: {
+              technical: { type: 'string', description: 'WHY these findings connect, using medical terminology. Cite mechanism, pathway, or evidence.' },
+              explained: { type: 'string', description: 'Same explanation in plain language. Use analogies to explain the connection in everyday terms.' }
+            },
+            required: ['technical', 'explained'],
+            description: 'Explanation of why these findings are connected in both technical and explained modes'
           },
           connectionBasis: {
             type: 'string',
