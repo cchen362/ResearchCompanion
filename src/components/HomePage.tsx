@@ -103,6 +103,18 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
     setCurrentView('findings');
   };
 
+  const handleViewFindingFromWR = async (findingId: string) => {
+    try {
+      closeModal('worthRevisiting');
+      const finding = await findingsService.getFinding(findingId);
+      if (finding) {
+        openModal('findingDetail', finding);
+      }
+    } catch (error) {
+      logger.error('[HomePage] Failed to load finding from WR:', error);
+    }
+  };
+
   if (loading && !stats) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -174,6 +186,7 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
         item={modalData as WorthRevisiting | null}
         isOpen={modals.worthRevisiting}
         onClose={() => closeModal('worthRevisiting')}
+        onViewFinding={handleViewFindingFromWR}
       />
     </div>
   );

@@ -1,4 +1,5 @@
-import { Brain, ArrowRight, Link2 } from 'lucide-react';
+import { Brain, ArrowRight, Link2, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { WorthRevisiting } from '@/types';
 
 interface ResearchPulseSignpost {
@@ -62,6 +63,16 @@ export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingCl
                 <div className="flex items-center gap-1.5 mb-2">
                   <Link2 className="h-3.5 w-3.5 text-amber-500" />
                   <span className="text-xs font-medium text-[var(--color-text-muted)]">Worth Revisiting</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="text-muted-foreground cursor-help" size={12} />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Your AI reviews new breakthroughs against your full research history to surface earlier findings that now have new relevance.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <div className="space-y-2">
                   {signpost.worthRevisiting.map((wr, idx) => (

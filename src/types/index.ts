@@ -529,11 +529,11 @@ export interface SourceBreakdown {
 export interface WorthRevisiting {
   oldFindingId: string;
   oldFindingTitle: string;
-  oldFindingSummary: string;
+  oldFindingSummary: DualModeText | string;
   newBreakthroughId: string;
   newBreakthroughTitle: string;
-  newBreakthroughSummary: string;
-  connectionExplanation: string;
+  newBreakthroughSummary: DualModeText | string;
+  connectionExplanation: DualModeText | string;
   connectionBasis: string;
 }
 
