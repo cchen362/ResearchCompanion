@@ -247,24 +247,26 @@ body {
 .auth-gradient-bg {
   background: linear-gradient(
     135deg,
-    var(--color-primary-800) 0%,
-    var(--color-primary-600) 30%,
-    var(--color-primary-700) 60%,
-    var(--color-primary-900) 100%
+    #1a2a6c 0%,
+    #2054d9 25%,
+    #3b6cf2 50%,
+    #1a45b8 75%,
+    #0f1a4a 100%
   );
-  background-size: 200% 200%;
-  animation: auth-gradient-shift 15s ease-in-out infinite;
+  background-size: 300% 300%;
+  animation: auth-gradient-shift 12s ease-in-out infinite;
 }
 
 @media (prefers-color-scheme: dark) {
   .auth-gradient-bg {
     background: linear-gradient(
       135deg,
-      #0f1a2e 0%,
-      #1c3160 30%,
-      #152240 60%,
+      #0a0e1a 0%,
+      #1c3160 25%,
+      #264694 50%,
+      #152240 75%,
       #0a0e13 100%
     );
-    background-size: 200% 200%;
+    background-size: 300% 300%;
   }
 }

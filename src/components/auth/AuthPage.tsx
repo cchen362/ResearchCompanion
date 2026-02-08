@@ -97,7 +97,7 @@ export function AuthPage() {
 
         {/* 2. Dot grid pattern for texture */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
             backgroundSize: '24px 24px',
@@ -107,7 +107,7 @@ export function AuthPage() {
 
         {/* 3. Ghosted stylized digest card wireframe */}
         <div className="absolute inset-0 flex items-center justify-center p-12" aria-hidden="true">
-          <div className="w-full max-w-xs opacity-[0.1]">
+          <div className="w-full max-w-xs opacity-[0.18]">
             {/* Card chrome */}
             <div className="rounded-t-xl border border-white/30 bg-white/5 px-4 py-3">
               <div className="h-4 w-32 rounded bg-white/20 mb-3" />
