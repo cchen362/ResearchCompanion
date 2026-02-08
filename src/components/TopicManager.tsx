@@ -72,7 +72,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -90,7 +90,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
           </div>
           <button
             onClick={() => setShowNewTopicForm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             Add Topic
           </button>
@@ -112,8 +112,8 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
                     <div className="flex-1">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-indigo-600">
+                          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                            <span className="text-sm font-medium text-primary-600">
                               {topic.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -141,7 +141,7 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
                     <div className="ml-4 flex-shrink-0 flex space-x-2">
                       <button
                         onClick={() => setEditingTopic(topic)}
-                        className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                        className="text-primary-600 hover:text-primary-900 text-sm font-medium"
                       >
                         Edit
                       </button>
@@ -262,7 +262,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
               placeholder="e.g., My Child's Condition"
               required
             />
@@ -277,7 +277,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="disease"
               value={diseaseName}
               onChange={(e) => setDiseaseName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
               placeholder="e.g., Mitochondrial Disease"
               required
             />
@@ -291,7 +291,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="progression"
               value={progressionRate}
               onChange={(e) => setProgressionRate(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
             >
               <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
@@ -311,7 +311,7 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               id="age"
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
             >
               <option value="pediatric">Pediatric</option>
               <option value="adolescent">Adolescent</option>
@@ -324,14 +324,14 @@ function NewTopicForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={creating}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {creating ? 'Creating...' : 'Create Topic'}
             </button>
@@ -396,7 +396,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
               placeholder="e.g., My Child's Condition"
               required
             />
@@ -411,7 +411,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-disease"
               value={diseaseName}
               onChange={(e) => setDiseaseName(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
               placeholder="e.g., Mitochondrial Disease"
               required
             />
@@ -425,7 +425,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-progression"
               value={progressionRate}
               onChange={(e) => setProgressionRate(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
             >
               <option value="rapid">Hourly (Fast-changing conditions)</option>
               <option value="moderate">Daily (Most conditions)</option>
@@ -445,7 +445,7 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
               id="edit-age"
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value as any)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm px-3 py-2 border"
             >
               <option value="pediatric">Pediatric</option>
               <option value="adolescent">Adolescent</option>
@@ -458,14 +458,14 @@ function EditTopicForm({ topic, onClose, onSuccess }: { topic: Topic; onClose: (
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={updating}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {updating ? 'Updating...' : 'Update Topic'}
             </button>

@@ -10,7 +10,7 @@ export function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: "bg-indigo-100 text-indigo-700",
+    default: "bg-primary-100 text-primary-700",
     secondary: "bg-gray-100 text-gray-700",
     destructive: "bg-red-100 text-red-700",
     outline: "border border-gray-300 text-gray-700",

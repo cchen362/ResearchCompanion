@@ -18,7 +18,7 @@ export default defineConfig({
         name: 'Medical Research Companion',
         short_name: 'MedCompanion',
         description: 'Autonomous medical research companion for rare disease caregivers',
-        theme_color: '#4F46E5',
+        theme_color: '#2054D9',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',

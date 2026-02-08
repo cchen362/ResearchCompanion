@@ -24,15 +24,15 @@ export function FindingsHighlights({ findings, onViewAllFindings }: FindingsHigh
     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-indigo-600" />
+          <FileText className="h-5 w-5 text-primary-600" />
           <h3 className="font-semibold text-gray-900">Unread Findings</h3>
-          <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium">
+          <span className="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-xs font-medium">
             {findings.length}
           </span>
         </div>
         <button
           onClick={onViewAllFindings}
-          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+          className="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1 transition-colors"
         >
           View all <ArrowRight className="h-3.5 w-3.5" />
         </button>

@@ -31,7 +31,7 @@ export function ContextualCTAs({
   if (topicCount === 0) {
     ctas.push({
       id: 'add-topic',
-      icon: <Plus className="h-5 w-5 text-indigo-600" />,
+      icon: <Plus className="h-5 w-5 text-primary-600" />,
       label: 'Add a research topic',
       description: 'Start tracking a medical condition',
       action: () => onNavigate('topics')
@@ -79,7 +79,7 @@ export function ContextualCTAs({
         <button
           key={cta.id}
           onClick={cta.action}
-          className="flex items-center gap-3 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all text-left"
+          className="flex items-center gap-3 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:border-primary-200 hover:shadow-md transition-all text-left"
         >
           <div className="shrink-0">{cta.icon}</div>
           <div>

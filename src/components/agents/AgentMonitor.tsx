@@ -218,7 +218,7 @@ export default function AgentMonitor() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -237,7 +237,7 @@ export default function AgentMonitor() {
           <button
             onClick={handleRunAllPending}
             disabled={isRunningAll}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             {isRunningAll ? (
               <>
@@ -273,7 +273,7 @@ export default function AgentMonitor() {
                     </div>
                   )}
                   {topics.get(agent.topicId) && (
-                    <p className="text-xs text-indigo-600 mt-1">
+                    <p className="text-xs text-primary-600 mt-1">
                       Monitoring: {topics.get(agent.topicId)}
                     </p>
                   )}
@@ -319,7 +319,7 @@ export default function AgentMonitor() {
                 <button
                   onClick={() => handleRunAgent(agent)}
                   disabled={agent.status === 'running' || runningAgentId === agent.id || isRunningAll}
-                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
+                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
                 >
                   {runningAgentId === agent.id ? (
                     <>
@@ -337,7 +337,7 @@ export default function AgentMonitor() {
                 </button>
                 <button
                   onClick={() => setConfiguringAgent(agent)}
-                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="flex-1 inline-flex justify-center items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Configure
                 </button>

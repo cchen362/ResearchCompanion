@@ -175,7 +175,7 @@ export function TranscriptionSummary({
       {/* Header with metadata */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <Stethoscope className="w-5 h-5 text-indigo-600" />
+          <Stethoscope className="w-5 h-5 text-primary-600" />
           <h3 className="text-lg font-semibold text-gray-900">Visit Summary</h3>
           {getSentimentBadge()}
         </div>
@@ -196,7 +196,7 @@ export function TranscriptionSummary({
       </div>
 
       {/* Executive Summary - Always visible */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+      <div className="bg-gradient-to-r from-blue-50 to-primary-50 rounded-lg p-4 border border-blue-200">
         <div className="space-y-3">
           {paragraphs.map((paragraph, index) => (
             <div key={index}>

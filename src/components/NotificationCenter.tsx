@@ -110,7 +110,7 @@ export default function NotificationCenter() {
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md transition-colors"
+        className="relative p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-md transition-colors"
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -137,7 +137,7 @@ export default function NotificationCenter() {
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-xs text-indigo-600 hover:text-indigo-500"
+                      className="text-xs text-primary-600 hover:text-primary-500"
                     >
                       Mark all as read
                     </button>
@@ -161,7 +161,7 @@ export default function NotificationCenter() {
                     <div
                       key={notification.id}
                       className={`flex items-start space-x-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                        !notification.readAt ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-gray-50'
+                        !notification.readAt ? 'bg-primary-50 hover:bg-primary-100' : 'hover:bg-gray-50'
                       }`}
                       onClick={() => markAsRead(notification.id)}
                     >

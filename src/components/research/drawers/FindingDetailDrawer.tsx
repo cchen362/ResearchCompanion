@@ -53,7 +53,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
       >
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+          <div className="px-6 py-4 border-b bg-gradient-to-r from-primary-50 to-primary-100/30">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h2 className="text-xl font-semibold text-gray-900 pr-4">
@@ -221,7 +221,7 @@ export function FindingDetailDrawer({ finding, isOpen, onClose, onAddToChat }: F
                     onAddToChat(finding);
                     onClose();
                   }}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   Ask Questions About This
                 </button>

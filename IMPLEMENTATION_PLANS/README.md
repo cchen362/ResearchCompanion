@@ -35,6 +35,7 @@ Each implementation plan includes:
 | 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 | 012 | [Chat Architecture Rebuild](./012_CHAT_ARCHITECTURE_REBUILD.md) | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
 | 013 | [Dashboard Home Redesign](./013_DASHBOARD_HOME_REDESIGN.md) | Complete | Merge Dashboard + Research Insights into unified Home page |
+| 014 | [UI/UX Design System Overhaul](./014_UI_UX_DESIGN_SYSTEM_OVERHAUL.md) | **Ready** | Complete visual overhaul: design tokens, evolved color palette, dark mode, adaptive containers, page refresh, chat redesign |
 
 ## How to Use
 
@@ -56,4 +57,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 8, 2026*
-*Latest Plan: 013 - Dashboard Home Redesign*
+*Latest Plan: 014 - UI/UX Design System Overhaul*

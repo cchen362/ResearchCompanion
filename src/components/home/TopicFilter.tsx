@@ -15,7 +15,7 @@ export function TopicFilter({ topics, selectedTopicId, onSelectTopic }: TopicFil
         onClick={() => onSelectTopic(null)}
         className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
           selectedTopicId === null
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-primary-600 text-white'
             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
         }`}
       >
@@ -27,7 +27,7 @@ export function TopicFilter({ topics, selectedTopicId, onSelectTopic }: TopicFil
           onClick={() => onSelectTopic(topic.id)}
           className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
             selectedTopicId === topic.id
-              ? 'bg-indigo-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >

@@ -34,7 +34,7 @@ export function DigestSignposts({ signposts, onViewFindings }: DigestSignpostsPr
         </div>
         <button
           onClick={onViewFindings}
-          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+          className="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1 transition-colors"
         >
           Open digests <ArrowRight className="h-3.5 w-3.5" />
         </button>

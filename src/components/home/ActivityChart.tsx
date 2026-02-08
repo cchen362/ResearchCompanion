@@ -22,8 +22,8 @@ export function ActivityChart({ activityTimeline }: ActivityChartProps) {
         <AreaChart data={formattedTimeline}>
           <defs>
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+              <stop offset="5%" stopColor="#2054d9" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#2054d9" stopOpacity={0} />
             </linearGradient>
           </defs>
           <XAxis
@@ -46,7 +46,7 @@ export function ActivityChart({ activityTimeline }: ActivityChartProps) {
           <Area
             type="monotone"
             dataKey="count"
-            stroke="#4f46e5"
+            stroke="#2054d9"
             strokeWidth={2}
             fill="url(#areaGradient)"
           />
