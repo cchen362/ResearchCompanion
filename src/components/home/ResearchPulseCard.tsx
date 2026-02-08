@@ -21,7 +21,13 @@ interface ResearchPulseCardProps {
   onWorthRevisitingClick: (item: WorthRevisiting) => void;
 }
 
-function formatPulse(text: string): { lead: string; items: string[] } | null {
+/** Extract a number mentioned in the lead, e.g. "has 3 major breakthroughs" → 3 */
+function extractCount(lead: string): number | null {
+  const m = lead.match(/\b(\d+)\b/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function formatPulse(text: string): { lead: string; rest?: string; items: string[] } | null {
   if (!text) return null;
 
   // Try colon split first: "Your research has 3 breakthroughs: item1, item2, and item3"
@@ -33,7 +39,15 @@ function formatPulse(text: string): { lead: string; items: string[] } | null {
       .split(/,\s+(?:and\s+)?|(?:^|\s)and\s+/)
       .map(s => s.replace(/\.$/, '').trim())
       .filter(s => s.length > 0);
-    if (items.length >= 2) return { lead, items };
+    const mentioned = extractCount(lead);
+    // Only use bullets if count matches or no number was mentioned
+    if (items.length >= 2 && (!mentioned || items.length === mentioned)) {
+      return { lead, items };
+    }
+    // Count mismatch — show lead bold, rest as paragraph
+    if (items.length >= 2) {
+      return { lead, rest, items: [] };
+    }
   }
 
   // Try "including" split: "...3 breakthroughs this week, including item1 and item2"
@@ -41,12 +55,16 @@ function formatPulse(text: string): { lead: string; items: string[] } | null {
   if (inclMatch) {
     const lead = inclMatch[1].trim();
     const rest = inclMatch[2].trim();
-    // Split on " and " for the last item, keeping em-dash/period tails trimmed
     const items = rest
       .split(/,\s+(?:and\s+)?|\s+and\s+/)
       .map(s => s.replace(/\s*—.*$/, '').replace(/\.$/, '').trim())
       .filter(s => s.length > 0);
-    if (items.length >= 2) return { lead, items };
+    const mentioned = extractCount(lead);
+    if (items.length >= 2 && (!mentioned || items.length === mentioned)) {
+      return { lead, items };
+    }
+    // Count mismatch — show lead bold, rest as flowing text
+    return { lead, rest: rest.replace(/\.$/, '').trim(), items: [] };
   }
 
   // No structure found — return as plain text, no bullets
@@ -89,7 +107,15 @@ export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingCl
               const parsed = formatPulse(signpost.researchPulse);
               if (!parsed) return null;
               if (parsed.items.length === 0) {
-                // No structure found — render as plain italic text
+                // No bullets — show lead bold with optional rest as flowing text
+                if (parsed.rest) {
+                  return (
+                    <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                      <span className="font-medium text-[var(--color-text-primary)]">{parsed.lead}</span>
+                      {', including '}{parsed.rest}.
+                    </div>
+                  );
+                }
                 return (
                   <p className="text-sm text-[var(--color-text-secondary)] italic leading-relaxed">
                     &ldquo;{parsed.lead}&rdquo;
