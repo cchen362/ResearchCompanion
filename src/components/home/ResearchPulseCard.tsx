@@ -21,6 +21,21 @@ interface ResearchPulseCardProps {
   onWorthRevisitingClick: (item: WorthRevisiting) => void;
 }
 
+function formatPulse(text: string): { lead: string; items: string[] } | null {
+  if (!text) return null;
+  const colonIdx = text.indexOf(':');
+  if (colonIdx === -1 || colonIdx > text.length * 0.6) {
+    return { lead: text, items: [] };
+  }
+  const lead = text.slice(0, colonIdx).trim();
+  const rest = text.slice(colonIdx + 1).trim();
+  const items = rest
+    .split(/,\s+(?:and\s+)?|(?:^|\s)and\s+/)
+    .map(s => s.replace(/\.$/, '').trim())
+    .filter(s => s.length > 0);
+  return { lead, items };
+}
+
 export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingClick }: ResearchPulseCardProps) {
   // Only show signposts that have a Research Pulse
   const pulseSignposts = signposts.filter(s => s.researchPulse && s.researchPulse.trim().length > 0);
@@ -52,10 +67,28 @@ export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingCl
               </button>
             </div>
 
-            {/* Pulse sentence */}
-            <p className="text-sm text-[var(--color-text-secondary)] italic leading-relaxed">
-              &ldquo;{signpost.researchPulse}&rdquo;
-            </p>
+            {/* Pulse sentence — formatted as lead + bullets when possible */}
+            {(() => {
+              const parsed = formatPulse(signpost.researchPulse);
+              if (!parsed) return null;
+              return (
+                <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  <p className="font-medium text-[var(--color-text-primary)] mb-1.5">
+                    {parsed.lead}{parsed.items.length > 0 ? ':' : ''}
+                  </p>
+                  {parsed.items.length > 0 && (
+                    <ul className="space-y-1 ml-0.5">
+                      {parsed.items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-purple-400 shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Worth Revisiting nudges */}
             {signpost.worthRevisiting && signpost.worthRevisiting.length > 0 && (

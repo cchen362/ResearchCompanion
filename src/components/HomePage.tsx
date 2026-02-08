@@ -105,10 +105,9 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
 
   const handleViewFindingFromWR = async (findingId: string) => {
     try {
-      closeModal('worthRevisiting');
       const finding = await findingsService.getFinding(findingId);
-      if (finding) {
-        openModal('findingDetail', finding);
+      if (finding?.source?.url) {
+        window.open(finding.source.url, '_blank', 'noopener,noreferrer');
       }
     } catch (error) {
       logger.error('[HomePage] Failed to load finding from WR:', error);

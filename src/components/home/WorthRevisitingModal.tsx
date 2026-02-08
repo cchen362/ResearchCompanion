@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Link2, Clock, TrendingUp, HelpCircle, GraduationCap, Lightbulb } from 'lucide-react';
+import { X, Link2, Clock, TrendingUp, HelpCircle, GraduationCap, Lightbulb, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { WorthRevisiting, DualModeText, ExplanationMode } from '@/types';
@@ -111,9 +111,9 @@ export function WorthRevisitingModal({ item, isOpen, onClose, onViewFinding }: W
               {onViewFinding && (
                 <button
                   onClick={() => onViewFinding(item.oldFindingId)}
-                  className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+                  className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors inline-flex items-center gap-1"
                 >
-                  View finding &rarr;
+                  View source <ExternalLink className="h-3 w-3" />
                 </button>
               )}
             </div>
@@ -131,9 +131,9 @@ export function WorthRevisitingModal({ item, isOpen, onClose, onViewFinding }: W
               {onViewFinding && (
                 <button
                   onClick={() => onViewFinding(item.newBreakthroughId)}
-                  className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium transition-colors"
+                  className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium transition-colors inline-flex items-center gap-1"
                 >
-                  View finding &rarr;
+                  View source <ExternalLink className="h-3 w-3" />
                 </button>
               )}
             </div>
