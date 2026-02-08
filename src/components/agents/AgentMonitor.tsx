@@ -257,7 +257,7 @@ export default function AgentMonitor() {
       </div>
 
       {/* Agents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {agents.map(agent => (
           <div key={agent.id} className="bg-[var(--color-surface)] shadow-sm rounded-lg overflow-hidden border border-[var(--color-border-muted)]">
             <div className="px-4 py-5 sm:p-6">
