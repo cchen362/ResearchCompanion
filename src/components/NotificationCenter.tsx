@@ -110,7 +110,7 @@ export default function NotificationCenter() {
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-md transition-colors"
+        className="relative p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-md transition-colors"
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -129,10 +129,10 @@ export default function NotificationCenter() {
             className="fixed inset-0 z-10"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute right-0 z-20 mt-2 w-80 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5">
+          <div className="absolute right-0 z-20 mt-2 w-80 bg-[var(--color-surface)] rounded-lg shadow-lg ring-1 ring-black ring-opacity-5">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+                <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Notifications</h3>
                 <div className="flex items-center">
                   {unreadCount > 0 && (
                     <button
@@ -154,14 +154,14 @@ export default function NotificationCenter() {
               </div>
 
               {notifications.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No notifications yet</p>
+                <p className="text-sm text-[var(--color-text-muted)] text-center py-4">No notifications yet</p>
               ) : (
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {notifications.map(notification => (
                     <div
                       key={notification.id}
                       className={`flex items-start space-x-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                        !notification.readAt ? 'bg-primary-50 hover:bg-primary-100' : 'hover:bg-gray-50'
+                        !notification.readAt ? 'bg-primary-50 hover:bg-primary-100' : 'hover:bg-[var(--color-surface-sunken)]'
                       }`}
                       onClick={() => markAsRead(notification.id)}
                     >
@@ -169,13 +169,13 @@ export default function NotificationCenter() {
                         {getNotificationIcon(notification.type)}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notification.readAt ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                        <p className={`text-sm ${!notification.readAt ? 'font-medium text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)]'}`}>
                           {notification.title}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
                           {new Date(notification.createdAt).toLocaleString()}
                         </p>
                       </div>
@@ -189,7 +189,7 @@ export default function NotificationCenter() {
                           e.stopPropagation();
                           handleDelete(notification.id);
                         }}
-                        className="flex-shrink-0 text-gray-400 hover:text-red-500 p-1"
+                        className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-red-500 p-1"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />

@@ -135,7 +135,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
                 className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'quick'
                     ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 <div className="font-medium">Quick</div>
@@ -147,7 +147,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
                 className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'standard'
                     ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 <div className="font-medium">Standard</div>
@@ -162,7 +162,7 @@ export default function DigestSettings({ topicId, onClose }: DigestSettingsProps
                 className={`p-3 border-2 rounded-md text-center transition-all relative ${
                   analysisDepth === 'deep'
                     ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 <div className="font-medium">Deep</div>

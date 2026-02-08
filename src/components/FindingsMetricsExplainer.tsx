@@ -230,7 +230,7 @@ export function PriorityBadge({ priority, showHelp = true }: PriorityBadgeProps)
     critical: 'bg-red-600 text-white',
     high: 'bg-orange-500 text-white',
     medium: 'bg-blue-500 text-white',
-    low: 'bg-gray-400 text-white'
+    low: 'bg-[var(--color-text-muted)] text-white'
   };
 
   return (

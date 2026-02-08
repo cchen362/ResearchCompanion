@@ -17,10 +17,10 @@ export function Button({
 
   const variants = {
     default: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-    ghost: 'text-gray-700 hover:bg-gray-100',
+    outline: 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]',
+    ghost: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]',
     destructive: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+    secondary: 'bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] hover:bg-[var(--color-border)]'
   };
 
   const sizes = {

@@ -35,8 +35,8 @@ const SOURCE_CONFIG: Record<DigestSourceType, {
   },
   web: {
     icon: Globe,
-    color: 'text-gray-600',
-    bgColor: 'bg-gray-100',
+    color: 'text-[var(--color-text-secondary)]',
+    bgColor: 'bg-[var(--color-surface-sunken)]',
     label: 'Web',
   },
 };

@@ -43,14 +43,14 @@ export function FindingDetailModal({ finding, isOpen, onClose }: FindingDetailMo
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-[var(--color-surface)] rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b">
           <div className="flex-1">
             <h2 className="text-2xl font-bold mb-2">
               {finding.title || 'Research Finding'}
             </h2>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-sm text-[var(--color-text-secondary)]">
               <span className="flex items-center gap-1">
                 {getSourceTypeIcon(finding.source?.type || 'research')}
                 {finding.source?.displayName || finding.source?.name || 'Unknown Source'}
@@ -79,14 +79,14 @@ export function FindingDetailModal({ finding, isOpen, onClose }: FindingDetailMo
           {finding.summary && finding.summary !== finding.content && (
             <div className="mb-6">
               <h3 className="font-semibold mb-2">Summary</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{finding.summary}</p>
+              <p className="text-[var(--color-text-secondary)] whitespace-pre-wrap">{finding.summary}</p>
             </div>
           )}
 
           {/* Main Content */}
           <div className="mb-6">
             <h3 className="font-semibold mb-2">Details</h3>
-            <div className="text-gray-700 whitespace-pre-wrap">
+            <div className="text-[var(--color-text-secondary)] whitespace-pre-wrap">
               {finding.content || 'No additional details available.'}
             </div>
           </div>
@@ -95,21 +95,21 @@ export function FindingDetailModal({ finding, isOpen, onClose }: FindingDetailMo
           <div className="border-t pt-4 space-y-3">
             {/* Date */}
             <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-600">Published:</span>
+              <Calendar className="w-4 h-4 text-[var(--color-text-muted)]" />
+              <span className="text-[var(--color-text-secondary)]">Published:</span>
               <span>{formatDate(finding.source?.publishDate || finding.createdAt)}</span>
             </div>
 
             {/* Tags */}
             {finding.tags && finding.tags.length > 0 && (
               <div className="flex items-center gap-2 text-sm">
-                <Tag className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">Tags:</span>
+                <Tag className="w-4 h-4 text-[var(--color-text-muted)]" />
+                <span className="text-[var(--color-text-secondary)]">Tags:</span>
                 <div className="flex flex-wrap gap-1">
                   {finding.tags.map((tag: string, idx: number) => (
                     <span
                       key={idx}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
+                      className="px-2 py-1 bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] rounded-full text-xs"
                     >
                       {tag}
                     </span>
@@ -121,8 +121,8 @@ export function FindingDetailModal({ finding, isOpen, onClose }: FindingDetailMo
             {/* Source URL */}
             {finding.source?.url && (
               <div className="flex items-center gap-2 text-sm">
-                <ExternalLink className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">Source:</span>
+                <ExternalLink className="w-4 h-4 text-[var(--color-text-muted)]" />
+                <span className="text-[var(--color-text-secondary)]">Source:</span>
                 <a
                   href={finding.source.url}
                   target="_blank"
@@ -137,7 +137,7 @@ export function FindingDetailModal({ finding, isOpen, onClose }: FindingDetailMo
             {/* Category/Type */}
             {finding.category && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-600">Category:</span>
+                <span className="text-[var(--color-text-secondary)]">Category:</span>
                 <span className="capitalize">{finding.category}</span>
               </div>
             )}

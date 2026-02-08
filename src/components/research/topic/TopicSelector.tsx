@@ -58,7 +58,7 @@ export function TopicSelector({
         <select
           value={selectedTopicId || ''}
           onChange={(e) => handleTopicChange(e.target.value)}
-          className="text-lg font-semibold bg-transparent border-b border-gray-200 focus:border-primary outline-none"
+          className="text-lg font-semibold bg-transparent border-b border-[var(--color-border)] focus:border-primary outline-none"
           disabled={isLoading}
         >
           {topics.length === 0 && (
