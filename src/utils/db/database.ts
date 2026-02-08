@@ -7,11 +7,8 @@ import type {
   Topic,
   Agent,
   ResearchFinding,
-  AudioRecording,
   Notification,
-  ApiUsage,
   UserPreferences,
-  FamilyMember,
   SmartDigest,
   FindingsChat,
   DigestQueueItem
@@ -46,14 +43,6 @@ interface MedCompanionDB extends DBSchema {
       'by-relevance': number;
     };
   };
-  audio: {
-    key: string;
-    value: AudioRecording;
-    indexes: {
-      'by-date': number;
-      'by-event': string;
-    };
-  };
   notifications: {
     key: string;
     value: Notification;
@@ -63,26 +52,9 @@ interface MedCompanionDB extends DBSchema {
       'by-priority': string;
     };
   };
-  apiUsage: {
-    key: string;
-    value: ApiUsage;
-    indexes: {
-      'by-date': number;
-      'by-service': string;
-      'by-agent': string;
-    };
-  };
   preferences: {
     key: string; // 'user-preferences'
     value: UserPreferences;
-  };
-  family: {
-    key: string;
-    value: FamilyMember;
-    indexes: {
-      'by-email': string;
-      'by-role': string;
-    };
   };
   digests: {
     key: string;
@@ -155,13 +127,6 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
         logger.info('Migration v8: Deleted deprecated timeline store');
       }
 
-      // Audio store
-      if (!db.objectStoreNames.contains('audio')) {
-        const audioStore = db.createObjectStore('audio', { keyPath: 'id' });
-        audioStore.createIndex('by-date', 'recordedAt');
-        audioStore.createIndex('by-event', 'linkedEventId');
-      }
-
       // Notifications store
       if (!db.objectStoreNames.contains('notifications')) {
         const notificationsStore = db.createObjectStore('notifications', { keyPath: 'id' });
@@ -170,24 +135,9 @@ export async function initDB(): Promise<IDBPDatabase<MedCompanionDB>> {
         notificationsStore.createIndex('by-priority', 'priority');
       }
 
-      // API Usage store
-      if (!db.objectStoreNames.contains('apiUsage')) {
-        const apiStore = db.createObjectStore('apiUsage', { keyPath: 'id' });
-        apiStore.createIndex('by-date', 'timestamp');
-        apiStore.createIndex('by-service', 'service');
-        apiStore.createIndex('by-agent', 'agentId');
-      }
-
       // Preferences store
       if (!db.objectStoreNames.contains('preferences')) {
         db.createObjectStore('preferences', { keyPath: 'id' });
-      }
-
-      // Family store
-      if (!db.objectStoreNames.contains('family')) {
-        const familyStore = db.createObjectStore('family', { keyPath: 'id' });
-        familyStore.createIndex('by-email', 'email', { unique: true });
-        familyStore.createIndex('by-role', 'role');
       }
 
       // Digests store
@@ -284,8 +234,8 @@ export async function getStorageEstimate(): Promise<{
 // Clear all data (use with caution)
 export async function clearAllData(): Promise<void> {
   const db = await getDB();
-  const stores = ['topics', 'agents', 'findings', 'audio',
-                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
+  const stores = ['topics', 'agents', 'findings',
+                  'notifications', 'preferences', 'digests', 'chats', 'digestQueue'] as const;
 
   const tx = db.transaction(stores, 'readwrite');
   await Promise.all(stores.map(store => tx.objectStore(store).clear()));
@@ -297,8 +247,8 @@ export async function exportAllData(): Promise<Record<string, any[]>> {
   const db = await getDB();
   const data: Record<string, any[]> = {};
 
-  const stores = ['topics', 'agents', 'findings', 'audio',
-                  'notifications', 'apiUsage', 'preferences', 'family', 'digests', 'chats', 'digestQueue'] as const;
+  const stores = ['topics', 'agents', 'findings',
+                  'notifications', 'preferences', 'digests', 'chats', 'digestQueue'] as const;
 
   for (const store of stores) {
     data[store] = await db.getAll(store);

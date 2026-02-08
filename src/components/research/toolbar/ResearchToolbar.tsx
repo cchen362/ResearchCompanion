@@ -70,7 +70,6 @@ export function ResearchToolbar({
           topic={topic}
           findings={findings}
           digest={digest || undefined}
-          timeline={[]}
         />
       )}
 

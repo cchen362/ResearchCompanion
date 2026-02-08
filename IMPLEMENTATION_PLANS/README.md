@@ -23,23 +23,11 @@ Each implementation plan includes:
 | # | Name | Status | Description |
 |---|------|--------|-------------|
 | 001 | [Autonomous Agents & Digest](./001_AUTONOMOUS_AGENTS_DIGEST.md) | Ready | Enable autonomous agent scheduling and seamless digest integration |
-| 002 | [Digest Issues Investigation](./002_DIGEST_ISSUES_INVESTIGATION.md) | Complete | Investigation into digest generation issues |
-| 003 | [Digest UI Improvements](./003_DIGEST_UI_IMPROVEMENTS.md) | Complete | UI improvements for digest display |
-| 004 | [Agent Fixes & Digest UI Simplification](./004_AGENT_FIXES_DIGEST_UI_SIMPLIFICATION.md) | Complete | Fix missing agent, unify notifications, remove themes |
-| 005 | [PubMed API Fix & Agent Logging](./005_PUBMED_API_FIX_AND_AGENT_LOGGING.md) | Complete | Fix silent PubMed failures, add agent execution logging |
+| 005 | [Digest UI Magazine Redesign](./005_DIGEST_UI_MAGAZINE_REDESIGN.md) | Complete | Magazine editorial UI for digests (kept as context for Plan 007) |
 | 006 | [PubMed Query Construction Fix](./006_PUBMED_QUERY_CONSTRUCTION_FIX.md) | **Ready** | Fix "2026 latest recent" query breaking PubMed searches |
 | 007 | [Digest Pipeline Fix & Dead Field Cleanup](./007_DIGEST_PIPELINE_FIX_AND_DEAD_FIELD_CLEANUP.md) | **Ready** | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
 | 008 | [Digest & Findings UX Enhancement](./008_DIGEST_FINDINGS_UX_ENHANCEMENT.md) | **Ready** | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
-| 009 | [Digest Generation Timeout Fix](./009_DIGEST_GENERATION_TIMEOUT_FIX.md) | Complete | Fix digest generation timeout issues |
-| 010 | [Finding Label Unification](./010_FINDING_LABEL_UNIFICATION.md) | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
-| 011 | [Digest Explained Mode Expansion](./011_DIGEST_EXPLAINED_MODE_EXPANSION.md) | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
-| 012 | [Chat Architecture Rebuild](./012_CHAT_ARCHITECTURE_REBUILD.md) | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
-| 013 | [Dashboard Home Redesign](./013_DASHBOARD_HOME_REDESIGN.md) | Complete | Merge Dashboard + Research Insights into unified Home page |
-| 014 | [UI/UX Design System Overhaul](./014_UI_UX_DESIGN_SYSTEM_OVERHAUL.md) | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign |
-| 015a | [Layout & Spatial Design](./015a_LAYOUT_SPATIAL_DESIGN.md) | Complete | Bento grid home, chat push/reflow, wider containers, improved grid density for all pages |
-| 015b | [Layout & Spatial Design (Refinements)](./015b_LAYOUT_SPATIAL_REFINEMENTS.md) | Complete | Digest TOC sidebar, drawer/chat mutual exclusivity, home page bottom row, bento grid polish |
-| 015c | [Companion Intelligence](./015c_COMPANION_INTELLIGENCE.md) | Complete | Research Pulse + Worth Revisiting AI features for home page |
-| 016 | [Auth Page UI Redesign](./016_AUTH_PAGE_REDESIGN.md) | Complete | Split layout auth page with pill toggle, gradient branding panel, browser tab fix |
+| 017 | [Codebase Cleanup](./017_CODEBASE_CLEANUP.md) | **In Progress** | Dead code removal and stale documentation cleanup |
 
 ## How to Use
 
@@ -61,4 +49,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 8, 2026*
-*Latest Plan: 016 - Auth Page UI Redesign*
+*Latest Plan: 017 - Codebase Cleanup*

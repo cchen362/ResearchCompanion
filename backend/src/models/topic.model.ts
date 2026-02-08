@@ -136,7 +136,7 @@ export class TopicModel {
     if (!topic) return null;
 
     // Get counts of related data
-    const [findingsCount, digestsCount, timelineCount] = await Promise.all([
+    const [findingsCount, digestsCount] = await Promise.all([
       queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM findings WHERE topic_id = $1 AND user_id = $2',
         [id, userId]
@@ -144,18 +144,13 @@ export class TopicModel {
       queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM digests WHERE topic_id = $1 AND user_id = $2',
         [id, userId]
-      ),
-      queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM timeline_events WHERE topic_id = $1 AND user_id = $2',
-        [id, userId]
       )
     ]);
 
     return {
       ...topic,
       findings_count: findingsCount?.count || 0,
-      digests_count: digestsCount?.count || 0,
-      timeline_count: timelineCount?.count || 0
+      digests_count: digestsCount?.count || 0
     };
   }
 

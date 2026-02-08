@@ -206,9 +206,7 @@ class CacheManagerClass {
     const stores = STORAGE_BOUNDARIES.indexedDB.stores;
 
     for (const store of stores) {
-      if (store !== 'offline_queue') {
-        await this.clearExpired(store);
-      }
+      await this.clearExpired(store);
     }
   }
 

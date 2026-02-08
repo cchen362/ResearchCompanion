@@ -31,24 +31,11 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | # | Name | Status | Description |
 |---|------|--------|-------------|
 | 001 | Autonomous Agents & Digest | Ready | Enable autonomous agent scheduling and seamless digest integration |
-| 002 | Digest Issues Investigation | Complete | Investigation into digest generation issues |
-| 003 | Digest UI Improvements | Complete | UI improvements for digest display |
-| 004 | Agent Fixes & Digest UI Simplification | Complete | Fix missing agent, unify notifications, remove themes |
-| 005 | PubMed API Fix & Agent Logging | Complete | Fix silent PubMed failures, add agent execution logging |
+| 005 | Digest UI Magazine Redesign | Complete | Magazine editorial UI for digests (kept as context for Plan 007) |
 | 006 | PubMed Query Construction Fix | Ready | Fix "2026 latest recent" query breaking PubMed searches |
 | 007 | Digest Pipeline Fix & Dead Field Cleanup | Ready | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
 | 008 | Digest & Findings UX Enhancement | Ready | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
-| 009 | Digest Generation Timeout Fix | Complete | Fix digest generation timeout issues |
-| 010 | Finding Label Unification | Complete | Unify finding labels to source-based categories (PubMed/Clinical/Web) |
-| 011 | Digest Explained Mode Expansion | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
-| 012 | Chat Architecture Rebuild | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
-| 013 | Dashboard Home Redesign | Complete | Merge Dashboard + Research Insights into unified Home page |
-| 014 | UI/UX Design System Overhaul | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign. Layout unchanged — see Post-Completion Assessment. |
-| 015a | Layout & Spatial Design (Core) | Complete | Bento grid home, chat push/reflow on wide screens, wider containers, improved grid density. Builds on Plan 014 tokens. |
-| 015b | Layout & Spatial Design (Refinements) | Complete | Digest TOC sidebar with scroll-spy, drawer/chat mutual exclusivity, home page bottom row redesign, bento grid polish. Builds on 015a. |
-| 015c | Companion Intelligence | Complete | Research Pulse (AI companion sentence) + Worth Revisiting (finding pattern matching with center modal). Replaces DigestSignposts from 015b. |
-| 015d | Worth Revisiting Enhancements | Complete | Tooltip education, Explained Mode toggle, finding navigation links, layout improvements for WR modal. Builds on 015c. |
-| 016 | Auth Page UI Redesign | Complete | Split layout auth page with pill toggle, gradient branding panel, animated orbs, browser tab fix. UI-only, no auth logic changes. |
+| 017 | Codebase Cleanup | In Progress | Dead code removal and stale documentation cleanup |
 
 ### Agent Instructions
 
@@ -911,7 +898,7 @@ export const DB_NAME = 'MedCompanionDB';
 - `VersionError` in console
 - Features work initially then break
 
-For detailed case study, see [docs/VOICE-RECORDING-FIX-CASE-STUDY.md](docs/VOICE-RECORDING-FIX-CASE-STUDY.md)
+
 
 ### The Citation Rendering Investigation (January 2026)
 
@@ -1235,7 +1222,7 @@ When completing work, ensure these sections are current:
     - Streaming tokens now display incrementally (not hidden behind spinner)
     - Line-clamp disabled during streaming so tokens flow freely
     - Backend citation extraction handles comma-separated `[30, 33]` format
-  - **Plan**: See `IMPLEMENTATION_PLANS/012_CHAT_ARCHITECTURE_REBUILD.md`
+  - **Plan**: Plan 012 implemented and completed.
 - **v4.0.0** (Planned) - Advanced Research Analytics
 
 ## Chat Implementation Lessons (CRITICAL)

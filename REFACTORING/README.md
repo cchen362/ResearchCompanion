@@ -39,7 +39,7 @@ The Medical Companion PWA has **fundamentally failed** to deliver autonomous beh
 - ✅ Deleted all redundant API service layers
 - ✅ Implemented single, clear data flow pattern (StorageService base class)
 - ✅ Broke circular dependency (agentRunner ↔ digestQueueService) with events
-- **Document**: [PHASE_1_SERVICE_LAYER.md](./PHASE_1_SERVICE_LAYER.md)
+- **Document**: PHASE_1_SERVICE_LAYER.md (removed — see summary above)
 
 ### Phase 2: State Management Migration (Week 2) ✅ COMPLETE
 - ✅ Created 3 focused Zustand stores (researchStore, uiStore, appStore)
@@ -47,7 +47,7 @@ The Medical Companion PWA has **fundamentally failed** to deliver autonomous beh
 - ✅ Eliminated 27 useState calls from FindingsViewerProgressive.tsx
 - ✅ Fixed state persistence across navigation
 - ✅ All components migrated to new stores
-- **Document**: [PHASE_2_STATE_MANAGEMENT.md](./PHASE_2_STATE_MANAGEMENT.md)
+- **Document**: PHASE_2_STATE_MANAGEMENT.md (removed — see summary above)
 
 ### Phase 3: Component Decomposition (Week 3) ✅ COMPLETE
 - ✅ Decomposed FindingsViewerProgressive.tsx into 14 focused components
@@ -55,7 +55,7 @@ The Medical Companion PWA has **fundamentally failed** to deliver autonomous beh
 - ✅ All new components under 200 lines (except drawers marked for future)
 - ✅ Deleted unused component variants (~2,000 lines removed)
 - ✅ Deleted legacy backup directory
-- **Document**: [PHASE_3_COMPONENTS.md](./PHASE_3_COMPONENTS.md)
+- **Document**: PHASE_3_COMPONENTS.md (removed — see summary above)
 
 ### Phase 4: Storage Architecture (Week 4) ✅ COMPLETE
 - ✅ Defined clear storage boundaries (PostgreSQL = source of truth, IndexedDB = cache, LocalStorage = UI prefs)
@@ -64,7 +64,7 @@ The Medical Companion PWA has **fundamentally failed** to deliver autonomous beh
 - ✅ Replaced 374 console.log statements with logger utility
 - ✅ Deleted deprecated files (cleanup.ts, DebugPanel.tsx)
 - ✅ Removed deprecated Timeline feature completely (components, types, DB store)
-- **Document**: [PHASE_4_STORAGE.md](./PHASE_4_STORAGE.md)
+- **Document**: PHASE_4_STORAGE.md (removed — see summary above)
 
 ---
 
@@ -154,7 +154,7 @@ The Medical Companion PWA has **fundamentally failed** to deliver autonomous beh
 
 ## Code Deletion Manifest
 
-See [CODE_TO_DELETE.md](./CODE_TO_DELETE.md) for the complete list of files to delete.
+See CODE_TO_DELETE.md (removed — cleanup completed) for the complete list of files to delete.
 
 **Target**: Delete 5,000+ lines of dead/redundant code
 
@@ -185,8 +185,8 @@ After completing all 4 phases:
 ## How to Use This Guide
 
 1. **Read this README first** - Understand the full scope
-2. **Read the current phase document** - Week 2 = PHASE_2_STATE_MANAGEMENT.md
-3. **Check CODE_TO_DELETE.md** - Know what to remove
+2. **Phase documents were removed** after all 4 phases completed — see summaries above
+3. **CODE_TO_DELETE.md was removed** after cleanup completed
 4. **Follow the phase instructions exactly** - No improvements or deviations
 5. **Update status here when done** - Mark phase complete
 

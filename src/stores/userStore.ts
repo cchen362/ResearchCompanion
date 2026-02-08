@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { UserPreferences, FamilyMember } from '../types';
+import type { UserPreferences } from '../types';
 import { getDB } from '../utils/db/database';
 import { logger } from '../utils/logger';
 
@@ -93,25 +93,6 @@ interface UserStore {
   // Export Preferences
   exportPrefs: ExportPreferences;
   updateExportPreferences: (prefs: Partial<ExportPreferences>) => void;
-
-  // Family Members
-  familyMembers: FamilyMember[];
-  loadFamilyMembers: () => Promise<void>;
-  addFamilyMember: (member: Omit<FamilyMember, 'id'>) => Promise<void>;
-  updateFamilyMember: (id: string, updates: Partial<FamilyMember>) => Promise<void>;
-  removeFamilyMember: (id: string) => Promise<void>;
-
-  // API Usage
-  apiUsage: {
-    totalCost: number;
-    monthlyLimit: number;
-    currentMonth: string;
-    breakdown: Map<string, number>;
-  };
-  loadApiUsage: () => Promise<void>;
-  updateApiUsage: (service: string, cost: number) => Promise<void>;
-  setMonthlyLimit: (limit: number) => void;
-  resetMonthlyUsage: () => Promise<void>;
 
   // Feature Flags
   featureFlags: Map<string, boolean>;
@@ -312,157 +293,9 @@ export const useUserStore = create<UserStore>()(
           set({ exportPrefs: { ...current, ...prefs } });
         },
 
-        // Family Members
-        familyMembers: [],
-        loadFamilyMembers: async () => {
-          try {
-            const db = await getDB();
-            const members = await db.getAll('family');
-            set({ familyMembers: members });
-          } catch (error) {
-            logger.error('[UserStore] Failed to load family members:', error);
-          }
-        },
-        addFamilyMember: async (member) => {
-          try {
-            const db = await getDB();
-            const id = `family_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const newMember: FamilyMember = { ...member, id };
-
-            await db.add('family', newMember);
-            const members = get().familyMembers;
-            set({ familyMembers: [...members, newMember] });
-          } catch (error) {
-            logger.error('[UserStore] Failed to add family member:', error);
-            throw error;
-          }
-        },
-        updateFamilyMember: async (id, updates) => {
-          try {
-            const db = await getDB();
-            const existing = await db.get('family', id);
-            if (!existing) throw new Error('Family member not found');
-
-            const updated = { ...existing, ...updates };
-            await db.put('family', updated);
-
-            const members = get().familyMembers;
-            set({
-              familyMembers: members.map(m => m.id === id ? updated : m)
-            });
-          } catch (error) {
-            logger.error('[UserStore] Failed to update family member:', error);
-            throw error;
-          }
-        },
-        removeFamilyMember: async (id) => {
-          try {
-            const db = await getDB();
-            await db.delete('family', id);
-
-            const members = get().familyMembers;
-            set({
-              familyMembers: members.filter(m => m.id !== id)
-            });
-          } catch (error) {
-            logger.error('[UserStore] Failed to remove family member:', error);
-            throw error;
-          }
-        },
-
-        // API Usage
-        apiUsage: {
-          totalCost: 0,
-          monthlyLimit: 10.00,
-          currentMonth: new Date().toISOString().substring(0, 7),
-          breakdown: new Map()
-        },
-        loadApiUsage: async () => {
-          try {
-            const db = await getDB();
-            const currentMonth = new Date().toISOString().substring(0, 7);
-            const usageRecords = await db.getAllFromIndex('apiUsage', 'by-date',
-              IDBKeyRange.bound(
-                `${currentMonth}-01`,
-                `${currentMonth}-31`
-              )
-            );
-
-            const breakdown = new Map<string, number>();
-            let totalCost = 0;
-
-            usageRecords.forEach(record => {
-              const current = breakdown.get(record.service) || 0;
-              breakdown.set(record.service, current + record.cost);
-              totalCost += record.cost;
-            });
-
-            set({
-              apiUsage: {
-                ...get().apiUsage,
-                totalCost,
-                currentMonth,
-                breakdown
-              }
-            });
-          } catch (error) {
-            logger.error('[UserStore] Failed to load API usage:', error);
-          }
-        },
-        updateApiUsage: async (service, cost) => {
-          try {
-            const db = await getDB();
-            const now = new Date();
-            const usage = {
-              id: `usage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              service,
-              cost,
-              date: now.toISOString(),
-              month: now.toISOString().substring(0, 7)
-            };
-
-            await db.add('apiUsage', usage);
-
-            const { apiUsage } = get();
-            const breakdown = new Map(apiUsage.breakdown);
-            const current = breakdown.get(service) || 0;
-            breakdown.set(service, current + cost);
-
-            set({
-              apiUsage: {
-                ...apiUsage,
-                totalCost: apiUsage.totalCost + cost,
-                breakdown
-              }
-            });
-          } catch (error) {
-            logger.error('[UserStore] Failed to update API usage:', error);
-          }
-        },
-        setMonthlyLimit: (limit) => {
-          set(state => ({
-            apiUsage: { ...state.apiUsage, monthlyLimit: limit }
-          }));
-        },
-        resetMonthlyUsage: async () => {
-          const currentMonth = new Date().toISOString().substring(0, 7);
-          set(state => ({
-            apiUsage: {
-              ...state.apiUsage,
-              totalCost: 0,
-              currentMonth,
-              breakdown: new Map()
-            }
-          }));
-        },
-
         // Feature Flags
         featureFlags: new Map([
           ['conversationalInterface', true],
-          ['knowledgeGraph', false],
-          ['advancedExport', false],
-          ['voiceCommands', false],
-          ['collaborationTools', false],
           ['aiInsights', true],
           ['customAgents', false]
         ]),
@@ -498,18 +331,11 @@ export const useUserStore = create<UserStore>()(
           privacy: state.privacy,
           research: state.research,
           exportPrefs: state.exportPrefs,
-          apiUsage: {
-            monthlyLimit: state.apiUsage.monthlyLimit,
-            currentMonth: state.apiUsage.currentMonth
-          },
           featureFlags: Array.from(state.featureFlags.entries())
         }),
         onRehydrateStorage: () => (state) => {
           if (state && state.featureFlags && Array.isArray(state.featureFlags)) {
             state.featureFlags = new Map(state.featureFlags as any);
-          }
-          if (state && !state.apiUsage.breakdown) {
-            state.apiUsage.breakdown = new Map();
           }
         }
       }
@@ -522,17 +348,3 @@ export const useFeature = (featureName: string): boolean => {
   return useUserStore(state => state.isFeatureEnabled(featureName));
 };
 
-// Helper hook for checking if user is within API budget
-export const useApiBudget = () => {
-  const { apiUsage, research } = useUserStore();
-  const remaining = research.maxAgentBudget - apiUsage.totalCost;
-  const percentUsed = (apiUsage.totalCost / research.maxAgentBudget) * 100;
-
-  return {
-    used: apiUsage.totalCost,
-    limit: research.maxAgentBudget,
-    remaining: Math.max(0, remaining),
-    percentUsed: Math.min(100, percentUsed),
-    isOverBudget: apiUsage.totalCost >= research.maxAgentBudget
-  };
-};

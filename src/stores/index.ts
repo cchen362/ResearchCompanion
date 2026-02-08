@@ -34,7 +34,7 @@ export { useAppStore } from './appStore';
 // ============================================
 
 export { useChatStore } from './chatStore';
-export { useUserStore, useFeature, useApiBudget } from './userStore';
+export { useUserStore, useFeature } from './userStore';
 
 // Legacy stores - commented out, will be deleted after Phase 2
 // export { useDigestStore, useDigestHydrated } from './digestStore';

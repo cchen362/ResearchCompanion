@@ -6,7 +6,6 @@ import { dirname, join } from 'path';
 
 // Import routes
 import searchRoutes from './routes/search.js';
-import transcribeRoute from './routes/transcribe.js';
 import digestRoutes from './routes/digest.routes.js';
 import agentRoute from './routes/agent.js';
 import chatRoutes from './routes/chat.routes.js';
@@ -17,9 +16,6 @@ import findingsRoutes from './routes/findings.routes.js';
 import agentsRoutes from './routes/agents.routes.js';
 import digestsCrudRoutes from './routes/digests.crud.routes.js';
 import chatsRoutes from './routes/chats.routes.js';
-// Voice recording and timeline routes
-import timelineRoutes from './routes/timeline.routes.js';
-import audioRoutes from './routes/audio.routes.js';
 import versionRoutes from './routes/version.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import createDigestQueueRouter from './routes/digestQueue.routes.js';
@@ -123,7 +119,6 @@ app.use('/api', versionRoutes);
 
 // Protected routes (authentication required)
 app.use('/api', authenticate, searchRoutes);
-app.use('/api', authenticate, transcribeRoute);
 app.use('/api/digest', authenticate, digestRoutes);
 app.use('/api', authenticate, agentRoute);
 app.use('/api/chat', authenticate, chatRoutes);
@@ -133,9 +128,6 @@ app.use('/api', authenticate, findingsRoutes);
 app.use('/api', authenticate, agentsRoutes);
 app.use('/api', authenticate, digestsCrudRoutes);
 app.use('/api', authenticate, chatsRoutes);
-// Voice recording and timeline routes
-app.use('/api', authenticate, timelineRoutes);
-app.use('/api', authenticate, audioRoutes);
 // Notifications routes (SSE endpoint needs special handling)
 app.use('/api', authenticate, notificationsRoutes);
 // Digest queue routes for server-side queue management (requires authentication)
@@ -195,7 +187,6 @@ const server = app.listen(PORT, () => {
   console.log('  - POST /api/websearch');
   console.log('  - POST /api/pubmed-search');
   console.log('  - POST /api/summarize');
-  console.log('  - POST /api/transcribe');
   console.log('  - POST /api/generate-digest (⏱️ 30-90s for AI processing)');
   console.log('  - POST /api/simplify-digest');
   console.log('  - POST /api/run-agent');

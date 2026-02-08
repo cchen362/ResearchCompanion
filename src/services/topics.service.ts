@@ -93,10 +93,7 @@ class TopicsService {
       searchProgress: apiTopic.metadata?.searchProgress || apiTopic.searchProgress || 0,
       agents: apiTopic.agents || [],
       researchHistory: apiTopic.researchHistory || [],
-      insights: apiTopic.insights || [],
-      connections: apiTopic.connections || [],
       tags: apiTopic.tags || [],
-      familyAccess: apiTopic.familyAccess || [],
       lastAgentRun: apiTopic.lastAgentRun,
       ...apiTopic.metadata // Spread any additional metadata
     };
@@ -259,12 +256,9 @@ class TopicsService {
       patientContext,
       agents: [],
       researchHistory: [],
-      insights: [],
-      connections: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      tags: [],
-      familyAccess: []
+      tags: []
     };
 
     if (this.useServerStorage) {
@@ -513,16 +507,6 @@ class TopicsService {
     });
   }
 
-  /**
-   * Get topics with family access for a specific member
-   */
-  async getTopicsForFamilyMember(memberId: string): Promise<Topic[]> {
-    const topics = await this.getTopics();
-    return topics.filter(topic =>
-      topic.familyAccess?.some(access => access.memberId === memberId)
-    );
-  }
-
   // ==========================================================================
   // TOPIC OPERATIONS
   // ==========================================================================
@@ -705,12 +689,6 @@ export const getTopicsNeedingUpdate = (hoursThreshold?: number) =>
  */
 export const addResearchToTopic = (topicId: string, findingId: string) =>
   topicsService.addResearchToTopic(topicId, findingId);
-
-/**
- * @deprecated Import topicsService and use topicsService.getTopicsForFamilyMember() instead
- */
-export const getTopicsForFamilyMember = (memberId: string) =>
-  topicsService.getTopicsForFamilyMember(memberId);
 
 /**
  * @deprecated Import topicsService and use topicsService.shouldUpdateTopic() instead

@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { VoiceTranscriptionResult } from '@/types';
 import { logger } from '@/utils/logger';
 
 // Fix for Git Bash path conversion issue - ensure we always get '/api' not Windows paths
@@ -157,46 +156,6 @@ export async function summarizeResultsLong(
   context?: string
 ) {
   const response = await longOperationApi.post('/summarize', { results, query, context });
-  return response.data;
-}
-
-/**
- * Transcribe audio and generate summary
- * Now also supports server storage of timeline and audio
- */
-export async function transcribeAudio(
-  audioBlob: Blob,
-  options?: {
-    topicId?: string;
-    title?: string;
-    duration?: number;
-    metadata?: any;
-  }
-): Promise<VoiceTranscriptionResult> {
-  // Convert blob to base64
-  const reader = new FileReader();
-  const base64Promise = new Promise<string>((resolve, reject) => {
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      // Remove data URL prefix
-      const base64Data = base64String.split(',')[1];
-      resolve(base64Data);
-    };
-    reader.onerror = reject;
-  });
-
-  reader.readAsDataURL(audioBlob);
-  const audio = await base64Promise;
-
-  const response = await api.post('/transcribe', {
-    audio,
-    mimeType: audioBlob.type,
-    topicId: options?.topicId,
-    title: options?.title,
-    duration: options?.duration,
-    metadata: options?.metadata
-  });
-
   return response.data;
 }
 

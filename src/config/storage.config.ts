@@ -58,8 +58,7 @@ export const STORAGE_BOUNDARIES = {
       'findings',
       'digests',
       'chats',
-      'notifications',
-      'offline_queue'
+      'notifications'
     ] as const,
     defaultTTL: 24 * 60 * 60 * 1000, // 24 hours
     maxTTL: 7 * 24 * 60 * 60 * 1000, // 7 days max
@@ -116,8 +115,6 @@ export const storageConfig = {
    * Whether to cache server data in IndexedDB for offline access
    * Only applicable when useServerStorage is true
    */
-  enableOfflineCache: true,
-
   /**
    * Auto-sync interval in milliseconds (when using server storage)
    * Default: 30 seconds
