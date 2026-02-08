@@ -105,43 +105,43 @@ export function AuthPage() {
           aria-hidden="true"
         />
 
-        {/* 3. Ghosted stylized digest card wireframe */}
+        {/* 3. Glassmorphism digest card preview */}
         <div className="absolute inset-0 flex items-center justify-center p-12" aria-hidden="true">
-          <div className="w-full max-w-xs opacity-[0.18]">
-            {/* Card chrome */}
-            <div className="rounded-t-xl border border-white/30 bg-white/5 px-4 py-3">
-              <div className="h-4 w-32 rounded bg-white/20 mb-3" />
-              <div className="h-2 w-full rounded bg-white/10" />
+          <div className="w-full max-w-xs rotate-[-2deg] translate-y-4">
+            {/* Card chrome — frosted glass header */}
+            <div className="rounded-t-2xl border border-white/20 bg-white/[0.12] backdrop-blur-xl px-5 py-4 shadow-lg shadow-black/10">
+              <div className="h-4 w-36 rounded-md bg-white/30 mb-3" />
+              <div className="h-2 w-full rounded bg-white/15" />
             </div>
-            {/* Card body with digest-like sections */}
-            <div className="border border-t-0 border-white/30 bg-white/5 rounded-b-xl p-4 space-y-3">
-              {/* Section header */}
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-green-400/40" />
-                <div className="h-2.5 w-24 rounded bg-white/15" />
+            {/* Card body — frosted glass with digest-like content */}
+            <div className="border border-t-0 border-white/20 bg-white/[0.08] backdrop-blur-xl rounded-b-2xl p-5 space-y-4 shadow-lg shadow-black/10">
+              {/* Section header — Key Findings */}
+              <div className="flex items-center gap-2.5">
+                <div className="h-3.5 w-3.5 rounded-full bg-emerald-400/60" />
+                <div className="h-3 w-28 rounded-md bg-white/25" />
               </div>
               {/* Bullet points */}
-              <div className="space-y-2 pl-5">
-                <div className="h-2 w-full rounded bg-white/10" />
-                <div className="h-2 w-4/5 rounded bg-white/10" />
-                <div className="h-2 w-11/12 rounded bg-white/10" />
+              <div className="space-y-2.5 pl-6">
+                <div className="h-2 w-full rounded bg-white/15" />
+                <div className="h-2 w-4/5 rounded bg-white/15" />
+                <div className="h-2 w-11/12 rounded bg-white/12" />
               </div>
               {/* Section divider */}
-              <div className="border-t border-white/10" />
-              {/* Another section */}
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-amber-400/40" />
-                <div className="h-2.5 w-28 rounded bg-white/15" />
+              <div className="border-t border-white/15" />
+              {/* Section header — Clinical Updates */}
+              <div className="flex items-center gap-2.5">
+                <div className="h-3.5 w-3.5 rounded-full bg-amber-400/60" />
+                <div className="h-3 w-32 rounded-md bg-white/25" />
               </div>
-              <div className="space-y-2 pl-5">
-                <div className="h-2 w-full rounded bg-white/10" />
-                <div className="h-2 w-3/4 rounded bg-white/10" />
+              <div className="space-y-2.5 pl-6">
+                <div className="h-2 w-full rounded bg-white/15" />
+                <div className="h-2 w-3/4 rounded bg-white/12" />
               </div>
               {/* Source pills row */}
-              <div className="flex gap-2 pt-2">
-                <div className="h-5 w-16 rounded-full bg-blue-400/20 border border-blue-300/20" />
-                <div className="h-5 w-14 rounded-full bg-green-400/20 border border-green-300/20" />
-                <div className="h-5 w-12 rounded-full bg-purple-400/20 border border-purple-300/20" />
+              <div className="flex gap-2 pt-3">
+                <div className="h-6 w-18 rounded-full bg-blue-400/25 border border-blue-300/30" />
+                <div className="h-6 w-16 rounded-full bg-emerald-400/25 border border-emerald-300/30" />
+                <div className="h-6 w-14 rounded-full bg-purple-400/25 border border-purple-300/30" />
               </div>
             </div>
           </div>
