@@ -45,7 +45,7 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 013 | Dashboard Home Redesign | Complete | Merge Dashboard + Research Insights into unified Home page |
 | 014 | UI/UX Design System Overhaul | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign. Layout unchanged — see Post-Completion Assessment. |
 | 015a | Layout & Spatial Design (Core) | Complete | Bento grid home, chat push/reflow on wide screens, wider containers, improved grid density. Builds on Plan 014 tokens. |
-| 015b | Layout & Spatial Design (Refinements) | Ready | Digest TOC sidebar with scroll-spy, drawer/chat mutual exclusivity, home page bottom row redesign, bento grid polish. Builds on 015a. |
+| 015b | Layout & Spatial Design (Refinements) | Complete | Digest TOC sidebar with scroll-spy, drawer/chat mutual exclusivity, home page bottom row redesign, bento grid polish. Builds on 015a. |
 | 015c | Companion Intelligence | Outline | Research Pulse (AI summary sentence) + Worth Revisiting (finding pattern matching). Replaces DigestSignposts from 015b. |
 
 ### Agent Instructions

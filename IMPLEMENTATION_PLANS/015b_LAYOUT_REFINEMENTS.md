@@ -49,7 +49,7 @@ Agents MUST follow this guide exactly. NO deviations, NO quick fixes, NO creativ
 
 ## Current Status
 
-- **Phase**: Pending
+- **Phase**: COMPLETE
 - **Created**: February 8, 2026
 - **Priority**: MEDIUM — Refinement layer after core layout (015a)
 - **Branch**: `feat/ui-overhaul` (continue from Plan 015a)
@@ -1135,11 +1135,11 @@ If the changes cause issues:
 
 | Phase | Description | Status | Date |
 |-------|-------------|--------|------|
-| 1 | Digest TOC Sidebar | ⬜ Pending | |
-| 2 | Drawer + Chat Mutual Exclusivity | ⬜ Pending | |
-| 3 | Home Page Bottom Row Redesign | ⬜ Pending | |
-| 4 | Bento Grid Polish | ⬜ Pending | |
-| 5 | Build Verification & Deployment | ⬜ Pending | |
+| 1 | Digest TOC Sidebar | ✅ Complete | Feb 8, 2026 |
+| 2 | Drawer + Chat Mutual Exclusivity | ✅ Complete | Feb 8, 2026 |
+| 3 | Home Page Bottom Row Redesign | ✅ Complete | Feb 8, 2026 |
+| 4 | Bento Grid Polish | ✅ Complete | Feb 8, 2026 |
+| 5 | Build Verification & Deployment | ✅ Complete | Feb 8, 2026 |
 
 ---
 
