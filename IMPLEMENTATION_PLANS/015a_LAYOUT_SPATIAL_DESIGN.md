@@ -54,7 +54,7 @@ Agents MUST follow this guide exactly. NO deviations, NO quick fixes, NO creativ
 - **Priority**: HIGH - Major layout transformation
 - **Branch**: `feat/ui-overhaul` (continue from Plan 014)
 - **Predecessor**: Plan 014 (UI/UX Design System Overhaul - Complete)
-- **Successor**: Plan 015b (Layout Refinements — Digest TOC, responsive density, drawer sizing)
+- **Successor**: Plan 015b (Layout Refinements — Digest TOC sidebar, drawer/chat exclusivity, home page redesign, bento grid polish)
 
 ---
 
