@@ -23,17 +23,34 @@ interface ResearchPulseCardProps {
 
 function formatPulse(text: string): { lead: string; items: string[] } | null {
   if (!text) return null;
+
+  // Try colon split first: "Your research has 3 breakthroughs: item1, item2, and item3"
   const colonIdx = text.indexOf(':');
-  if (colonIdx === -1 || colonIdx > text.length * 0.6) {
-    return { lead: text, items: [] };
+  if (colonIdx !== -1 && colonIdx < text.length * 0.6) {
+    const lead = text.slice(0, colonIdx).trim();
+    const rest = text.slice(colonIdx + 1).trim();
+    const items = rest
+      .split(/,\s+(?:and\s+)?|(?:^|\s)and\s+/)
+      .map(s => s.replace(/\.$/, '').trim())
+      .filter(s => s.length > 0);
+    if (items.length >= 2) return { lead, items };
   }
-  const lead = text.slice(0, colonIdx).trim();
-  const rest = text.slice(colonIdx + 1).trim();
-  const items = rest
-    .split(/,\s+(?:and\s+)?|(?:^|\s)and\s+/)
-    .map(s => s.replace(/\.$/, '').trim())
-    .filter(s => s.length > 0);
-  return { lead, items };
+
+  // Try "including" split: "...3 breakthroughs this week, including item1 and item2"
+  const inclMatch = text.match(/^(.+?),\s+including\s+(.+)$/i);
+  if (inclMatch) {
+    const lead = inclMatch[1].trim();
+    const rest = inclMatch[2].trim();
+    // Split on " and " for the last item, keeping em-dash/period tails trimmed
+    const items = rest
+      .split(/,\s+(?:and\s+)?|\s+and\s+/)
+      .map(s => s.replace(/\s*—.*$/, '').replace(/\.$/, '').trim())
+      .filter(s => s.length > 0);
+    if (items.length >= 2) return { lead, items };
+  }
+
+  // No structure found — return as plain text, no bullets
+  return { lead: text, items: [] };
 }
 
 export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingClick }: ResearchPulseCardProps) {
@@ -71,21 +88,27 @@ export function ResearchPulseCard({ signposts, onOpenDigest, onWorthRevisitingCl
             {(() => {
               const parsed = formatPulse(signpost.researchPulse);
               if (!parsed) return null;
+              if (parsed.items.length === 0) {
+                // No structure found — render as plain italic text
+                return (
+                  <p className="text-sm text-[var(--color-text-secondary)] italic leading-relaxed">
+                    &ldquo;{parsed.lead}&rdquo;
+                  </p>
+                );
+              }
               return (
                 <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
                   <p className="font-medium text-[var(--color-text-primary)] mb-1.5">
-                    {parsed.lead}{parsed.items.length > 0 ? ':' : ''}
+                    {parsed.lead}:
                   </p>
-                  {parsed.items.length > 0 && (
-                    <ul className="space-y-1 ml-0.5">
-                      {parsed.items.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-purple-400 shrink-0" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="space-y-1 ml-0.5">
+                    {parsed.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-purple-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               );
             })()}
