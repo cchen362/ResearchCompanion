@@ -43,7 +43,8 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 011 | Digest Explained Mode Expansion | Complete | Expand Technical/Explained toggle to all digest sections + fix doctor questions/warning signs pipeline |
 | 012 | Chat Architecture Rebuild | Complete | Rebuild chat for server-first architecture, fix persistence, streaming, warm companion persona |
 | 013 | Dashboard Home Redesign | Complete | Merge Dashboard + Research Insights into unified Home page |
-| 014 | UI/UX Design System Overhaul | Complete | Complete visual overhaul: design tokens, evolved palette, dark mode, adaptive containers, page refresh, chat redesign |
+| 014 | UI/UX Design System Overhaul | Complete | Design token foundation: evolved palette, dark mode, theme-aware components, chat redesign. **Note**: Layout/spatial structure unchanged — see Plan 014 Post-Completion Assessment for details. Next plan should tackle layout. |
+| 015 | Layout & Spatial Design | Pending | *(Not yet written)* Use Plan 014's design token foundation to overhaul page widths, grid systems, responsive behavior, and screen real estate usage |
 
 ### Agent Instructions
 

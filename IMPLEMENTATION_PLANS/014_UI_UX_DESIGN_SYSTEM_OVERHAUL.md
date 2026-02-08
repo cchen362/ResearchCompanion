@@ -1296,6 +1296,41 @@ If the overhaul causes issues:
 
 ---
 
+## Post-Completion Assessment
+
+### What This Plan Achieved (the Foundation)
+
+Plan 014 was a **design system foundation overhaul** — not a layout redesign. The concrete deliverables:
+
+1. **CSS Design Token System** — 60+ CSS custom properties for colors, shadows, radii, animations. Light and dark themes via `@media (prefers-color-scheme: dark)`. Single source of truth in `src/index.css`.
+2. **Evolved Color Palette** — Migrated from generic Tailwind indigo (HSL 243) to a custom primary palette (HSL 222). More medical, less generic SaaS.
+3. **System-Preference Dark Mode** — Fully functional dark mode that follows OS setting. All 45+ component files updated to use CSS variables instead of hardcoded colors.
+4. **Chat Panel Redesign** — Fullscreen toggle, redesigned bubbles, warm empty state.
+5. **Theme-Aware UI Primitives** — Button, badge, input, tabs, dropdown, popover, select all use design tokens.
+
+### What This Plan Did NOT Change (the Layout)
+
+The layout structure is effectively unchanged:
+
+- **Content widths**: Findings/Topics/Agents remain at `max-w-[1280px]` (same as the old `max-w-7xl`). Home page is `max-w-[1440px]` (+160px, barely noticeable).
+- **Page structure**: Still single centered column on all pages.
+- **Grid layouts**: 2-column findings grid was already from Plan 013.
+- **Responsive breakpoints**: Same Tailwind defaults.
+- **Overall spatial feel**: Centered, standard, no dramatic whitespace or layout shifts.
+
+### Foundation Ready for Layout Overhaul
+
+The design token system is now in place, which means a future layout plan can build on:
+
+- `Container` component (`src/components/ui/container.tsx`) with variant system — easy to add new width variants or change existing ones
+- CSS custom properties for spacing, shadows, radii — can be extended
+- `clamp()` responsive padding already wired into the main layout shell
+- All components using theme-aware variables — layout changes won't regress dark mode
+
+**Recommended next step**: A dedicated **Layout & Spatial Design plan** that tackles content width, page structure, grid systems, responsive behavior, and overall use of screen real estate. This plan established the color/theme foundation; the layout deserves its own focused effort.
+
+---
+
 *Created: February 8, 2026*
 *Author: Claude Opus 4.6*
 *Predecessor: Plan 013 (Dashboard Home Redesign - Complete)*
