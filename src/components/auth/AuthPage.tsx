@@ -105,7 +105,7 @@ export function AuthPage() {
               top: '-8%',
               right: '-12%',
               filter: 'blur(40px)',
-              animation: 'auth-orb-drift-1 18s ease-in-out infinite',
+              animation: 'auth-orb-drift-1 8s ease-in-out infinite',
             }}
           />
           {/* Cyan orb — center-left */}
@@ -116,7 +116,7 @@ export function AuthPage() {
               top: '30%',
               left: '-8%',
               filter: 'blur(40px)',
-              animation: 'auth-orb-drift-2 22s ease-in-out infinite',
+              animation: 'auth-orb-drift-2 10s ease-in-out infinite',
             }}
           />
           {/* Violet orb — bottom-right */}
@@ -127,7 +127,7 @@ export function AuthPage() {
               bottom: '-12%',
               right: '5%',
               filter: 'blur(40px)',
-              animation: 'auth-orb-drift-3 20s ease-in-out infinite',
+              animation: 'auth-orb-drift-3 9s ease-in-out infinite',
             }}
           />
         </div>
