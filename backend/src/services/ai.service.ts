@@ -403,7 +403,7 @@ Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
     // Using tools to encourage structured output (without beta header for compatibility)
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',  // Using Claude Sonnet 4.5 for superior quality
-      max_tokens: 8000,
+      max_tokens: 12000,
       temperature: 0.3,
       tools: [
         {
@@ -568,7 +568,7 @@ MAGAZINE EDITORIAL SECTIONS (REQUIRED):
 
 COMPANION INTELLIGENCE (REQUIRED):
 - researchPulse: A single warm companion-voice sentence about this topic's research state. Address the user directly with "Your". Reference specific counts.
-- worthRevisiting: 0-3 connections between older findings and recent breakthroughs. Use exact finding UUIDs from the ID fields above. Return empty array [] if no meaningful connections exist. Each connection's oldFindingSummary, newBreakthroughSummary, and connectionExplanation must be dual-mode objects with {technical, explained} versions.
+- worthRevisiting: IMPORTANT — You MUST attempt to find 1-3 connections between older findings and recent breakthroughs. Use exact finding UUIDs from the ID fields above. Only return empty array [] if there are truly ZERO meaningful connections after careful analysis. Each connection's oldFindingSummary, newBreakthroughSummary, and connectionExplanation must be dual-mode objects with {technical, explained} versions. Look for findings that validate, contradict, or extend each other.
 
 Focus on practical, actionable information that helps with treatment decisions.`
         }
