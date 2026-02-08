@@ -16,6 +16,8 @@ import { AuthGuard } from './components/auth/AuthGuard';
 import NotificationCenter from './components/NotificationCenter';
 import { useUIStore } from './stores/uiStore';
 import { Container } from './components/ui/container';
+import { cn } from '@/lib/utils';
+import { useIsWideViewport } from './hooks/useViewport';
 import { MessageSquare, LogOut, Menu, X, Bell } from 'lucide-react';
 import type { Topic } from './types';
 import type { AuthUser } from './services/auth.service';
@@ -31,6 +33,8 @@ function MainApp() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { chatPanelOpen, setChatPanelOpen, chatFullscreen, toggleChatFullscreen } = useUIStore();
+  const isWideViewport = useIsWideViewport();
+  const usePushLayout = isWideViewport && chatPanelOpen && !chatFullscreen;
 
   // Function to refresh topics
   const refreshTopics = async () => {
@@ -309,69 +313,83 @@ function MainApp() {
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="py-8">
-        <Container variant={currentView === 'home' ? 'wide' : 'grid'}>
-          <ErrorBoundary>
-            {currentView === 'home' && (
-              <HomePage
-                topics={topics}
-                setCurrentView={setCurrentView}
-              />
-            )}
-            {currentView === 'topics' && (
-              <TopicManager
-                topics={topics}
-                setTopics={setTopics}
-                selectedTopic={selectedTopic}
-                setSelectedTopic={setSelectedTopic}
-              />
-            )}
-            {currentView === 'agents' && (
-              <AgentMonitor
-                topics={topics}
-                selectedTopic={selectedTopic}
-              />
-            )}
-            {currentView === 'findings' && (
-              <ResearchPage
-                topicId={selectedTopic?.id}
-              />
-            )}
-          </ErrorBoundary>
-        </Container>
-      </main>
+      {/* Main Content + Chat Layout Wrapper */}
+      <div className="flex min-h-[calc(100vh-64px)]">
+        {/* Main Content — shrinks when chat pushes on wide screens */}
+        <main className={cn(
+          'py-8 flex-1 min-w-0 transition-all duration-300',
+          usePushLayout && 'mr-[500px]'
+        )}>
+          <Container variant={currentView === 'home' ? 'wide' : 'grid'}>
+            <ErrorBoundary>
+              {currentView === 'home' && (
+                <HomePage
+                  topics={topics}
+                  setCurrentView={setCurrentView}
+                />
+              )}
+              {currentView === 'topics' && (
+                <TopicManager
+                  topics={topics}
+                  setTopics={setTopics}
+                  selectedTopic={selectedTopic}
+                  setSelectedTopic={setSelectedTopic}
+                />
+              )}
+              {currentView === 'agents' && (
+                <AgentMonitor
+                  topics={topics}
+                  selectedTopic={selectedTopic}
+                />
+              )}
+              {currentView === 'findings' && (
+                <ResearchPage
+                  topicId={selectedTopic?.id}
+                />
+              )}
+            </ErrorBoundary>
+          </Container>
+        </main>
 
-      {/* Chat Panel - Slide in from right or fullscreen */}
-      {chatPanelOpen && selectedTopic && (
-        <div className={
-          chatFullscreen
-            ? 'fixed inset-0 z-50 bg-[var(--color-surface)]'
-            : 'fixed right-0 top-0 h-full z-50 shadow-xl bg-[var(--color-surface)] rounded-l-xl'
-        } style={chatFullscreen ? undefined : { width: '500px' }}>
-          {chatFullscreen ? (
-            <Container variant="reading" className="h-full">
-              <ChatPanel
-                topicId={selectedTopic.id}
-                topicName={selectedTopic.name}
-                onClose={() => { setChatPanelOpen(false); if (chatFullscreen) toggleChatFullscreen(); }}
-                onToggleFullscreen={toggleChatFullscreen}
-                isFullscreen={chatFullscreen}
-                className="h-full w-full"
-              />
-            </Container>
-          ) : (
-            <ChatPanel
-              topicId={selectedTopic.id}
-              topicName={selectedTopic.name}
-              onClose={() => setChatPanelOpen(false)}
-              onToggleFullscreen={toggleChatFullscreen}
-              isFullscreen={chatFullscreen}
-              className="h-full w-full"
-            />
-          )}
-        </div>
-      )}
+        {/* Chat Panel — Push mode (wide) or Overlay mode (narrow) */}
+        {chatPanelOpen && selectedTopic && (
+          <>
+            {chatFullscreen ? (
+              <div className="fixed inset-0 z-50 bg-[var(--color-surface)]">
+                <Container variant="reading" className="h-full">
+                  <ChatPanel
+                    topicId={selectedTopic.id}
+                    topicName={selectedTopic.name}
+                    onClose={() => { setChatPanelOpen(false); toggleChatFullscreen(); }}
+                    onToggleFullscreen={toggleChatFullscreen}
+                    isFullscreen={chatFullscreen}
+                    className="h-full w-full"
+                  />
+                </Container>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'fixed right-0 bg-[var(--color-surface)] border-l border-[var(--color-border)]',
+                  usePushLayout
+                    ? 'top-16 h-[calc(100vh-64px)] z-40 shadow-sm'
+                    : 'top-0 h-full z-50 shadow-xl rounded-l-xl'
+                )}
+                style={{ width: '500px' }}
+              >
+                <ChatPanel
+                  topicId={selectedTopic.id}
+                  topicName={selectedTopic.name}
+                  onClose={() => setChatPanelOpen(false)}
+                  onToggleFullscreen={toggleChatFullscreen}
+                  isFullscreen={chatFullscreen}
+                  className="h-full w-full"
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
