@@ -67,6 +67,10 @@
   --duration-normal: 200ms;
   --duration-slow: 300ms;
 
+  /* Layout Spacing Scale */
+  --spacing-section: 1.5rem;
+  --spacing-card: 1rem;
+
   /* shadcn/ui compatibility aliases — maps to our design tokens */
   --background: var(--color-surface);
   --foreground: var(--color-text-primary);
