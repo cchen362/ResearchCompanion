@@ -66,6 +66,17 @@
   --duration-fast: 150ms;
   --duration-normal: 200ms;
   --duration-slow: 300ms;
+
+  /* shadcn/ui compatibility aliases — maps to our design tokens */
+  --background: var(--color-surface);
+  --foreground: var(--color-text-primary);
+  --muted: var(--color-surface-sunken);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-primary-400);
+  --destructive: var(--color-error);
+  --destructive-foreground: #ffffff;
 }
 
 /* Dark Theme — Soft dark, slate-900 base, warm and comfortable */

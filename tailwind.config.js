@@ -27,6 +27,23 @@ export default {
           elevated: 'var(--color-surface-elevated)',
           sunken: 'var(--color-surface-sunken)',
         },
+        // shadcn/ui compatibility — maps to design token CSS variables
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
+        muted: {
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)',
+        },
+        destructive: {
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)',
+        },
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
+      },
+      borderColor: {
+        DEFAULT: 'var(--border)',
       },
     },
   },
