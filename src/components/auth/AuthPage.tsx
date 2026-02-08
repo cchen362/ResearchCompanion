@@ -92,43 +92,49 @@ export function AuthPage() {
     <div className="min-h-screen flex bg-[var(--color-surface)]">
       {/* LEFT: Branding Panel -- hidden below lg */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
-        {/* 1. Dark base gradient */}
+        {/* 1. Indigo base gradient */}
         <div className="absolute inset-0 auth-gradient-bg" aria-hidden="true" />
 
-        {/* 2. Glowing orbs — these give the glass card something to refract */}
+        {/* 2. Glowing orbs — vivid, on-brand */}
         <div aria-hidden="true">
+          {/* Bright blue orb — top-right */}
           <div
-            className="absolute w-[340px] h-[340px] rounded-full opacity-40 blur-[100px]"
+            className="absolute w-[420px] h-[420px] rounded-full"
             style={{
-              background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)',
-              top: '5%',
-              left: '10%',
-              animation: 'auth-orb-drift-1 20s ease-in-out infinite',
+              background: 'radial-gradient(circle, rgba(96,136,247,0.55) 0%, rgba(59,108,242,0.2) 50%, transparent 70%)',
+              top: '-8%',
+              right: '-12%',
+              filter: 'blur(40px)',
+              animation: 'auth-orb-drift-1 18s ease-in-out infinite',
             }}
           />
+          {/* Cyan orb — center-left */}
           <div
-            className="absolute w-[280px] h-[280px] rounded-full opacity-35 blur-[100px]"
+            className="absolute w-[350px] h-[350px] rounded-full"
             style={{
-              background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)',
-              top: '35%',
-              right: '-5%',
-              animation: 'auth-orb-drift-2 25s ease-in-out infinite',
+              background: 'radial-gradient(circle, rgba(34,211,238,0.45) 0%, rgba(6,182,212,0.15) 50%, transparent 70%)',
+              top: '30%',
+              left: '-8%',
+              filter: 'blur(40px)',
+              animation: 'auth-orb-drift-2 22s ease-in-out infinite',
             }}
           />
+          {/* Violet orb — bottom-right */}
           <div
-            className="absolute w-[240px] h-[240px] rounded-full opacity-30 blur-[100px]"
+            className="absolute w-[380px] h-[380px] rounded-full"
             style={{
-              background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)',
-              bottom: '10%',
-              left: '25%',
-              animation: 'auth-orb-drift-3 22s ease-in-out infinite',
+              background: 'radial-gradient(circle, rgba(139,92,246,0.5) 0%, rgba(168,85,247,0.15) 50%, transparent 70%)',
+              bottom: '-12%',
+              right: '5%',
+              filter: 'blur(40px)',
+              animation: 'auth-orb-drift-3 20s ease-in-out infinite',
             }}
           />
         </div>
 
         {/* 3. Dot grid texture */}
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.05]"
           style={{
             backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
             backgroundSize: '24px 24px',
@@ -136,50 +142,15 @@ export function AuthPage() {
           aria-hidden="true"
         />
 
-        {/* 4. Glassmorphism digest card — positioned top-right, away from text */}
-        <div className="absolute top-16 right-8 w-64 rotate-[3deg]" aria-hidden="true">
-          {/* Card header — frosted glass */}
-          <div className="rounded-t-2xl border border-white/[0.15] bg-white/[0.1] backdrop-blur-2xl px-5 py-4">
-            <div className="h-4 w-36 rounded-md bg-white/25 mb-3" />
-            <div className="h-2 w-full rounded bg-white/15" />
-          </div>
-          {/* Card body */}
-          <div className="border border-t-0 border-white/[0.15] bg-white/[0.07] backdrop-blur-2xl rounded-b-2xl p-5 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="h-3.5 w-3.5 rounded-full bg-emerald-400/60" />
-              <div className="h-3 w-28 rounded-md bg-white/20" />
-            </div>
-            <div className="space-y-2.5 pl-6">
-              <div className="h-2 w-full rounded bg-white/12" />
-              <div className="h-2 w-4/5 rounded bg-white/12" />
-              <div className="h-2 w-11/12 rounded bg-white/10" />
-            </div>
-            <div className="border-t border-white/10" />
-            <div className="flex items-center gap-2.5">
-              <div className="h-3.5 w-3.5 rounded-full bg-amber-400/60" />
-              <div className="h-3 w-32 rounded-md bg-white/20" />
-            </div>
-            <div className="space-y-2.5 pl-6">
-              <div className="h-2 w-full rounded bg-white/12" />
-              <div className="h-2 w-3/4 rounded bg-white/10" />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <div className="h-5 w-16 rounded-full bg-blue-400/20 border border-blue-300/25" />
-              <div className="h-5 w-14 rounded-full bg-emerald-400/20 border border-emerald-300/25" />
-              <div className="h-5 w-12 rounded-full bg-purple-400/20 border border-purple-300/25" />
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Branding content — bottom-left, clear of the card */}
-        <div className="relative z-10 flex flex-col justify-between p-10 h-full">
+        {/* 4. Branding content — logo top, copy centered, attribution bottom */}
+        <div className="relative z-10 flex flex-col justify-between p-10 h-full w-full">
           {/* Top: Logo + Name */}
           <div className="flex items-center gap-3">
             <img src="/icon.svg" alt="" className="w-10 h-10 rounded-xl" />
             <span className="text-white/90 font-semibold text-lg tracking-tight">MedCompanion</span>
           </div>
 
-          {/* Bottom: Headline + Subtitle + Feature callouts */}
+          {/* Center: Headline + Subtitle + Feature callouts */}
           <div className="space-y-6">
             <div className="space-y-2">
               <h2 className="text-white text-3xl font-bold leading-tight">
@@ -203,10 +174,10 @@ export function AuthPage() {
                 <span>Chat companion with cited answers</span>
               </div>
             </div>
-
-            {/* Attribution */}
-            <p className="text-white/30 text-xs pt-4">Medical Research Companion</p>
           </div>
+
+          {/* Bottom: Attribution */}
+          <p className="text-white/30 text-xs">Medical Research Companion</p>
         </div>
       </div>
 
