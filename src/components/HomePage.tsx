@@ -110,8 +110,8 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
 
       {/* Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Hero — spans 2 cols on sm+, 2 of 3 on lg */}
-        <div className="sm:col-span-2 lg:col-span-2">
+        {/* Hero — always present, spans 2 cols on sm+, 2 of 3 on lg */}
+        <div className="sm:col-span-2 lg:col-span-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-xl">
           <HeroSection
             unreadCount={stats.unreadCount}
             totalFindings={stats.totalFindings}
@@ -121,7 +121,7 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           />
         </div>
 
-        {/* CTAs — full width on sm (2col), narrow 1-col on lg */}
+        {/* CTAs — no wrapper hover (individual CTA buttons have their own hover) */}
         <div className="sm:col-span-2 lg:col-span-1">
           <ContextualCTAs
             topicCount={stats.topicCount}
@@ -133,21 +133,25 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           />
         </div>
 
-        {/* Findings Highlights — full width across all 3 cols */}
-        <div className="sm:col-span-2 lg:col-span-3">
-          <FindingsHighlights
-            findings={stats.recentUnread}
-            onViewAllFindings={handleViewFindings}
-          />
-        </div>
+        {/* Findings Highlights — only when there are unread findings */}
+        {stats.recentUnread.length > 0 && (
+          <div className="sm:col-span-2 lg:col-span-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-xl">
+            <FindingsHighlights
+              findings={stats.recentUnread}
+              onViewAllFindings={handleViewFindings}
+            />
+          </div>
+        )}
 
-        {/* Digest Signposts — full width, 3 of 3 cols on lg */}
-        <div className="sm:col-span-2 lg:col-span-3">
-          <DigestSignposts
-            signposts={stats.digestSignposts}
-            onViewFindings={handleViewFindings}
-          />
-        </div>
+        {/* Digest Signposts — only when there are digests with content */}
+        {stats.digestSignposts.length > 0 && (
+          <div className="sm:col-span-2 lg:col-span-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-xl">
+            <DigestSignposts
+              signposts={stats.digestSignposts}
+              onViewFindings={handleViewFindings}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
