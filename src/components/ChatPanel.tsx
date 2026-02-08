@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, MessageSquare, X, Download, Trash2 } from 'lucide-react';
+import { Loader2, MessageSquare, X, Download, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Button } from './ui/button';
@@ -17,9 +17,11 @@ interface ChatPanelProps {
   topicName: string;
   className?: string;
   onClose?: () => void;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
 }
 
-export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatPanelProps) {
+export function ChatPanel({ topicId, topicName, className = '', onClose, onToggleFullscreen, isFullscreen }: ChatPanelProps) {
   // ---- State ----
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chat, setChat] = useState<FindingsChat | null>(null);
@@ -325,9 +327,9 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
 
   // ---- Render ----
   return (
-    <div className={`flex flex-col h-full bg-white ${className}`}>
+    <div className={`flex flex-col h-full bg-[var(--color-surface)] ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           <h2 className="font-semibold">{topicName}</h2>
@@ -351,6 +353,20 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           >
             <Trash2 className="w-4 h-4" />
           </Button>
+          {onToggleFullscreen && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onToggleFullscreen}
+              title={isFullscreen ? "Exit fullscreen" : "Expand to fullscreen"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </Button>
+          )}
           {onClose && (
             <Button
               size="icon"
@@ -365,11 +381,18 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
       </div>
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 && !isStreaming ? (
-          <div className="text-center text-gray-500 mt-8">
-            <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Start a conversation about {topicName}</p>
+          <div className="flex flex-col items-center justify-center h-full text-center px-6">
+            <div className="bg-primary-50 rounded-2xl p-6 mb-6">
+              <MessageSquare className="w-10 h-10 text-primary-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+              Start a conversation
+            </h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">
+              Ask questions about {topicName} — your research findings are included as context.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -405,7 +428,7 @@ export function ChatPanel({ topicId, topicName, className = '', onClose }: ChatP
           handleSendMessage(question);
           setSuggestedQuestions([]);
         }}
-        className="border-t bg-gradient-to-b from-gray-50/50 to-white dark:from-gray-900/50 dark:to-gray-900"
+        className="border-t bg-gradient-to-b from-[var(--color-surface-sunken)]/50 to-[var(--color-surface)]"
         autoHideDelay={15000}
       />
 

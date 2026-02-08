@@ -15,6 +15,7 @@ import { RegisterPage } from './components/auth/RegisterPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import NotificationCenter from './components/NotificationCenter';
 import { useUIStore } from './stores/uiStore';
+import { Container } from './components/ui/container';
 import { MessageSquare, LogOut, Menu, X, Bell } from 'lucide-react';
 import type { Topic } from './types';
 import type { AuthUser } from './services/auth.service';
@@ -29,7 +30,7 @@ function MainApp() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { chatPanelOpen, setChatPanelOpen } = useUIStore();
+  const { chatPanelOpen, setChatPanelOpen, chatFullscreen, toggleChatFullscreen } = useUIStore();
 
   // Function to refresh topics
   const refreshTopics = async () => {
@@ -107,10 +108,10 @@ function MainApp() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-md">
+      <div className="min-h-screen bg-red-50 dark:bg-red-950/20 flex items-center justify-center p-4">
+        <div className="bg-[var(--color-surface)] rounded-lg shadow-xl p-6 max-w-md">
           <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
-          <p className="text-gray-700">{error}</p>
+          <p className="text-[var(--color-text-secondary)]">{error}</p>
         </div>
       </div>
     );
@@ -118,23 +119,23 @@ function MainApp() {
 
   if (!isDbReady) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-surface-sunken)] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Initializing Medical Research Companion...</p>
+          <p className="mt-4 text-[var(--color-text-secondary)]">Initializing Medical Research Companion...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--color-surface-sunken)]">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-[var(--color-surface)] shadow-sm border-b border-[var(--color-border)]">
+        <div className="mx-auto w-full" style={{ paddingInline: 'clamp(1rem, 4vw, 3rem)' }}>
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
+              <h1 className="text-lg sm:text-xl font-semibold text-[var(--color-text-primary)]">
                 Medical Research Companion
               </h1>
             </div>
@@ -142,7 +143,7 @@ function MainApp() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
+              className="md:hidden p-2 rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -151,40 +152,40 @@ function MainApp() {
             <nav className="hidden md:flex items-center space-x-2">
               <button
                 onClick={() => setCurrentView('home')}
-                className={`hidden sm:block px-2 py-1 rounded-md text-sm font-medium ${
+                className={`hidden sm:block px-3 py-1.5 rounded-lg text-sm font-medium ${
                   currentView === 'home'
                     ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 Home
               </button>
               <button
                 onClick={() => setCurrentView('topics')}
-                className={`px-2 py-1 rounded-md text-sm font-medium ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                   currentView === 'topics'
                     ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 Topics
               </button>
               <button
                 onClick={() => setCurrentView('agents')}
-                className={`hidden sm:block px-2 py-1 rounded-md text-sm font-medium ${
+                className={`hidden sm:block px-3 py-1.5 rounded-lg text-sm font-medium ${
                   currentView === 'agents'
                     ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 Agents
               </button>
               <button
                 onClick={() => setCurrentView('findings')}
-                className={`px-2 py-1 rounded-md text-sm font-medium ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                   currentView === 'findings'
                     ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
                 Findings
@@ -207,15 +208,15 @@ function MainApp() {
                   }}
                   className={`p-2 rounded-full ${
                     topics.length > 0
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-gray-400 cursor-not-allowed'
+                      ? 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]'
+                      : 'text-[var(--color-text-muted)] cursor-not-allowed'
                   }`}
                   title={topics.length > 0 ? "Open chat" : "Create a topic first"}
                   disabled={topics.length === 0}
                 >
                   <MessageSquare className="w-5 h-5" />
                   {chatPanelOpen && (
-                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full"></span>
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-primary-500 rounded-full"></span>
                   )}
                 </button>
 
@@ -223,7 +224,7 @@ function MainApp() {
                 <div className="relative ml-2">
                   <button
                     onClick={handleLogout}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2 border border-gray-300"
+                    className="px-3 py-1.5 rounded-md text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] flex items-center gap-2 border border-[var(--color-border)]"
                     title={currentUser?.email}
                   >
                     <span className="hidden sm:inline max-w-[150px] truncate">
@@ -240,17 +241,17 @@ function MainApp() {
 
       {/* Mobile menu dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-2">
+        <div className="md:hidden bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 py-2">
           <div className="space-y-1">
             <button
               onClick={() => {
                 setCurrentView('home');
                 setMobileMenuOpen(false);
               }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
+              className={`block w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${
                 currentView === 'home'
                   ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
               }`}
             >
               Home
@@ -260,10 +261,10 @@ function MainApp() {
                 setCurrentView('topics');
                 setMobileMenuOpen(false);
               }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
+              className={`block w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${
                 currentView === 'topics'
                   ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
               }`}
             >
               Topics
@@ -273,10 +274,10 @@ function MainApp() {
                 setCurrentView('agents');
                 setMobileMenuOpen(false);
               }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
+              className={`block w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${
                 currentView === 'agents'
                   ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
               }`}
             >
               Agents
@@ -286,21 +287,21 @@ function MainApp() {
                 setCurrentView('findings');
                 setMobileMenuOpen(false);
               }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
+              className={`block w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${
                 currentView === 'findings'
                   ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)]'
               }`}
             >
               Findings
             </button>
-            <hr className="my-2 border-gray-200" />
-            <div className="px-3 py-2 text-sm text-gray-600">
+            <hr className="my-2 border-[var(--color-border)]" />
+            <div className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">
               {currentUser?.email}
             </div>
             <button
               onClick={handleLogout}
-              className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50"
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
             >
               Logout
             </button>
@@ -309,45 +310,66 @@ function MainApp() {
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ErrorBoundary>
-          {currentView === 'home' && (
-            <HomePage
-              topics={topics}
-              setCurrentView={setCurrentView}
-            />
-          )}
-          {currentView === 'topics' && (
-            <TopicManager
-              topics={topics}
-              setTopics={setTopics}
-              selectedTopic={selectedTopic}
-              setSelectedTopic={setSelectedTopic}
-            />
-          )}
-          {currentView === 'agents' && (
-            <AgentMonitor
-              topics={topics}
-              selectedTopic={selectedTopic}
-            />
-          )}
-          {currentView === 'findings' && (
-            <ResearchPage
-              topicId={selectedTopic?.id}
-            />
-          )}
-        </ErrorBoundary>
+      <main className="py-8">
+        <Container variant={currentView === 'home' ? 'dashboard' : 'grid'}>
+          <ErrorBoundary>
+            {currentView === 'home' && (
+              <HomePage
+                topics={topics}
+                setCurrentView={setCurrentView}
+              />
+            )}
+            {currentView === 'topics' && (
+              <TopicManager
+                topics={topics}
+                setTopics={setTopics}
+                selectedTopic={selectedTopic}
+                setSelectedTopic={setSelectedTopic}
+              />
+            )}
+            {currentView === 'agents' && (
+              <AgentMonitor
+                topics={topics}
+                selectedTopic={selectedTopic}
+              />
+            )}
+            {currentView === 'findings' && (
+              <ResearchPage
+                topicId={selectedTopic?.id}
+              />
+            )}
+          </ErrorBoundary>
+        </Container>
       </main>
 
-      {/* Chat Panel - Slide in from right */}
+      {/* Chat Panel - Slide in from right or fullscreen */}
       {chatPanelOpen && selectedTopic && (
-        <div className="fixed right-0 top-0 h-full z-50 shadow-2xl bg-white" style={{ width: '500px' }}>
-          <ChatPanel
-            topicId={selectedTopic.id}
-            topicName={selectedTopic.name}
-            onClose={() => setChatPanelOpen(false)}
-            className="h-full w-full"
-          />
+        <div className={
+          chatFullscreen
+            ? 'fixed inset-0 z-50 bg-[var(--color-surface)]'
+            : 'fixed right-0 top-0 h-full z-50 shadow-xl bg-[var(--color-surface)] rounded-l-xl'
+        } style={chatFullscreen ? undefined : { width: '500px' }}>
+          {chatFullscreen ? (
+            <Container variant="reading" className="h-full">
+              <ChatPanel
+                topicId={selectedTopic.id}
+                topicName={selectedTopic.name}
+                onClose={() => { setChatPanelOpen(false); if (chatFullscreen) toggleChatFullscreen(); }}
+                onToggleFullscreen={toggleChatFullscreen}
+                isFullscreen={chatFullscreen}
+                className="h-full w-full"
+              />
+            </Container>
+          ) : (
+            <ChatPanel
+              topicId={selectedTopic.id}
+              topicName={selectedTopic.name}
+              onClose={() => setChatPanelOpen(false)}
+              onToggleFullscreen={toggleChatFullscreen}
+              isFullscreen={chatFullscreen}
+              className="h-full w-full"
+            />
+          )}
         </div>
       )}
     </div>

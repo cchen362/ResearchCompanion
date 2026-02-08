@@ -62,15 +62,15 @@ export function ChatInput({
   const selectedCount = selectedFindings.size;
 
   return (
-    <div className={`bg-background ${className}`}>
+    <div className={`bg-[var(--color-surface)] ${className}`}>
       {/* Typing indicator */}
       {showTypingIndicator && (
-        <div className="px-4 py-2 border-b bg-gradient-to-r from-transparent via-gray-50/50 to-transparent dark:via-gray-800/50">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="px-4 py-2 border-b bg-gradient-to-r from-transparent via-[var(--color-surface-sunken)]/50 to-transparent">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
             <div className="flex gap-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
             </div>
             <span className="animate-float-in">AI is thinking...</span>
           </div>
@@ -101,7 +101,7 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={disabled}
-              className="w-full px-4 py-3 text-base bg-background border-2 border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
+              className="w-full px-4 py-3 text-base bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 disabled:opacity-50 transition-all duration-200 hover:border-[var(--color-text-muted)]"
               rows={1}
               style={{ minHeight: '48px' }}
             />
@@ -131,7 +131,7 @@ export function ChatInput({
         </div>
 
         {/* Help text */}
-        <div className="mt-2 text-xs text-muted-foreground text-center max-w-5xl mx-auto">
+        <div className="mt-2 text-xs text-[var(--color-text-muted)] text-center max-w-5xl mx-auto">
           Press Enter to send • Shift+Enter for new line
         </div>
       </div>

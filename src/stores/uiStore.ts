@@ -101,6 +101,7 @@ interface UIStore {
   // ============================================
   chatPanelOpen: boolean;
   chatPanelWidth: number;
+  chatFullscreen: boolean;
 
   // ============================================
   // Toast Notifications
@@ -150,6 +151,8 @@ interface UIStore {
   setChatPanelOpen: (open: boolean) => void;
   toggleChatPanel: () => void;
   setChatPanelWidth: (width: number) => void;
+  setChatFullscreen: (fullscreen: boolean) => void;
+  toggleChatFullscreen: () => void;
 
   // ============================================
   // Actions - Toast Notifications
@@ -208,6 +211,7 @@ export const useUIStore = create<UIStore>()(
 
       chatPanelOpen: false,
       chatPanelWidth: 400,
+      chatFullscreen: false,
 
       toasts: [],
 
@@ -340,6 +344,8 @@ export const useUIStore = create<UIStore>()(
       setChatPanelOpen: (open: boolean) => set({ chatPanelOpen: open }),
       toggleChatPanel: () => set(state => ({ chatPanelOpen: !state.chatPanelOpen })),
       setChatPanelWidth: (width: number) => set({ chatPanelWidth: Math.max(300, Math.min(800, width)) }),
+      setChatFullscreen: (fullscreen: boolean) => set({ chatFullscreen: fullscreen }),
+      toggleChatFullscreen: () => set(state => ({ chatFullscreen: !state.chatFullscreen })),
 
       // ============================================
       // Toast Actions
@@ -389,6 +395,7 @@ export const useUIStore = create<UIStore>()(
           },
           modalData: null,
           chatPanelOpen: false,
+          chatFullscreen: false,
           toasts: []
           // Note: Don't reset view settings or chatPanelWidth - they should persist
         });

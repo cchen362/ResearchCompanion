@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import {
-  User,
   Bot,
   Copy,
   Check,
@@ -56,10 +54,10 @@ export function ChatMessage({
         if (citation) {
           // Check if this is a placeholder citation (reference not available)
           if (citation.isPlaceholder || !citation.findingId) {
-            return `<button data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded cursor-not-allowed opacity-75" title="Reference not available - citation exceeds available findings" disabled>[${num}]</button>`;
+            return `<button data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border border-[var(--color-border)] rounded cursor-not-allowed opacity-75" title="Reference not available - citation exceeds available findings" disabled>[${num}]</button>`;
           }
           // Regular citation with valid finding - enhanced with smooth underline animation
-          return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded hover:underline transition-all duration-150 cursor-pointer hover:scale-105 hover:shadow-sm" title="${citation.citationText?.slice(0, 150) || 'Click to view finding'}...">[${num}]</button>`;
+          return `<button data-citation-id="${citation.findingId}" data-citation-num="${num}" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-[11px] font-medium text-primary-600 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded hover:underline transition-all duration-150 cursor-pointer hover:scale-105 hover:shadow-sm" title="${citation.citationText?.slice(0, 150) || 'Click to view finding'}...">[${num}]</button>`;
         }
         return `<span class="text-muted-foreground">[${num}]</span>`;
       }).join('');
@@ -192,25 +190,11 @@ export function ChatMessage({
     }
   };
 
-  // Get message icon based on role
-  const MessageIcon = () => {
-    switch (message.role) {
-      case 'user':
-        return <User className="h-5 w-5" />;
-      case 'assistant':
-        return <Bot className="h-5 w-5" />;
-      case 'system':
-        return <AlertCircle className="h-5 w-5" />;
-      default:
-        return <Bot className="h-5 w-5" />;
-    }
-  };
-
-  // Get message alignment and styling based on role with enhanced visuals
+  // Get message alignment and styling based on role
   const messageStyles = {
-    user: 'ml-auto bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-md border-primary/20',
-    assistant: 'mr-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm',
-    system: 'mx-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 shadow-sm'
+    user: 'ml-auto bg-primary-600 text-white rounded-2xl rounded-br-sm',
+    assistant: 'mr-auto bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl rounded-bl-sm shadow-sm',
+    system: 'mx-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl shadow-sm'
   };
 
   const isLongMessage = message.content.length > 500;
@@ -218,28 +202,25 @@ export function ChatMessage({
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${className} animate-slide-up-fade`}>
       <div className={`flex gap-3 max-w-full md:max-w-[85%] lg:max-w-3xl ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-        {/* Avatar */}
-        <div className={`flex-shrink-0 ${message.role === 'system' ? 'hidden' : ''}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${
-            message.role === 'user'
-              ? 'bg-primary/10 text-primary'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-          }`}>
-            <MessageIcon />
+        {/* Avatar - only show for assistant */}
+        {message.role === 'assistant' && (
+          <div className="flex-shrink-0">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary-50 text-primary-600 transition-transform hover:scale-110">
+              <Bot className="h-5 w-5" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Message Card */}
-        <Card className={`flex-1 p-4 transition-all duration-200 hover:shadow-lg ${messageStyles[message.role]}`}>
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-medium capitalize text-sm">{message.role}</span>
-            {message.timestamp && (
-              <span className="text-xs text-muted-foreground ml-auto">
+        {/* Message Bubble */}
+        <div className={`flex-1 p-4 transition-all duration-200 ${messageStyles[message.role]}`}>
+          {/* Timestamp */}
+          {message.timestamp && (
+            <div className="flex justify-end mb-1">
+              <span className="text-xs text-muted-foreground">
                 {format(new Date(message.timestamp), 'HH:mm')}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
         {/* Content */}
         <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words">
@@ -295,7 +276,7 @@ export function ChatMessage({
 
         {/* Citations */}
         {message.citations && message.citations.length > 0 && (
-          <div className="mt-3 pt-3 border-t">
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
             <Button
               variant="ghost"
               size="sm"
@@ -341,7 +322,7 @@ export function ChatMessage({
 
         {/* Actions */}
         {message.role === 'assistant' && !isStreaming && (
-          <div className="mt-3 pt-3 border-t flex items-center gap-2">
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)] flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -365,14 +346,14 @@ export function ChatMessage({
 
         {/* Error state */}
         {message.metadata?.error && (
-          <div className="mt-3 pt-3 border-t">
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
             <div className="flex items-start gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 mt-0.5" />
               <span>{message.metadata.error}</span>
             </div>
           </div>
         )}
-        </Card>
+        </div>
       </div>
     </div>
   );
