@@ -276,9 +276,12 @@ export const useUIStore = create<UIStore>()(
       // ============================================
 
       openModal: (modal: ModalKey, data?: any) => {
+        const isRightPanel = modal === 'findingDetail' || modal === 'sourceDrawer';
         set(state => ({
           modals: { ...state.modals, [modal]: true },
-          modalData: data !== undefined ? data : state.modalData
+          modalData: data !== undefined ? data : state.modalData,
+          // Mutual exclusivity: close chat when a right-panel drawer opens
+          ...(isRightPanel ? { chatPanelOpen: false } : {})
         }));
       },
 
@@ -315,7 +318,9 @@ export const useUIStore = create<UIStore>()(
           sourceDrawerContext: {
             digestThemeId: digestThemeId || null,
             digestThemeName: digestThemeName || null
-          }
+          },
+          // Mutual exclusivity: close chat when source drawer opens
+          chatPanelOpen: false,
         }));
       },
 
@@ -341,8 +346,40 @@ export const useUIStore = create<UIStore>()(
       // Chat Panel Actions
       // ============================================
 
-      setChatPanelOpen: (open: boolean) => set({ chatPanelOpen: open }),
-      toggleChatPanel: () => set(state => ({ chatPanelOpen: !state.chatPanelOpen })),
+      setChatPanelOpen: (open: boolean) => set(state => ({
+        chatPanelOpen: open,
+        // Mutual exclusivity: close right-panel drawers when chat opens
+        ...(open ? {
+          modals: {
+            ...state.modals,
+            findingDetail: false,
+            sourceDrawer: false,
+          },
+          sourceDrawerContext: {
+            digestThemeId: null,
+            digestThemeName: null,
+          },
+          modalData: null,
+        } : {})
+      })),
+      toggleChatPanel: () => set(state => {
+        const willOpen = !state.chatPanelOpen;
+        return {
+          chatPanelOpen: willOpen,
+          ...(willOpen ? {
+            modals: {
+              ...state.modals,
+              findingDetail: false,
+              sourceDrawer: false,
+            },
+            sourceDrawerContext: {
+              digestThemeId: null,
+              digestThemeName: null,
+            },
+            modalData: null,
+          } : {})
+        };
+      }),
       setChatPanelWidth: (width: number) => set({ chatPanelWidth: Math.max(300, Math.min(800, width)) }),
       setChatFullscreen: (fullscreen: boolean) => set({ chatFullscreen: fullscreen }),
       toggleChatFullscreen: () => set(state => ({ chatFullscreen: !state.chatFullscreen })),
