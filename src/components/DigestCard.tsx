@@ -193,14 +193,6 @@ export function DigestCard({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-                <Badge variant="secondary" className="ml-auto">
-                  {digest.statistics.totalFindings} findings
-                </Badge>
-                {digest.statistics.newFindings > 0 && (
-                  <Badge variant="default">
-                    {digest.statistics.newFindings} new
-                  </Badge>
-                )}
               </div>
               <p className="text-sm text-[var(--color-text-muted)] mb-2">
                 Updated {formatDistanceToNow(digest.generatedAt, { addSuffix: true })}
