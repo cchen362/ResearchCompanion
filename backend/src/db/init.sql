@@ -222,6 +222,10 @@ CREATE INDEX idx_findings_topic_id ON findings(topic_id);
 CREATE INDEX idx_findings_created_at ON findings(created_at DESC);
 CREATE INDEX idx_findings_category ON findings(category);
 CREATE INDEX idx_findings_is_starred ON findings(is_starred) WHERE is_starred = true;
+-- Prevent duplicate findings by source URL per user+topic
+CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_unique_source_url
+ON findings (user_id, topic_id, (source->>'url'))
+WHERE source->>'url' IS NOT NULL AND source->>'url' <> '#';
 CREATE INDEX idx_timeline_user_id ON timeline_events(user_id);
 CREATE INDEX idx_timeline_topic_id ON timeline_events(topic_id);
 CREATE INDEX idx_timeline_event_date ON timeline_events(event_date DESC);

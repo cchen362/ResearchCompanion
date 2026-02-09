@@ -15,7 +15,7 @@ import { FindingsDateFilter } from './FindingsDateFilter';
 import { ExportMenu } from '@/components/ExportMenu';
 import type { FindingsDateFilter as FilterType } from '@/stores/appStore';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Settings } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import type { Topic, ResearchFinding, SmartDigest } from '@/types';
 
 // ============================================
@@ -31,8 +31,6 @@ interface ResearchToolbarProps {
   digest?: SmartDigest | null;
   /** Topic ID for digest actions */
   topicId: string | null;
-  /** Callback when settings clicked */
-  onSettingsClick: () => void;
 }
 
 // ============================================
@@ -43,8 +41,7 @@ export function ResearchToolbar({
   topic,
   findings,
   digest,
-  topicId,
-  onSettingsClick
+  topicId
 }: ResearchToolbarProps) {
   const { viewMode, setViewMode } = useUIStore();
   const { findingsDateFilter, setFindingsDateFilter } = useAppStore();
@@ -102,14 +99,6 @@ export function ResearchToolbar({
         </span>
       </Button>
 
-      {/* Settings button */}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onSettingsClick}
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
     </div>
   );
 }

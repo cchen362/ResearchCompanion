@@ -213,6 +213,20 @@ class SchedulerService {
       const duration = Date.now() - startTime;
       console.log(`[Scheduler] Topic "${topicName}": Found ${findings.length} findings in ${duration}ms`);
 
+      // Update last_run and next_run for all executed agents
+      for (const agent of agents) {
+        try {
+          const now = new Date();
+          const nextRun = this.calculateNextRun(agent.schedule || 'daily', now);
+          await AgentModel.update(agent.id, userId, {
+            last_run: now,
+            next_run: nextRun
+          });
+        } catch (updateError) {
+          console.error(`[Scheduler] Failed to update timestamps for agent ${agent.name}:`, updateError);
+        }
+      }
+
       if (findings.length > 0) {
         // PHASE 1: Queue digest generation directly in backend
         try {

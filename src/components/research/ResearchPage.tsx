@@ -18,8 +18,6 @@ import { useTopics } from '@/hooks/useTopics';
 import { ResearchContainer } from './ResearchContainer';
 import { SourceDrawer } from './drawers/SourceDrawer';
 import { FindingDetailDrawer } from './drawers/FindingDetailDrawer';
-import DigestSettings from '@/components/DigestSettings';
-
 import type { ResearchFinding } from '@/types';
 
 // ============================================
@@ -64,10 +62,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
     openModal('findingDetail', finding);
   };
 
-  const handleSettingsClick = () => {
-    openModal('digestSettings');
-  };
-
   const handleViewSources = () => {
     openSourceDrawer(); // No theme = show all sources
   };
@@ -105,7 +99,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
       <ResearchContainer
         topicId={propTopicId}
         onFindingClick={handleFindingClick}
-        onSettingsClick={handleSettingsClick}
         onViewSources={handleViewSources}
         onThemeClick={handleThemeClick}
         onViewFinding={handleViewFinding}
@@ -131,17 +124,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
         />
       )}
 
-      {/* Settings Modal */}
-      {modals.digestSettings && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <DigestSettings
-              topicId={selectedTopicId || ''}
-              onClose={() => closeModal('digestSettings')}
-            />
-          </div>
-        </div>
-      )}
     </>
   );
 }

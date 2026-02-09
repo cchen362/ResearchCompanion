@@ -175,15 +175,23 @@ export class DigestQueueServicePG {
         if (existing.status === 'completed' || existing.status === 'failed' || existing.status === 'cancelled') {
           const forceRegenerate = data.metadata?.force === true;
 
-          // Don't reset if completed within the last 24 hours (unless force=true)
-          if (!forceRegenerate && existing.status === 'completed' && existing.completedAt) {
+          // Don't reset if completed within the last 24 hours
+          // UNLESS: force=true OR scheduler reports genuinely new findings
+          if (existing.status === 'completed' && existing.completedAt) {
             const completedTime = new Date(existing.completedAt).getTime();
             const now = Date.now();
             const hoursSinceCompletion = (now - completedTime) / (1000 * 60 * 60);
 
-            if (hoursSinceCompletion < 24) {
-              console.log(`[DigestQueueService] Queue item completed ${hoursSinceCompletion.toFixed(1)} hours ago, not resetting`);
-              return existing; // Return the completed item without resetting
+            const hasNewFindings = data.metadata?.source === 'scheduled-agent-run'
+              && (data.metadata?.findingsCount || 0) > 0;
+
+            if (!forceRegenerate && !hasNewFindings && hoursSinceCompletion < 24) {
+              console.log(`[DigestQueueService] Completed ${hoursSinceCompletion.toFixed(1)}h ago, no new findings, not resetting`);
+              return existing;
+            }
+
+            if (hasNewFindings) {
+              console.log(`[DigestQueueService] ${data.metadata?.findingsCount} new findings, resetting for re-generation`);
             }
           }
 

@@ -77,7 +77,7 @@ interface CreateQueueResponse {
 
 // ==================== Cache Configuration ====================
 
-export interface DigestCacheConfig {
+interface DigestCacheConfig {
   maxAge: number;
   staleWhileRevalidate: boolean;
   autoRefresh: boolean;
@@ -712,18 +712,6 @@ class DigestService {
     const newFindings = findings.filter(f => f.timestamp > (currentDigest.generatedAt + bufferTime));
 
     return newFindings.length >= config.refreshThreshold;
-  }
-
-  async invalidateCache(topicId: string, timeframe?: DigestTimeframe): Promise<void> {
-    const db = await getDB();
-    const digests = await db.getAllFromIndex('digests', 'by-topic', topicId);
-
-    for (const digest of digests) {
-      if (!timeframe || digest.timeframe === timeframe) {
-        digest.generatedAt = 0;
-        await db.put('digests', digest);
-      }
-    }
   }
 
   private async cacheDigest(digest: SmartDigest): Promise<void> {

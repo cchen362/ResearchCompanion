@@ -21,7 +21,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 // ============================================
 
 type LoadingKey = 'topics' | 'findings' | 'digest' | 'agents' | 'chat' | 'export';
-type ModalKey = 'findingDetail' | 'sourceDrawer' | 'digestSettings' | 'topicEdit' | 'topicCreate' | 'agentMonitor' | 'worthRevisiting';
+type ModalKey = 'findingDetail' | 'sourceDrawer' | 'topicEdit' | 'topicCreate' | 'agentMonitor' | 'worthRevisiting';
 type ViewMode = 'digest' | 'list';
 type SortBy = 'date' | 'relevance' | 'source';
 type FilterBy = 'all' | 'pubmed' | 'clinical' | 'web';
@@ -51,7 +51,6 @@ interface LoadingStates {
 interface ModalStates {
   findingDetail: boolean;
   sourceDrawer: boolean;
-  digestSettings: boolean;
   topicEdit: boolean;
   topicCreate: boolean;
   agentMonitor: boolean;
@@ -181,7 +180,6 @@ const defaultLoading: LoadingStates = {
 const defaultModals: ModalStates = {
   findingDetail: false,
   sourceDrawer: false,
-  digestSettings: false,
   topicEdit: false,
   topicCreate: false,
   agentMonitor: false,

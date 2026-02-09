@@ -37,8 +37,6 @@ interface ResearchContainerProps {
   topicId?: string;
   /** Callback when a finding is clicked */
   onFindingClick: (finding: ResearchFinding) => void;
-  /** Callback when settings clicked */
-  onSettingsClick: () => void;
   /** Callback to open source drawer */
   onViewSources: () => void;
   /** Callback when theme clicked in digest */
@@ -54,7 +52,6 @@ interface ResearchContainerProps {
 export function ResearchContainer({
   topicId: propTopicId,
   onFindingClick,
-  onSettingsClick,
   onViewSources,
   onThemeClick,
   onViewFinding
@@ -200,7 +197,6 @@ export function ResearchContainer({
               findings={findings}
               digest={digest}
               topicId={selectedTopicId}
-              onSettingsClick={onSettingsClick}
             />
           </div>
         </CardHeader>

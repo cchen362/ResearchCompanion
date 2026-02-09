@@ -36,6 +36,7 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 007 | Digest Pipeline Fix & Dead Field Cleanup | Ready | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
 | 008 | Digest & Findings UX Enhancement | Ready | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
 | 017 | Codebase Cleanup | In Progress | Dead code removal and stale documentation cleanup |
+| 018 | Agent Scheduler, Dedup, Digest Fix | Ready | Fix agent type mapping, scheduler timestamps, finding dedup, digest throttle |
 
 ### Agent Instructions
 

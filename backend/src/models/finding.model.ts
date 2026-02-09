@@ -142,6 +142,22 @@ export class FindingModel {
     return finding;
   }
 
+  // Check if a finding with this source URL already exists for this user+topic
+  static async existsBySourceUrl(
+    userId: string,
+    topicId: string,
+    sourceUrl: string
+  ): Promise<boolean> {
+    if (!sourceUrl || sourceUrl === '#') return false;
+    const existing = await queryOne<{ id: string }>(
+      `SELECT id FROM findings
+       WHERE user_id = $1 AND topic_id = $2 AND source->>'url' = $3
+       LIMIT 1`,
+      [userId, topicId, sourceUrl]
+    );
+    return !!existing;
+  }
+
   // Create multiple findings in bulk
   static async createBulk(userId: string, findings: Partial<Finding>[]): Promise<Finding[]> {
     if (findings.length === 0) return [];

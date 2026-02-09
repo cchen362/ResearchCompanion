@@ -133,9 +133,27 @@ export class AgentExecutionService {
         return [];
     }
 
+    // Pre-filter: skip results whose source URL already exists in DB (saves AI API calls)
+    const newResults: any[] = [];
+    for (const result of searchResults) {
+      const sourceUrl = this.getSourceUrl(result, agent.type);
+      if (sourceUrl) {
+        const exists = await FindingModel.existsBySourceUrl(userId, topicId, sourceUrl);
+        if (exists) continue;
+      }
+      newResults.push(result);
+    }
+
+    if (newResults.length === 0) {
+      console.log(`[AgentExecution] All ${searchResults.length} results already exist, skipping AI analysis`);
+      return [];
+    }
+
+    console.log(`[AgentExecution] ${newResults.length}/${searchResults.length} results are new, processing`);
+
     // Convert search results to findings
     const findings = await this.convertToFindings(
-      searchResults,
+      newResults,
       agent,
       topicId,
       userId
@@ -350,7 +368,14 @@ export class AgentExecutionService {
     userId: string
   ): Promise<Finding | null> {
     // Build source information
-    const source = this.buildSource(result, agent.type);
+    const normalizedType = this.normalizeAgentType(agent.type);
+    const source = this.buildSource(result, normalizedType);
+
+    // Guard: reject results that would produce garbage findings
+    if (source.type === 'unknown' || source.url === '#') {
+      console.warn(`[AgentExecution] Skipping result with unknown source (agent type: ${agent.type}, normalized: ${normalizedType})`);
+      return null;
+    }
 
     // Use AI to extract key information and generate summary
     let content = '';
@@ -358,7 +383,7 @@ export class AgentExecutionService {
 
     let structuredDetails = '';
     try {
-      const aiAnalysis = await this.analyzeWithAI(result, agent.type);
+      const aiAnalysis = await this.analyzeWithAI(result, normalizedType);
       content = aiAnalysis.summary;
       keyInsights = aiAnalysis.insights;
       structuredDetails = aiAnalysis.structuredDetails;
@@ -383,7 +408,7 @@ export class AgentExecutionService {
         originalResult: result,
         structuredDetails: structuredDetails || undefined
       },
-      tags: this.extractTags(result, agent.type),
+      tags: this.extractTags(result, normalizedType),
       is_read: false,
       is_starred: false,
       created_at: new Date(),
@@ -391,6 +416,33 @@ export class AgentExecutionService {
     };
 
     return finding;
+  }
+
+  /** Extract source URL from raw search result before AI processing */
+  private getSourceUrl(result: any, agentType: string): string {
+    const normalized = this.normalizeAgentType(agentType);
+    switch (normalized) {
+      case 'pubmed':
+        return result.id ? `https://pubmed.ncbi.nlm.nih.gov/${result.id}/` : '';
+      case 'clinical_trials': {
+        const nctId = result.protocolSection?.identificationModule?.nctId;
+        return nctId ? `https://clinicaltrials.gov/study/${nctId}` : '';
+      }
+      case 'web':
+        return result.url || '';
+      default:
+        return '';
+    }
+  }
+
+  /** Normalize frontend agent types to API types used by buildSource/buildAIPrompt/extractTags */
+  private normalizeAgentType(agentType: string): string {
+    switch (agentType) {
+      case 'medical_literature': return 'pubmed';
+      case 'clinical_trial': return 'clinical_trials';
+      case 'treatment_breakthrough': return 'web';
+      default: return agentType;
+    }
   }
 
   /**
@@ -617,7 +669,12 @@ ${description ? `Description: ${description}` : '(No description available)'}`;
     for (const finding of findings) {
       try {
         await FindingModel.create(userId, finding);
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.code === '23505') {
+          // unique_violation — duplicate caught by DB constraint (race condition)
+          console.log(`[AgentExecution] Duplicate caught by DB constraint: ${finding.source?.url}`);
+          continue;
+        }
         console.error('[AgentExecution] Error storing finding:', error);
       }
     }
