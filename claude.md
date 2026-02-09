@@ -38,7 +38,7 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 017 | Codebase Cleanup | In Progress | Dead code removal and stale documentation cleanup |
 | 018 | Agent Scheduler, Dedup, Digest Fix | Complete | Fix agent type mapping, scheduler timestamps, finding dedup, digest throttle |
 | 019 | Dead Digest Field Cleanup & Button Consolidation | Complete | Remove dead sourceCount, highRelevanceCount, avgConfidence, DigestTheme system, trends (~217 lines). Consolidate 3 digest buttons into 1 |
-| 020 | Two-Pass Digest Architecture | Ready | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts |
+| 020 | Two-Pass Digest Architecture | Complete | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts |
 
 ### Agent Instructions
 

@@ -30,7 +30,7 @@ Each implementation plan includes:
 | 017 | [Codebase Cleanup](./017_CODEBASE_CLEANUP.md) | **In Progress** | Dead code removal and stale documentation cleanup |
 | 018 | [Agent Scheduler, Dedup, Digest Fix](./018_AGENT_SCHEDULER_DEDUP_DIGEST_FIX.md) | **Complete** | Fix agent type mapping, scheduler timestamps, finding dedup, digest throttle, remove dead DigestSettings |
 | 019 | [Dead Digest Field Cleanup & Button Consolidation](./019_SOURCECOUNT_CLEANUP_AND_BUTTON_CONSOLIDATION.md) | **Complete** | Phase 1: Remove dead sourceCount, highRelevanceCount, avgConfidence, DigestTheme system, trends (~217 lines). Phase 2: Consolidate 3 redundant digest buttons into 1 with tooltip |
-| 020 | [Two-Pass Digest Architecture](./020_TWO_PASS_DIGEST_ARCHITECTURE.md) | **Ready** | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts. Includes Future Focus: Chat citation enhancement. |
+| 020 | [Two-Pass Digest Architecture](./020_TWO_PASS_DIGEST_ARCHITECTURE.md) | **Complete** | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts. Includes Future Focus: Chat citation enhancement. |
 
 ## How to Use
 
