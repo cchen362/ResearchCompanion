@@ -765,7 +765,7 @@ All changes are frontend-only (except `ai.service.ts` and `digest-processor.serv
 - [x] Phase 2 complete (buttons consolidated with tooltip) — Feb 10, 2026
 - [x] Phase 1 build passes (frontend + backend) — Feb 9, 2026
 - [x] Phase 2 build passes (1,347.18 kB, down from 1,348.41 kB) — Feb 10, 2026
-- [ ] Production DB migration (`ALTER TABLE digests DROP COLUMN IF EXISTS themes; ALTER TABLE digests DROP COLUMN IF EXISTS trends;`)
-- [ ] Deployed to production
-- [ ] Post-deploy verification passed
-- [ ] Date: ___________
+- [x] Production DB migration (`ALTER TABLE digests DROP COLUMN IF EXISTS themes; ALTER TABLE digests DROP COLUMN IF EXISTS trends;`) — Feb 10, 2026
+- [x] Deployed to production — Feb 10, 2026
+- [x] Post-deploy verification passed (all 6 checklist items + DB column confirmation)
+- [x] Date: February 10, 2026

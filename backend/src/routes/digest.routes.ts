@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generateSmartDigest } from '../services/ai.service.js';
+import { generateSmartDigest, scoreAndClusterFindings } from '../services/ai.service.js';
 import { searchService } from '../services/search.service.js';
 import { pool } from '../db/database.js';
 
@@ -106,8 +106,12 @@ router.post('/generate-digest', async (req, res) => {
     console.log(`📊 Starting digest generation for ${topic.name} (${findings.length} findings, ${timeframe} timeframe)`);
     const startTime = Date.now();
 
-    // Generate the smart digest using AI
-    const digest = await generateSmartDigest(findings, topic, timeframe);
+    // Two-pass digest generation: Haiku scoring → Sonnet editorial
+    const scoredResult = await scoreAndClusterFindings(findings, topic.name || topic.diseaseProfile?.name || 'Unknown');
+    const topFindingIdSet = new Set(scoredResult.topFindingIds);
+    const topFndgs = findings.filter((f: any) => topFindingIdSet.has(f.id));
+    const remainFndgs = findings.filter((f: any) => !topFindingIdSet.has(f.id));
+    const digest = await generateSmartDigest(topFndgs, remainFndgs, scoredResult, topic, findings.length);
 
     // CRITICAL: Include topicId in the response
     const digestWithTopicId = {
@@ -248,9 +252,13 @@ router.post('/research-and-digest', async (req, res) => {
       });
     }
 
-    // Step 2: Generate digest from the findings
+    // Step 2: Two-pass digest generation: Haiku scoring → Sonnet editorial
     console.log(`🤖 Generating digest from ${allFindings.length} findings...`);
-    const digest = await generateSmartDigest(allFindings, topic, timeframe);
+    const scoredResult2 = await scoreAndClusterFindings(allFindings, topic.name || topic.diseaseProfile?.name || 'Unknown');
+    const topFindingIdSet2 = new Set(scoredResult2.topFindingIds);
+    const topFndgs2 = allFindings.filter((f: any) => topFindingIdSet2.has(f.id));
+    const remainFndgs2 = allFindings.filter((f: any) => !topFindingIdSet2.has(f.id));
+    const digest = await generateSmartDigest(topFndgs2, remainFndgs2, scoredResult2, topic, allFindings.length);
 
     const duration = Date.now() - startTime;
     console.log(`✅ Integrated research and digest completed in ${(duration / 1000).toFixed(1)}s`);

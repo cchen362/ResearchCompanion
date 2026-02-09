@@ -16,7 +16,7 @@ import { Pool } from 'pg';
 import DigestQueueServicePG from './digestQueue.service.pg.js';
 import { FindingModel } from '../models/finding.model.js';
 import { TopicModel } from '../models/topic.model.js';
-import { generateSmartDigest } from './ai.service.js';
+import { generateSmartDigest, scoreAndClusterFindings } from './ai.service.js';
 import { query } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -172,22 +172,10 @@ export class DigestProcessorService {
    * Generate digest and store it
    */
   private async generateAndStoreDigest(item: QueueItem): Promise<string> {
-    // 1. Fetch findings for the topic
-    let findings = await FindingModel.getFiltered(item.user_id, {
-      topic_id: item.topic_id,
-      limit: 100 // Reasonable limit for digest generation
+    // 1. Fetch ALL findings for the topic (no limit — Haiku handles any corpus size)
+    const findings = await FindingModel.getFiltered(item.user_id, {
+      topic_id: item.topic_id
     });
-
-    // SAFETY CAP: Limit to 50 most recent findings to prevent AI timeout
-    // If more than 50 findings exist, prioritize by recency
-    const MAX_FINDINGS_FOR_DIGEST = 50;
-    if (findings.length > MAX_FINDINGS_FOR_DIGEST) {
-      console.log(`[DigestProcessor] Capping findings from ${findings.length} to ${MAX_FINDINGS_FOR_DIGEST}`);
-      // Sort by created_at descending (most recent first) and take top 50
-      findings = findings
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, MAX_FINDINGS_FOR_DIGEST);
-    }
 
     if (findings.length === 0) {
       throw new Error('No findings available for digest generation');
@@ -211,18 +199,35 @@ export class DigestProcessorService {
     };
 
     // 4. Transform findings to expected format for AI service
-    const findingsForDigest = findings.map(f => ({
+    const findingsForAI = findings.map(f => ({
       id: f.id,
       type: f.source?.type || 'unknown',
       title: f.title,
-      summary: f.summary || f.content?.substring(0, 500),
+      summary: f.summary || f.content?.substring(0, 300),
       source: f.source
     }));
 
-    // 5. Generate digest using AI service
-    console.log(`[DigestProcessor] Calling AI service for digest generation...`);
-    const timeframe = (item.timeframe || 'all-time') as 'daily' | 'weekly' | 'monthly' | 'all-time';
-    const digest = await generateSmartDigest(findingsForDigest, topicForDigest, timeframe);
+    // Capture real total before any filtering
+    const totalFindingsCount = findings.length;
+
+    // PASS 1: Haiku scores and clusters ALL findings by significance
+    console.log(`[DigestProcessor] Pass 1: Scoring ${totalFindingsCount} findings with Haiku...`);
+    const scoredResult = await scoreAndClusterFindings(findingsForAI, topicForDigest.name);
+
+    // Build tiered finding set for Sonnet based on Haiku's ranking
+    const topFindingIds = new Set(scoredResult.topFindingIds);
+    const topFindings = findingsForAI.filter(f => topFindingIds.has(f.id));
+    const remainingFindings = findingsForAI.filter(f => !topFindingIds.has(f.id));
+
+    // PASS 2: Sonnet generates editorial digest with Haiku context
+    console.log(`[DigestProcessor] Pass 2: Generating digest with Sonnet (${topFindings.length} full + ${remainingFindings.length} condensed)...`);
+    const digest = await generateSmartDigest(
+      topFindings,
+      remainingFindings,
+      scoredResult,
+      topicForDigest,
+      totalFindingsCount
+    );
 
     // 6. Store digest in database
     const digestId = uuidv4();
@@ -267,10 +272,14 @@ export class DigestProcessorService {
         JSON.stringify({
           source: 'background-processor',
           queueItemId: item.id,
-          findingsCount: findings.length,
+          findingsCount: totalFindingsCount,
           generatedAt: new Date().toISOString(),
           timeframe: item.timeframe || 'all-time',
-          statistics: (digest as any).statistics || { totalFindings: findings.length, newFindings: 0 }
+          statistics: (digest as any).statistics || {
+            totalFindings: totalFindingsCount,
+            newFindings: 0,
+            analyzedFindings: totalFindingsCount
+          }
         }),
         JSON.stringify((digest as any).featuredDiscovery || null),
         JSON.stringify((digest as any).topFindings || []),

@@ -21,6 +21,101 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
+// ============================================
+// Two-Pass Scoring Types (Plan 020)
+// ============================================
+
+interface ScoredFinding {
+  findingId: string;
+  significanceScore: number;        // 1-10
+  significanceReason: string;       // Why this score
+  researchCategory: string;         // e.g., 'drug_approval', 'clinical_trial', etc.
+  condensedSummary: string;         // 150-char max distilled summary
+}
+
+interface CategoryGroup {
+  category: string;
+  findingCount: number;
+  headline: string;                 // 1-sentence summary of this category
+}
+
+export interface ScoredFindingsResult {
+  scoredFindings: ScoredFinding[];
+  categoryGroups: CategoryGroup[];
+  topFindingIds: string[];          // Top 30 by significance, most significant first
+  totalAnalyzed: number;
+}
+
+/**
+ * JSON Schema for Haiku's scoring tool_use structured output.
+ * Defines the contract for the score_findings tool.
+ */
+const scoredFindingsSchema = {
+  type: 'object' as const,
+  properties: {
+    scoredFindings: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          findingId: {
+            type: 'string' as const,
+            description: 'UUID of the finding being scored'
+          },
+          significanceScore: {
+            type: 'number' as const,
+            description: 'Clinical significance score from 1-10'
+          },
+          significanceReason: {
+            type: 'string' as const,
+            description: 'Justification for the assigned score'
+          },
+          researchCategory: {
+            type: 'string' as const,
+            description: 'Category: drug_approval, clinical_trial, gene_therapy, mechanism_research, treatment_guideline, patient_outcomes, safety_alert, diagnostic_advance, or other'
+          },
+          condensedSummary: {
+            type: 'string' as const,
+            description: 'Single sentence summary, max 150 characters'
+          }
+        },
+        required: ['findingId', 'significanceScore', 'significanceReason', 'researchCategory', 'condensedSummary']
+      }
+    },
+    categoryGroups: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          category: {
+            type: 'string' as const,
+            description: 'Category name'
+          },
+          findingCount: {
+            type: 'number' as const,
+            description: 'Count of findings in this category'
+          },
+          headline: {
+            type: 'string' as const,
+            description: 'One-sentence summary of this category'
+          }
+        },
+        required: ['category', 'findingCount', 'headline']
+      }
+    },
+    topFindingIds: {
+      type: 'array' as const,
+      items: { type: 'string' as const },
+      description: 'Top 30 finding UUIDs ranked by significance (most significant first)'
+    },
+    totalAnalyzed: {
+      type: 'number' as const,
+      description: 'Total number of findings scored'
+    }
+  },
+  required: ['scoredFindings', 'categoryGroups', 'topFindingIds', 'totalAnalyzed']
+};
+
 /**
  * Parse a natural language search query using Claude
  */
@@ -205,40 +300,144 @@ Remember: Return ONLY valid JSON, nothing else.`
   }
 }
 
-export async function generateSmartDigest(
+/**
+ * Pass 1 of Two-Pass Digest Architecture (Plan 020):
+ * Score and cluster ALL findings by clinical significance using Haiku.
+ *
+ * Enables Sonnet (Pass 2) to make significance-based selections for
+ * Featured Discovery and Top Findings, eliminating position bias.
+ *
+ * Cost: ~$0.03-0.12 per call | Time: ~10-30s | Context: within 200K limit
+ */
+export async function scoreAndClusterFindings(
   findings: any[],
+  topicName: string
+): Promise<ScoredFindingsResult> {
+  console.log(`[AI] Haiku Pass 1: Scoring ${findings.length} findings for ${topicName}...`);
+
+  const findingsText = findings.map((f, idx) =>
+    `[${idx + 1}] ID: ${f.id}
+Title: ${f.title}
+Summary: ${f.summary?.substring(0, 300) || 'No summary'}
+Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
+  ).join('\n\n');
+
+  // Dynamic token scaling: plan specifies 4000 but that truncates at 100+ findings.
+  // Formula: 4K min, 80 tokens/finding, 16K cap. See Plan 020 deviation note.
+  const maxTokens = Math.min(Math.max(4000, findings.length * 80), 16000);
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      temperature: 0.1,
+      system: `You are a medical research triage analyst scoring findings for ${topicName}.
+
+SIGNIFICANCE SCORING CRITERIA (1-10):
+- 10: FDA approval, Phase 3 breakthrough, paradigm-shifting discovery
+- 7-9: Phase 2 results, major meta-analyses, guideline changes
+- 4-6: Observational studies, case series, preliminary research
+- 1-3: Reviews, commentaries, minor updates
+
+RESEARCH CATEGORIES:
+Classify each finding into one of: drug_approval, clinical_trial, gene_therapy, mechanism_research, treatment_guideline, patient_outcomes, safety_alert, diagnostic_advance, other
+
+CONDENSED SUMMARIES:
+Generate a single-sentence summary (max 150 characters) capturing the core finding.
+
+OUTPUT REQUIREMENTS:
+1. Score EVERY finding provided
+2. Group findings into categoryGroups with counts and headlines
+3. Identify the top 30 finding IDs ranked by significance (most significant first)
+4. Report totalAnalyzed count`,
+      messages: [{
+        role: 'user',
+        content: `Score and cluster these ${findings.length} research findings:\n\n${findingsText}`
+      }],
+      tools: [{
+        name: 'score_findings',
+        description: 'Score and cluster research findings by clinical significance',
+        input_schema: scoredFindingsSchema
+      }],
+      tool_choice: { type: 'tool', name: 'score_findings' }
+    });
+
+    // Extract tool use result
+    const toolUseBlock = response.content.find(
+      (block: any) => block.type === 'tool_use'
+    );
+
+    if (!toolUseBlock || toolUseBlock.type !== 'tool_use') {
+      console.error('[AI] Haiku scoring: No tool_use block in response');
+      return buildFallbackScoring(findings, 'Haiku scoring unavailable');
+    }
+
+    const result = toolUseBlock.input as ScoredFindingsResult;
+
+    console.log(`[AI] Haiku scored ${result.totalAnalyzed} findings, ${result.categoryGroups.length} categories, top ${result.topFindingIds.length} ranked`);
+
+    return result;
+  } catch (error: any) {
+    console.error('[AI] Haiku scoring failed:', error.message);
+    return buildFallbackScoring(findings, error.message);
+  }
+}
+
+/** Fallback scoring when Haiku is unavailable — returns valid structure with default scores */
+function buildFallbackScoring(findings: any[], reason: string): ScoredFindingsResult {
+  console.warn(`[AI] Using fallback scoring (reason: ${reason})`);
+  return {
+    scoredFindings: findings.map(f => ({
+      findingId: f.id,
+      significanceScore: 5,
+      significanceReason: `Default score — ${reason}`,
+      researchCategory: 'other',
+      condensedSummary: f.title?.substring(0, 150) || 'No summary'
+    })),
+    categoryGroups: [{
+      category: 'other',
+      findingCount: findings.length,
+      headline: 'All findings (scoring unavailable)'
+    }],
+    topFindingIds: findings.slice(0, 30).map(f => f.id),
+    totalAnalyzed: findings.length
+  };
+}
+
+export async function generateSmartDigest(
+  topFindings: any[],
+  remainingFindings: any[],
+  scoredResult: ScoredFindingsResult,
   topic: any,
-  timeframe: 'daily' | 'weekly' | 'monthly' | 'all-time'
+  totalFindingsCount: number
 ) {
-  console.log(`[AI Service] Starting digest generation with ${findings.length} findings`);
+  console.log(`[AI Service] Starting digest generation with ${totalFindingsCount} total findings (${topFindings.length} full + ${remainingFindings.length} condensed)`);
   const startTime = Date.now();
 
   try {
-    // Use smart formatting: first 15 findings with full detail, remaining as compact summaries
-    // This uses only ~1.2% of Claude's token capacity (2,400 of 200,000 tokens)
-    const fullDetailCount = 15;
-    const fullDetailFindings = findings.slice(0, fullDetailCount);
-    const compactFindings = findings.slice(fullDetailCount);
+    // Build a map of Haiku's condensed summaries for remaining findings
+    const condensedMap = new Map(
+      scoredResult.scoredFindings.map(sf => [sf.findingId, sf.condensedSummary])
+    );
 
-    console.log(`[AI Service] Using ALL ${findings.length} findings for digest (${fullDetailFindings.length} full + ${compactFindings.length} compact)`);
-
-    // Prepare findings text with smart formatting — include real UUIDs so AI can reference them
-    const fullDetailText = fullDetailFindings.map((f, idx) =>
+    // TOP FINDINGS: Full detail (300-char summary) — ranked by Haiku significance
+    const topFindingsText = topFindings.map((f: any, idx: number) =>
       `[Finding ${idx + 1}] ID: ${f.id}
 Type: ${f.type}
 Title: ${f.title}
-Summary: ${f.summary?.substring(0, 400) || 'No summary'}
+Summary: ${f.summary?.substring(0, 300) || 'No summary'}
 Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
     ).join('\n\n');
 
-    const compactText = compactFindings.length > 0
-      ? '\n\n[Additional Findings - Compact Format]\n' +
-        compactFindings.map((f, idx) =>
-          `${fullDetailCount + idx + 1}. ID: ${f.id} — ${f.title} (${f.source?.name || 'Unknown'})`
+    // REMAINING FINDINGS: Haiku's condensed summary (150 chars)
+    const remainingFindingsText = remainingFindings.length > 0
+      ? '\n\n[Additional Findings - Condensed by significance scoring]\n' +
+        remainingFindings.map((f: any, idx: number) =>
+          `${topFindings.length + idx + 1}. ID: ${f.id} — ${f.title} — ${condensedMap.get(f.id) || 'No summary'} (${f.source?.name || 'Unknown'})`
         ).join('\n')
       : '';
 
-    const findingsText = fullDetailText + compactText;
+    const findingsText = topFindingsText + remainingFindingsText;
 
     console.log(`[AI Service] Calling Anthropic API...`);
 
@@ -256,6 +455,27 @@ Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
       ],
       tool_choice: { type: 'tool', name: 'generate_digest' },
       system: `You are an expert medical research analyst creating ACTIONABLE digests for patients/caregivers managing ${topic.diseaseProfile.name}.
+
+## PRE-ANALYSIS CONTEXT (from automated significance scoring)
+
+${totalFindingsCount} total findings were scored by clinical significance (1-10 scale).
+Top ${topFindings.length} findings are provided with full detail below.
+Remaining ${remainingFindings.length} findings are provided in condensed format.
+
+Significance Rankings (top 30):
+${scoredResult.scoredFindings
+  .sort((a, b) => b.significanceScore - a.significanceScore)
+  .slice(0, 30)
+  .map(f => `- ${f.findingId}: Score ${f.significanceScore}/10 — ${f.significanceReason}`)
+  .join('\n')}
+
+Research Categories:
+${scoredResult.categoryGroups.map(g => `- ${g.category}: ${g.findingCount} findings — ${g.headline}`).join('\n')}
+
+USE THESE SCORES TO GUIDE:
+- Featured Discovery selection MUST come from highest-scored findings
+- Top Findings should prioritize high-significance findings
+- Source breakdown MUST account for ALL ${totalFindingsCount} findings
 
 CRITICAL CONTEXT:
 - User is actively managing this condition (not just curious)
@@ -386,7 +606,7 @@ RULES:
       messages: [
         {
           role: 'user',
-          content: `Analyze these ${findings.length} research findings from the ${timeframe} timeframe and generate a comprehensive digest.
+          content: `Analyze these ${totalFindingsCount} research findings and generate a comprehensive digest.
 
 Disease Context: ${topic.diseaseProfile.name}
 Patient Stage: ${topic.patientContext?.currentStage || 'monitoring'}
@@ -504,27 +724,26 @@ Focus on practical, actionable information that helps with treatment decisions.`
     const digestId = `digest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Map finding indices back to IDs and calculate statistics
-    const allFindingIds = findings.map(f => f.id);
-    const totalFindings = findings.length;
-    const newFindings = findings.filter(f => f.isNew).length;
-
+    const allFindings = [...topFindings, ...remainingFindings];
+    const allFindingIds = allFindings.map((f: any) => f.id);
+    const newFindings = allFindings.filter((f: any) => f.isNew).length;
 
     // Transform breakthroughs and contradictions
     const breakthroughs = digestData.breakthroughs?.map((b: any) => ({
       ...b,
-      findingIds: b.findingIndices.map((idx: number) => findings[idx]?.id).filter(Boolean),
+      findingIds: b.findingIndices.map((idx: number) => allFindings[idx]?.id).filter(Boolean),
       date: Date.now()
     })) || [];
 
     const contradictions = digestData.contradictions?.map((c: any) => ({
       ...c,
       findingA: {
-        id: findings[c.findingA.index]?.id,
+        id: allFindings[c.findingA.index]?.id,
         claim: c.findingA.claim,
         source: c.findingA.source
       },
       findingB: {
-        id: findings[c.findingB.index]?.id,
+        id: allFindings[c.findingB.index]?.id,
         claim: c.findingB.claim,
         source: c.findingB.source
       }
@@ -535,7 +754,6 @@ Focus on practical, actionable information that helps with treatment decisions.`
       id: digestId,
       topicId: topic.id,
       generatedAt: Date.now(),
-      timeframe,
       executiveSummary: digestData.executiveSummary,
       laymanSummary: digestData.laymanSummary,
       keyTakeaways: digestData.keyTakeaways,
@@ -544,8 +762,9 @@ Focus on practical, actionable information that helps with treatment decisions.`
       questionsForDoctor: digestData.questionsForDoctor || [],
       warningSigns: digestData.warningSigns || [],
       statistics: {
-        totalFindings,
-        newFindings
+        totalFindings: totalFindingsCount,
+        newFindings,
+        analyzedFindings: totalFindingsCount
       },
       allFindingIds,
       // Magazine editorial fields
@@ -560,17 +779,19 @@ Focus on practical, actionable information that helps with treatment decisions.`
     const errorTime = Date.now() - startTime;
     console.error(`[AI Service] Error after ${errorTime}ms:`, error.message);
 
+    // Reconstruct allFindings for fallback paths (not in scope from try block)
+    const fallbackAllFindings = [...topFindings, ...remainingFindings];
+
     // Check for timeout specifically
     if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT') || errorTime > 30000) {
       console.error('[AI Service] Request timed out - using minimal fallback');
       // Return a minimal valid digest to avoid 504
       return {
-        executiveSummary: `Analysis of ${findings.length} recent findings about ${topic.diseaseProfile.name}.`,
+        executiveSummary: `Analysis of ${totalFindingsCount} recent findings about ${topic.diseaseProfile.name}.`,
         laymanSummary: 'Research findings have been compiled for your review.',
         keyTakeaways: ['Review individual findings for details'],
         questionsForDoctor: [],
         warningSigns: [],
-        // NEW magazine editorial fields (null for timeout fallback)
         featuredDiscovery: null,
         topFindings: [],
         sourceBreakdown: null,
@@ -583,38 +804,37 @@ Focus on practical, actionable information that helps with treatment decisions.`
     try {
       console.log('Attempting fallback to simple digest...');
       // Re-create findingsText for fallback
-      const fallbackFindingsText = findings.slice(0, 5).map((f, idx) =>
+      const fallbackFindingsText = fallbackAllFindings.slice(0, 5).map((f: any, idx: number) =>
         `[Finding ${idx + 1}]
 Type: ${f.type}
 Title: ${f.title}
 Summary: ${f.summary}
-Source: ${f.source.name} (${f.source.type})`
+Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
       ).join('\n\n───────────\n\n');
 
-      const simpleDigest = await generateSimpleDigest(findings, topic, timeframe, fallbackFindingsText);
+      const simpleDigest = await generateSimpleDigest(fallbackAllFindings, topic, 'all-time', fallbackFindingsText);
 
       // Generate ID and stats for the simple digest
-      const digestId = `digest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const allFindingIds = findings.map(f => f.id);
+      const digestId = `digest-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const allFindingIds = fallbackAllFindings.map((f: any) => f.id);
 
       return {
         id: digestId,
         topicId: topic.id,
         generatedAt: Date.now(),
-        timeframe,
         executiveSummary: simpleDigest.executiveSummary,
         laymanSummary: simpleDigest.laymanSummary,
         keyTakeaways: simpleDigest.keyTakeaways || [],
         breakthroughs: simpleDigest.breakthroughs || [],
         contradictions: simpleDigest.contradictions || [],
         statistics: {
-          totalFindings: findings.length,
-          newFindings: findings.filter(f => f.isNew).length
+          totalFindings: totalFindingsCount,
+          newFindings: fallbackAllFindings.filter((f: any) => f.isNew).length,
+          analyzedFindings: totalFindingsCount
         },
         topSources: [],
         allFindingIds,
-        fallbackUsed: true,  // Flag to indicate fallback was used
-        // NEW magazine editorial fields (null for simple digest fallback)
+        fallbackUsed: true,
         featuredDiscovery: null,
         topFindings: [],
         sourceBreakdown: null,
@@ -634,5 +854,6 @@ export const aiService = {
   openai: openai,
   parseSearchQuery,
   summarizeResults,
-  generateSmartDigest
+  generateSmartDigest,
+  scoreAndClusterFindings
 };

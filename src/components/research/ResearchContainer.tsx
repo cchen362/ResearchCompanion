@@ -7,13 +7,12 @@
  * passes data down to child components.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useStoreHydration } from '@/hooks/useStoreHydration';
 import { useTopics } from '@/hooks/useTopics';
 import { useFindings } from '@/hooks/useFindings';
 import { useDigest } from '@/hooks/useDigest';
 import { useUIStore } from '@/stores/uiStore';
-import { useAppStore } from '@/stores/appStore';
 
 // Components
 import { TopicSelector } from './topic/TopicSelector';
@@ -83,7 +82,6 @@ export function ResearchContainer({
   // ============================================
   const {
     digest,
-    timeframe,
     loadDigest
   } = useDigest(selectedTopicId);
 
@@ -91,26 +89,6 @@ export function ResearchContainer({
   // UI State
   // ============================================
   const { viewMode } = useUIStore();
-  const { digestTimeframe } = useAppStore();
-
-  // ============================================
-  // Derived State
-  // ============================================
-  const filteredFindings = useMemo(() => {
-    const now = Date.now();
-    const day = 24 * 60 * 60 * 1000;
-
-    switch (digestTimeframe) {
-      case 'daily':
-        return findings.filter(f => f.timestamp > now - day);
-      case 'weekly':
-        return findings.filter(f => f.timestamp > now - (7 * day));
-      case 'monthly':
-        return findings.filter(f => f.timestamp > now - (30 * day));
-      default:
-        return findings;
-    }
-  }, [findings, digestTimeframe]);
 
   // ============================================
   // Effects
@@ -184,7 +162,6 @@ export function ResearchContainer({
             {/* Topic Selector */}
             <TopicSelector
               findingsCount={findings.length}
-              filteredCount={filteredFindings.length}
               digest={digest}
             />
 

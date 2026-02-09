@@ -8,9 +8,9 @@
  */
 
 import { useTopics } from '@/hooks/useTopics';
-import { Brain, FileText, Calendar, Clock } from 'lucide-react';
+import { Brain, FileText, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { Topic, SmartDigest, ResearchFinding } from '@/types';
+import type { SmartDigest } from '@/types';
 
 // ============================================
 // Types
@@ -21,8 +21,6 @@ interface TopicSelectorProps {
   onTopicChange?: (topicId: string) => void;
   /** Optional findings count to display */
   findingsCount?: number;
-  /** Optional filtered findings count */
-  filteredCount?: number;
   /** Optional digest for timestamp display */
   digest?: SmartDigest | null;
 }
@@ -34,7 +32,6 @@ interface TopicSelectorProps {
 export function TopicSelector({
   onTopicChange,
   findingsCount = 0,
-  filteredCount,
   digest
 }: TopicSelectorProps) {
   const {
@@ -78,12 +75,6 @@ export function TopicSelector({
           <FileText className="h-4 w-4" />
           {findingsCount} findings
         </span>
-        {filteredCount !== undefined && filteredCount !== findingsCount && (
-          <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            {filteredCount} in period
-          </span>
-        )}
         {digest && (
           <span className="flex items-center gap-1">
             <Clock className="h-4 w-4" />

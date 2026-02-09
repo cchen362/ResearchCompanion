@@ -175,7 +175,7 @@ export function DigestCard({
               <div className="flex items-center gap-2 mb-2">
                 <Brain className="h-5 w-5 text-primary" />
                 <CardTitle className="text-xl">
-                  Weekly Research Digest
+                  Research Digest
                 </CardTitle>
                 {/* Cache Status Badge */}
                 {cacheStatus && (

@@ -389,6 +389,7 @@ export interface SmartDigest {
   statistics: {
     totalFindings: number;
     newFindings: number;
+    analyzedFindings?: number;
   };
 
   // Legacy - no longer computed, kept for backward compat
@@ -401,7 +402,6 @@ export interface SmartDigest {
   userEngagement?: {
     viewed: boolean;
     viewedAt?: number;
-    expandedThemes?: string[];   // Theme IDs user expanded
     followUpQuestions?: string[]; // Questions user asked
   };
 

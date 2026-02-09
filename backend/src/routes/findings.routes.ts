@@ -46,7 +46,7 @@ router.get('/findings', async (req, res) => {
       search: req.query.search as string | undefined,
       date_from: req.query.date_from ? new Date(req.query.date_from as string) : undefined,
       date_to: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0
     };
 
