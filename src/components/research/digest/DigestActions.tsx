@@ -2,13 +2,14 @@
  * DigestActions - Container component for digest action buttons
  *
  * Phase 3 Component Decomposition: Extracted from FindingsViewerProgressive.tsx
+ * Plan 019: Consolidated from 3 buttons to 1 (Regenerate Digest) with tooltip
  *
- * This is a CONTAINER component - it connects to Zustand stores.
- * Uses useDigest() hook for generation actions.
+ * This is a PRESENTATIONAL component - receives callbacks via props.
  */
 
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sparkles } from 'lucide-react';
 
 // ============================================
 // Types
@@ -21,10 +22,8 @@ interface DigestActionsProps {
   isGenerating: boolean;
   /** Whether a digest already exists */
   hasDigest: boolean;
-  /** Callback to generate digest */
+  /** Callback to generate/regenerate digest */
   onGenerate: () => void;
-  /** Callback to refresh research and digest */
-  onRefresh: () => void;
   /** Count of findings for display */
   findingsCount?: number;
 }
@@ -38,7 +37,6 @@ export function DigestActions({
   isGenerating,
   hasDigest,
   onGenerate,
-  onRefresh,
   findingsCount = 0
 }: DigestActionsProps) {
   // Show generate button when no digest exists
@@ -61,30 +59,30 @@ export function DigestActions({
     );
   }
 
-  // Show refresh button when digest exists
+  // Show regenerate button with tooltip when digest exists
   if (hasDigest) {
     return (
-      <div className="flex justify-center gap-2">
-        <Button
-          onClick={onRefresh}
-          disabled={isGenerating}
-          variant="outline"
-          size="sm"
-          className="gap-1"
-        >
-          <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-          {isGenerating ? 'Updating...' : 'Update Research'}
-        </Button>
-        <Button
-          onClick={onGenerate}
-          disabled={isGenerating}
-          variant="outline"
-          size="sm"
-          className="gap-1"
-        >
-          <Sparkles className="h-4 w-4" />
-          Regenerate
-        </Button>
+      <div className="flex justify-center">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={onGenerate}
+                disabled={isGenerating}
+                variant="outline"
+                size="sm"
+                className="gap-1"
+              >
+                <Sparkles className={`h-4 w-4 ${isGenerating ? 'animate-pulse' : ''}`} />
+                {isGenerating ? 'Regenerating...' : 'Regenerate Digest'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-center">
+              Re-analyzes your existing findings with AI.
+              New research is fetched automatically by the scheduler.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     );
   }

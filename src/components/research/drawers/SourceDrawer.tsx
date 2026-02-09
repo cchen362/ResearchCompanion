@@ -35,10 +35,6 @@ interface SourceDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   findings: ResearchFinding[];
-  // Renamed: selectedThemeId → selectedDigestThemeId (DigestTheme, not UI theme)
-  selectedDigestThemeId?: string;
-  // Renamed: themeName → digestThemeName (DigestTheme title, not UI theme)
-  digestThemeName?: string;
   /** ID of the featured finding in the digest */
   featuredFindingId?: string;
   /** IDs of findings referenced in the digest's topFindings */
@@ -49,8 +45,6 @@ export function SourceDrawer({
   isOpen,
   onClose,
   findings,
-  selectedDigestThemeId,
-  digestThemeName,
   featuredFindingId,
   digestFindingIds
 }: SourceDrawerProps) {
@@ -172,11 +166,6 @@ export function SourceDrawer({
         <SheetHeader>
           <SheetTitle>
             Research Sources
-            {digestThemeName && (
-              <span className="text-[var(--color-text-muted)] font-normal ml-2">
-                for "{digestThemeName}"
-              </span>
-            )}
           </SheetTitle>
           <SheetDescription>
             {sortedFindings.length} findings from {Object.keys(groupedBySource).length} sources

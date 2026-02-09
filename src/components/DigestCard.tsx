@@ -54,7 +54,6 @@ function resolveText(item: DualModeText, mode: ExplanationMode): string {
 
 interface DigestCardProps {
   digest: SmartDigest;
-  onThemeClick: (themeId: string) => void;
   onViewSources: () => void;
   onViewFinding?: (findingId: string) => void;
   onAskQuestion?: (question: string) => void;
@@ -64,7 +63,6 @@ interface DigestCardProps {
 
 export function DigestCard({
   digest,
-  onThemeClick,
   onViewSources,
   onViewFinding,
   onAskQuestion,
@@ -578,7 +576,7 @@ export function DigestCard({
           className="w-full sm:w-auto"
         >
           <FileText className="h-4 w-4 mr-2" />
-          View All {digest.statistics.sourceCount} Sources
+          View All Sources
         </Button>
       </div>
     </div>

@@ -28,7 +28,8 @@ Each implementation plan includes:
 | 007 | [Digest Pipeline Fix & Dead Field Cleanup](./007_DIGEST_PIPELINE_FIX_AND_DEAD_FIELD_CLEANUP.md) | **Ready** | Fix 7-layer pipeline for magazine editorial fields, clean dead fields |
 | 008 | [Digest & Findings UX Enhancement](./008_DIGEST_FINDINGS_UX_ENHANCEMENT.md) | **Ready** | Fix broken clicks, PubMed abstracts, structured AI summaries, visual hierarchy |
 | 017 | [Codebase Cleanup](./017_CODEBASE_CLEANUP.md) | **In Progress** | Dead code removal and stale documentation cleanup |
-| 018 | [Agent Scheduler, Dedup, Digest Fix](./018_AGENT_SCHEDULER_DEDUP_DIGEST_FIX.md) | **Ready** | Fix agent type mapping, scheduler timestamps, finding dedup, digest throttle, remove dead DigestSettings |
+| 018 | [Agent Scheduler, Dedup, Digest Fix](./018_AGENT_SCHEDULER_DEDUP_DIGEST_FIX.md) | **Complete** | Fix agent type mapping, scheduler timestamps, finding dedup, digest throttle, remove dead DigestSettings |
+| 019 | [Dead Digest Field Cleanup & Button Consolidation](./019_SOURCECOUNT_CLEANUP_AND_BUTTON_CONSOLIDATION.md) | **Complete** | Phase 1: Remove dead sourceCount, highRelevanceCount, avgConfidence, DigestTheme system, trends (~217 lines). Phase 2: Consolidate 3 redundant digest buttons into 1 with tooltip |
 
 ## How to Use
 
@@ -50,4 +51,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 9, 2026*
-*Latest Plan: 018 - Agent Scheduler, Dedup, Digest Fix*
+*Latest Plan: 019 - SourceCount Cleanup & Button Consolidation*

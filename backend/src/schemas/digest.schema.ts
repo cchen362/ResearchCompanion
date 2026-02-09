@@ -8,23 +8,6 @@ export const DualModeTextSchema = z.object({
 
 export type DualModeText = z.infer<typeof DualModeTextSchema>;
 
-// Define the Zod schema for validation with sensible defaults
-export const DigestThemeSchema = z.object({
-  id: z.string().default(() => `theme-${Date.now()}`),
-  title: z.string(),
-  summary: z.string(),
-  category: z.enum(['treatment', 'mechanism', 'trial', 'outcome', 'diagnostic', 'prevention']).default('treatment'),
-  importance: z.enum(['critical', 'high', 'medium', 'low']).default('medium'),
-  findingIndices: z.array(z.number()).default([]),
-  entities: z.object({
-    medications: z.array(z.string()).default([]),
-    institutions: z.array(z.string()).default([])
-  }).default({ medications: [], institutions: [] }),
-  practicalInsight: z.string().default(''),
-  studyStrength: z.string().default('observational'),
-  avgConfidence: z.enum(['high', 'medium', 'low']).default('medium')
-});
-
 export const BreakthroughSchema = z.object({
   id: z.string().default(() => `breakthrough-${Date.now()}`),
   title: DualModeTextSchema,
@@ -51,12 +34,6 @@ export const ContradictionSchema = z.object({
   requiresAttention: z.boolean()
 });
 
-export const TrendItemSchema = z.object({
-  topic: z.string(),
-  findingCount: z.number().default(0),
-  description: z.string().default('')
-});
-
 export const SmartDigestSchema = z.object({
   executiveSummary: z.string(),
   laymanSummary: z.string(),
@@ -81,13 +58,6 @@ export const SmartDigestSchema = z.object({
     connectionExplanation: z.union([z.string(), DualModeTextSchema]),
     connectionBasis: z.string()
   })).optional().default([]),
-  // Legacy fields (kept optional for backward compat with old digests)
-  themes: z.array(DigestThemeSchema).optional().default([]),
-  trends: z.object({
-    emerging: z.array(TrendItemSchema).default([]),
-    declining: z.array(TrendItemSchema).default([]),
-    stable: z.array(TrendItemSchema).default([])
-  }).optional().default({ emerging: [], declining: [], stable: [] }),
 });
 
 // Featured Discovery schema - the "hero" content of the digest

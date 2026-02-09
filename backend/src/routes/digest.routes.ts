@@ -25,11 +25,9 @@ router.get('/by-topic/:topicId', async (req, res) => {
         topic_id as "topicId",
         executive_summary as "executiveSummary",
         layman_summary as "laymanSummary",
-        themes,
         key_takeaways as "keyTakeaways",
         contradictions,
         breakthroughs,
-        trends,
         knowledge_gaps as "knowledgeGaps",
         next_steps as "nextSteps",
         clinical_implications as "clinicalImplications",
@@ -147,11 +145,7 @@ router.post('/simplify-digest', async (req, res) => {
     // In the future, this could use AI to simplify the entire digest
     const simplifiedDigest = {
       ...digest,
-      isSimplified: true,
-      themes: digest.themes.map((theme: any) => ({
-        ...theme,
-        summary: theme.summary.split('.')[0] + '.' // Simplify to first sentence
-      }))
+      isSimplified: true
     };
 
     res.json(simplifiedDigest);

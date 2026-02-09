@@ -162,13 +162,7 @@ Required JSON structure:
 {
   "executiveSummary": "2-3 sentences with the most critical finding",
   "laymanSummary": "Plain English explanation",
-  "themes": [],
-  "keyTakeaways": ["array of specific insights"],
-  "trends": {
-    "emerging": [],
-    "declining": [],
-    "stable": []
-  }
+  "keyTakeaways": ["array of specific insights"]
 }`,
       messages: [
         {
@@ -201,9 +195,7 @@ Remember: Return ONLY valid JSON, nothing else.`
         return {
           executiveSummary: 'Analysis completed. See findings for details.',
           laymanSummary: 'Medical research findings have been compiled for your review.',
-          themes: [],
-          keyTakeaways: [`${findings.length} findings analyzed from ${timeframe} timeframe`],
-          trends: { emerging: [], declining: [], stable: [] }
+          keyTakeaways: [`${findings.length} findings analyzed from ${timeframe} timeframe`]
         };
       }
     }
@@ -457,9 +449,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
     } catch (zodError: any) {
       console.error('Zod validation failed. Error details:', {
         issues: zodError.issues,
-        rawDataKeys: Object.keys(digestData),
-        sampleTheme: digestData.themes?.[0],
-        sampleTrends: digestData.trends
+        rawDataKeys: Object.keys(digestData)
       });
 
       // Attempt graceful recovery with partial data
@@ -482,10 +472,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
           sourceBreakdown: digestData.sourceBreakdown || undefined,
           // Companion Intelligence fields
           researchPulse: digestData.researchPulse || '',
-          worthRevisiting: Array.isArray(digestData.worthRevisiting) ? digestData.worthRevisiting : [],
-          // Legacy fields (optional, for backward compat)
-          themes: Array.isArray(digestData.themes) ? digestData.themes : [],
-          trends: { emerging: [], declining: [], stable: [] }
+          worthRevisiting: Array.isArray(digestData.worthRevisiting) ? digestData.worthRevisiting : []
         };
 
         // Try to validate the recovered data with defaults
@@ -507,9 +494,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
           topFindings: [],
           sourceBreakdown: null,
           researchPulse: '',
-          worthRevisiting: [],
-          themes: [],
-          trends: { emerging: [], declining: [], stable: [] }
+          worthRevisiting: []
         };
         console.log('✓ Using minimal fallback data');
       }
@@ -523,23 +508,6 @@ Focus on practical, actionable information that helps with treatment decisions.`
     const totalFindings = findings.length;
     const newFindings = findings.filter(f => f.isNew).length;
 
-    // Calculate unique studies count properly
-    const uniqueStudies = new Set();
-    findings.forEach(f => {
-      // Try to extract unique study identifiers
-      if (f.metadata?.doi) {
-        uniqueStudies.add(`doi:${f.metadata.doi}`);
-      } else if (f.metadata?.pubmedId) {
-        uniqueStudies.add(`pmid:${f.metadata.pubmedId}`);
-      } else if (f.metadata?.studyId) {
-        uniqueStudies.add(`study:${f.metadata.studyId}`);
-      } else if (f.metadata?.trialId) {
-        uniqueStudies.add(`trial:${f.metadata.trialId}`);
-      } else {
-        // Fallback: use URL or title+source combo as unique identifier
-        uniqueStudies.add(f.url || `${f.source.name}:${f.title.substring(0, 50)}`);
-      }
-    });
 
     // Transform breakthroughs and contradictions
     const breakthroughs = digestData.breakthroughs?.map((b: any) => ({
@@ -577,8 +545,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
       warningSigns: digestData.warningSigns || [],
       statistics: {
         totalFindings,
-        newFindings,
-        sourceCount: uniqueStudies.size
+        newFindings
       },
       allFindingIds,
       // Magazine editorial fields
@@ -587,10 +554,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
       sourceBreakdown: digestData.sourceBreakdown || null,
       // Companion Intelligence fields
       researchPulse: digestData.researchPulse || '',
-      worthRevisiting: digestData.worthRevisiting || [],
-      // Legacy fields (empty - AI no longer generates these)
-      themes: digestData.themes || [],
-      trends: digestData.trends || { emerging: [], declining: [], stable: [] }
+      worthRevisiting: digestData.worthRevisiting || []
     };
   } catch (error: any) {
     const errorTime = Date.now() - startTime;
@@ -603,13 +567,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
       return {
         executiveSummary: `Analysis of ${findings.length} recent findings about ${topic.diseaseProfile.name}.`,
         laymanSummary: 'Research findings have been compiled for your review.',
-        themes: [{
-          name: 'Recent Research',
-          keyInsights: [`${findings.length} findings analyzed`],
-          findingIds: findings.slice(0, 5).map(f => f.id)
-        }],
         keyTakeaways: ['Review individual findings for details'],
-        trends: { emerging: [], declining: [], stable: ['Research ongoing'] },
         questionsForDoctor: [],
         warningSigns: [],
         // NEW magazine editorial fields (null for timeout fallback)
@@ -646,17 +604,12 @@ Source: ${f.source.name} (${f.source.type})`
         timeframe,
         executiveSummary: simpleDigest.executiveSummary,
         laymanSummary: simpleDigest.laymanSummary,
-        themes: simpleDigest.themes || [],
         keyTakeaways: simpleDigest.keyTakeaways || [],
         breakthroughs: simpleDigest.breakthroughs || [],
         contradictions: simpleDigest.contradictions || [],
-        trends: simpleDigest.trends || { emerging: [], declining: [], stable: [] },
         statistics: {
           totalFindings: findings.length,
-          newFindings: findings.filter(f => f.isNew).length,
-          highRelevanceCount: findings.filter(f => f.priority === 'critical' || f.priority === 'high').length,
-          sourceCount: new Set(findings.map(f => f.source?.name)).size,
-          avgConfidence: 0.5  // Legacy field, no longer based on deprecated confidenceLevel
+          newFindings: findings.filter(f => f.isNew).length
         },
         topSources: [],
         allFindingIds,
@@ -673,31 +626,6 @@ Source: ${f.source.name} (${f.source.type})`
       throw new Error(`Failed to generate digest: ${error.message}`);
     }
   }
-}
-
-// Helper functions for theme categorization
-function getCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    treatment: 'pill',
-    mechanism: 'dna',
-    trial: 'flask',
-    outcome: 'chart',
-    diagnostic: 'search',
-    prevention: 'shield'
-  };
-  return icons[category] || 'file';
-}
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    treatment: 'blue',
-    mechanism: 'purple',
-    trial: 'green',
-    outcome: 'orange',
-    diagnostic: 'teal',
-    prevention: 'indigo'
-  };
-  return colors[category] || 'gray';
 }
 
 // Export aiService object for use in other modules

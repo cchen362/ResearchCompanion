@@ -14,7 +14,6 @@ const CreateDigestSchema = z.object({
   title: z.string().optional(),
   executive_summary: z.string().optional(),
   layman_summary: z.string().optional(),
-  themes: z.array(z.any()).optional(),
   contradictions: z.array(z.any()).optional(),
   breakthroughs: z.array(z.any()).optional(),
   knowledge_gaps: z.array(z.any()).optional(),

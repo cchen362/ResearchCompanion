@@ -9,13 +9,10 @@
 
 import { useUIStore } from '@/stores/uiStore';
 import { useAppStore } from '@/stores/appStore';
-import { useDigest } from '@/hooks/useDigest';
 import { ViewToggle } from './ViewToggle';
 import { FindingsDateFilter } from './FindingsDateFilter';
 import { ExportMenu } from '@/components/ExportMenu';
 import type { FindingsDateFilter as FilterType } from '@/stores/appStore';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import type { Topic, ResearchFinding, SmartDigest } from '@/types';
 
 // ============================================
@@ -29,8 +26,6 @@ interface ResearchToolbarProps {
   findings: ResearchFinding[];
   /** Digest for export */
   digest?: SmartDigest | null;
-  /** Topic ID for digest actions */
-  topicId: string | null;
 }
 
 // ============================================
@@ -40,12 +35,10 @@ interface ResearchToolbarProps {
 export function ResearchToolbar({
   topic,
   findings,
-  digest,
-  topicId
+  digest
 }: ResearchToolbarProps) {
   const { viewMode, setViewMode } = useUIStore();
   const { findingsDateFilter, setFindingsDateFilter } = useAppStore();
-  const { isGenerating, refreshDigest } = useDigest(topicId);
 
   const handleViewChange = (mode: 'digest' | 'list') => {
     setViewMode(mode);
@@ -53,10 +46,6 @@ export function ResearchToolbar({
 
   const handleFilterChange = (filter: FilterType) => {
     setFindingsDateFilter(filter);
-  };
-
-  const handleRefresh = () => {
-    refreshDigest();
   };
 
   return (
@@ -83,21 +72,6 @@ export function ResearchToolbar({
         viewMode={viewMode}
         onViewChange={handleViewChange}
       />
-
-      {/* Refresh button */}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={handleRefresh}
-        disabled={isGenerating}
-        title={isGenerating ? 'Updating research and digest...' : 'Update Research & Digest'}
-        className="gap-1"
-      >
-        <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-        <span className="hidden sm:inline text-xs">
-          {isGenerating ? 'Updating...' : 'Update'}
-        </span>
-      </Button>
 
     </div>
   );

@@ -57,7 +57,6 @@ interface UseDigestReturn {
   // Actions
   loadDigest: () => Promise<void>;
   generateDigest: (force?: boolean) => Promise<void>;
-  refreshDigest: () => Promise<void>;
   clearDigest: () => void;
   setTimeframe: (timeframe: DigestTimeframe) => void;
 }
@@ -176,43 +175,6 @@ export function useDigest(
   ]);
 
   /**
-   * Refresh digest - runs new research then generates digest
-   * This is the "full refresh" that fetches new findings first.
-   */
-  const refreshDigest = useCallback(async () => {
-    if (!topicId) return;
-
-    setLoading('digest', true);
-    setDigestProgress(0, 'Fetching new research...');
-
-    try {
-      // Use the integrated refresh method
-      const queueItem = await digestService.refreshResearchAndDigest(
-        topicId,
-        timeframe,
-        'high'
-      );
-
-      setDigestProgress(50, 'Generating digest...');
-
-      // Load the refreshed digest
-      await loadDigestFromStore(topicId, timeframe);
-
-      setDigestProgress(100, 'Refresh complete!');
-
-      setTimeout(() => {
-        setDigestProgress(0, '');
-        setLoading('digest', false);
-      }, 1500);
-
-    } catch (error) {
-      logger.error('[useDigest] Error refreshing digest:', error);
-      setDigestProgress(0, 'Refresh failed');
-      setLoading('digest', false);
-    }
-  }, [topicId, timeframe, setLoading, setDigestProgress, loadDigestFromStore]);
-
-  /**
    * Clear digest for this topic
    */
   const clearDigest = useCallback(() => {
@@ -312,7 +274,6 @@ export function useDigest(
     // Actions
     loadDigest,
     generateDigest,
-    refreshDigest,
     clearDigest,
     setTimeframe
   };

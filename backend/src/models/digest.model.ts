@@ -7,7 +7,6 @@ export interface Digest {
   type: string;
   title?: string;
   executive_summary?: string;
-  themes?: any[];
   contradictions?: any[];
   breakthroughs?: any[];
   knowledge_gaps?: any[];
@@ -27,7 +26,6 @@ export interface CreateDigestData {
   type: string;
   title?: string;
   executive_summary?: string;
-  themes?: any[];
   contradictions?: any[];
   breakthroughs?: any[];
   knowledge_gaps?: any[];
@@ -88,12 +86,12 @@ export class DigestModel {
     const digest = await queryOne<Digest>(
       `INSERT INTO digests (
          user_id, topic_id, type, title, executive_summary,
-         themes, contradictions, breakthroughs, knowledge_gaps, next_steps,
+         contradictions, breakthroughs, knowledge_gaps, next_steps,
          finding_ids, metadata,
          featured_discovery, top_findings, source_breakdown,
          research_pulse, worth_revisiting
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         userId,
@@ -101,7 +99,6 @@ export class DigestModel {
         data.type,
         data.title || null,
         data.executive_summary || null,
-        JSON.stringify(data.themes || []),
         JSON.stringify(data.contradictions || []),
         JSON.stringify(data.breakthroughs || []),
         JSON.stringify(data.knowledge_gaps || []),
@@ -126,7 +123,7 @@ export class DigestModel {
   // Update a digest
   static async update(id: string, userId: string, updates: Partial<Digest>): Promise<Digest | null> {
     const allowedFields = [
-      'title', 'executive_summary', 'themes', 'contradictions',
+      'title', 'executive_summary', 'contradictions',
       'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata',
       'research_pulse', 'worth_revisiting'
     ];
@@ -136,7 +133,7 @@ export class DigestModel {
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
-        if (['themes', 'contradictions', 'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata', 'worth_revisiting'].includes(key)) {
+        if (['contradictions', 'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata', 'worth_revisiting'].includes(key)) {
           setClause.push(`${key} = $${paramCount}`);
           values.push(JSON.stringify(value));
         } else {

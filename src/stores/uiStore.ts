@@ -63,12 +63,6 @@ interface ProgressState {
   agentProgress: Map<string, number>;
 }
 
-// Source drawer context - which theme's findings to show
-interface SourceDrawerContext {
-  digestThemeId: string | null;
-  digestThemeName: string | null;
-}
-
 interface UIStore {
   // ============================================
   // Loading States (single source of truth)
@@ -86,7 +80,6 @@ interface UIStore {
   // Modals/Drawers
   // ============================================
   modals: ModalStates;
-  sourceDrawerContext: SourceDrawerContext;
   modalData: any; // Generic data for modal content
 
   // ============================================
@@ -135,7 +128,7 @@ interface UIStore {
   // ============================================
   // Actions - Source Drawer
   // ============================================
-  openSourceDrawer: (digestThemeId?: string, digestThemeName?: string) => void;
+  openSourceDrawer: () => void;
   closeSourceDrawer: () => void;
 
   // ============================================
@@ -199,10 +192,6 @@ export const useUIStore = create<UIStore>()(
       agentProgress: new Map(),
 
       modals: { ...defaultModals },
-      sourceDrawerContext: {
-        digestThemeId: null,
-        digestThemeName: null
-      },
       modalData: null,
 
       viewMode: 'digest',
@@ -296,11 +285,7 @@ export const useUIStore = create<UIStore>()(
       closeAllModals: () => {
         set({
           modals: { ...defaultModals },
-          modalData: null,
-          sourceDrawerContext: {
-            digestThemeId: null,
-            digestThemeName: null
-          }
+          modalData: null
         });
       },
 
@@ -312,13 +297,9 @@ export const useUIStore = create<UIStore>()(
       // Source Drawer Actions
       // ============================================
 
-      openSourceDrawer: (digestThemeId?: string, digestThemeName?: string) => {
+      openSourceDrawer: () => {
         set(state => ({
           modals: { ...state.modals, sourceDrawer: true },
-          sourceDrawerContext: {
-            digestThemeId: digestThemeId || null,
-            digestThemeName: digestThemeName || null
-          },
           // Mutual exclusivity: close chat when source drawer opens
           chatPanelOpen: false,
         }));
@@ -326,11 +307,7 @@ export const useUIStore = create<UIStore>()(
 
       closeSourceDrawer: () => {
         set(state => ({
-          modals: { ...state.modals, sourceDrawer: false },
-          sourceDrawerContext: {
-            digestThemeId: null,
-            digestThemeName: null
-          }
+          modals: { ...state.modals, sourceDrawer: false }
         }));
       },
 
@@ -355,10 +332,6 @@ export const useUIStore = create<UIStore>()(
             findingDetail: false,
             sourceDrawer: false,
           },
-          sourceDrawerContext: {
-            digestThemeId: null,
-            digestThemeName: null,
-          },
           modalData: null,
         } : {})
       })),
@@ -371,10 +344,6 @@ export const useUIStore = create<UIStore>()(
               ...state.modals,
               findingDetail: false,
               sourceDrawer: false,
-            },
-            sourceDrawerContext: {
-              digestThemeId: null,
-              digestThemeName: null,
             },
             modalData: null,
           } : {})
@@ -426,10 +395,6 @@ export const useUIStore = create<UIStore>()(
           digestMessage: '',
           agentProgress: new Map(),
           modals: { ...defaultModals },
-          sourceDrawerContext: {
-            digestThemeId: null,
-            digestThemeName: null
-          },
           modalData: null,
           chatPanelOpen: false,
           chatFullscreen: false,

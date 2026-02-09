@@ -41,7 +41,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
     modals,
     openModal,
     closeModal,
-    sourceDrawerContext,
     openSourceDrawer,
     closeSourceDrawer
   } = useUIStore();
@@ -66,10 +65,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
     openSourceDrawer(); // No theme = show all sources
   };
 
-  const handleThemeClick = (themeId: string, themeName: string) => {
-    openSourceDrawer(themeId, themeName);
-  };
-
   const handleViewFinding = (findingId: string) => {
     const finding = findings.find(f => f.id === findingId);
     if (finding) {
@@ -82,12 +77,7 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
   // Derived Data
   // ============================================
 
-  // Filter findings for source drawer based on selected theme
-  const sourceDrawerFindings = sourceDrawerContext.digestThemeId
-    ? findings.filter(f =>
-        digest?.themes?.find(t => t.id === sourceDrawerContext.digestThemeId)?.findingIds.includes(f.id)
-      )
-    : findings;
+  const sourceDrawerFindings = findings;
 
   // ============================================
   // Render
@@ -100,7 +90,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
         topicId={propTopicId}
         onFindingClick={handleFindingClick}
         onViewSources={handleViewSources}
-        onThemeClick={handleThemeClick}
         onViewFinding={handleViewFinding}
       />
 
@@ -109,8 +98,6 @@ export function ResearchPage({ topicId: propTopicId }: ResearchPageProps) {
         isOpen={modals.sourceDrawer}
         onClose={closeSourceDrawer}
         findings={sourceDrawerFindings}
-        selectedDigestThemeId={sourceDrawerContext.digestThemeId || undefined}
-        digestThemeName={sourceDrawerContext.digestThemeName || undefined}
         featuredFindingId={digest?.featuredDiscovery?.findingId}
         digestFindingIds={digest?.topFindings?.map(f => f.findingId) || []}
       />

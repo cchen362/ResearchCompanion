@@ -231,20 +231,20 @@ export class DigestProcessorService {
     await query(
       `INSERT INTO digests (
         id, user_id, topic_id, type, title,
-        executive_summary, layman_summary, themes, contradictions,
+        executive_summary, layman_summary, contradictions,
         breakthroughs, knowledge_gaps, next_steps, key_takeaways,
-        trends, clinical_implications, lifestyle_considerations,
+        clinical_implications, lifestyle_considerations,
         questions_for_doctor, warning_signs, finding_ids, metadata,
         featured_discovery, top_findings, source_breakdown,
         research_pulse, worth_revisiting
       ) VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8, $9,
-        $10, $11, $12, $13,
-        $14, $15, $16,
-        $17, $18, $19, $20,
-        $21, $22, $23,
-        $24, $25
+        $6, $7, $8,
+        $9, $10, $11, $12,
+        $13, $14,
+        $15, $16, $17, $18,
+        $19, $20, $21,
+        $22, $23
       )`,
       [
         digestId,
@@ -254,13 +254,11 @@ export class DigestProcessorService {
         (digest as any).title || `${topic.name} Research Digest`,
         (digest as any).executiveSummary,
         (digest as any).laymanSummary,
-        JSON.stringify((digest as any).themes || []),
         JSON.stringify((digest as any).contradictions || []),
         JSON.stringify((digest as any).breakthroughs || []),
         JSON.stringify((digest as any).knowledgeGaps || []),
         JSON.stringify((digest as any).nextSteps || []),
         JSON.stringify((digest as any).keyTakeaways || []),
-        JSON.stringify((digest as any).trends || {}),
         JSON.stringify((digest as any).clinicalImplications || []),
         JSON.stringify((digest as any).lifestyleConsiderations || []),
         JSON.stringify((digest as any).questionsForDoctor || []),
@@ -272,7 +270,7 @@ export class DigestProcessorService {
           findingsCount: findings.length,
           generatedAt: new Date().toISOString(),
           timeframe: item.timeframe || 'all-time',
-          statistics: (digest as any).statistics || { totalFindings: findings.length, newFindings: 0, sourceCount: 0 }
+          statistics: (digest as any).statistics || { totalFindings: findings.length, newFindings: 0 }
         }),
         JSON.stringify((digest as any).featuredDiscovery || null),
         JSON.stringify((digest as any).topFindings || []),

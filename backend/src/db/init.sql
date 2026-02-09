@@ -91,7 +91,6 @@ CREATE TABLE IF NOT EXISTS digests (
     type VARCHAR(50) NOT NULL, -- 'smart_digest', 'executive_summary'
     title VARCHAR(500),
     executive_summary TEXT,
-    themes JSONB DEFAULT '[]',
     contradictions JSONB DEFAULT '[]',
     breakthroughs JSONB DEFAULT '[]',
     knowledge_gaps JSONB DEFAULT '[]',
@@ -100,7 +99,6 @@ CREATE TABLE IF NOT EXISTS digests (
     metadata JSONB DEFAULT '{}',
     layman_summary TEXT, -- Simplified summary for non-medical users
     key_takeaways JSONB DEFAULT '[]'::jsonb, -- Array of key points
-    trends JSONB DEFAULT '{}'::jsonb, -- Identified trends
     clinical_implications JSONB DEFAULT '[]'::jsonb, -- Clinical relevance
     lifestyle_considerations JSONB DEFAULT '[]'::jsonb, -- Lifestyle recommendations
     questions_for_doctor JSONB DEFAULT '[]'::jsonb, -- Questions for healthcare provider

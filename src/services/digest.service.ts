@@ -163,7 +163,6 @@ class DigestService {
       executiveSummary: apiDigest.executive_summary || '',
       // FIX: Read from correct columns (backend aliases these in SQL)
       laymanSummary: apiDigest.laymanSummary || apiDigest.layman_summary || '',
-      themes: apiDigest.themes || [],  // Legacy - kept for backward compat, no longer generated
       keyTakeaways: apiDigest.keyTakeaways || apiDigest.key_takeaways || [],
       breakthroughs: apiDigest.breakthroughs || [],
       contradictions: apiDigest.contradictions || [],
@@ -171,15 +170,9 @@ class DigestService {
       questionsForDoctor: apiDigest.questionsForDoctor || apiDigest.questions_for_doctor || [],
       warningSigns: apiDigest.warningSigns || apiDigest.warning_signs || [],
       clinicalImplications: apiDigest.clinicalImplications || apiDigest.clinical_implications || [],
-      trends: apiDigest.trends || apiDigest.metadata?.trends || {
-        emerging: [],
-        declining: [],
-        stable: []
-      },
       statistics: apiDigest.metadata?.statistics || {
         totalFindings: apiDigest.finding_ids?.length || 0,
-        newFindings: 0,
-        sourceCount: 0
+        newFindings: 0
       },
       allFindingIds: apiDigest.finding_ids || [],
       userEngagement: apiDigest.metadata?.userEngagement,
@@ -215,7 +208,6 @@ class DigestService {
       title: digest.executiveSummary?.substring(0, 100) || 'Research Digest',
       executive_summary: digest.executiveSummary || '',
       layman_summary: digest.laymanSummary || '',
-      themes: digest.themes || [],
       contradictions: digest.contradictions || [],
       breakthroughs: digest.breakthroughs || [],
       knowledge_gaps: digest.knowledgeGaps || [],
@@ -415,9 +407,6 @@ class DigestService {
       'user'
     );
 
-    // Process the queue
-    await this.processQueue();
-
     // Wait for digest to be generated (up to 2 minutes)
     const maxWaitTime = 120000;
     const startTime = Date.now();
@@ -605,54 +594,6 @@ class DigestService {
 
     // Backend DigestProcessor handles queue processing — no frontend processing needed
     return queueItem;
-  }
-
-  /**
-   * Integrated method to refresh research and regenerate digest
-   * NOTE: This no longer directly calls agentRunner - instead components should
-   * call agentsService.runAllAgents() first, which will emit 'agents-complete'
-   * event that this service listens for.
-   */
-  async refreshResearchAndDigest(
-    topicId: string,
-    timeframe: DigestTimeframe = 'all-time',
-    priority: DigestPriority = 'high'
-  ): Promise<DigestQueueItem> {
-    // This method now just queues a digest from existing findings
-    // To get new findings, the caller should first call agentsService.runAllAgents()
-    // which will trigger 'agents-complete' event -> auto-queue digest
-    logger.debug(`[DigestService] refreshResearchAndDigest called for topic ${topicId}`);
-    logger.debug('[DigestService] NOTE: To fetch new findings, call agentsService.runAllAgents() first');
-
-    return await this.queueDigestFromExistingFindings(topicId, timeframe);
-  }
-
-  // ==================== Queue Processing ====================
-
-  async processQueue(): Promise<void> {
-    // No-op: Backend DigestProcessor handles all queue processing.
-    // This method is kept for interface compatibility but does nothing.
-    // Both manual (user click) and autonomous (scheduler) paths now use
-    // the backend DigestProcessor exclusively.
-    logger.debug('[DigestService] processQueue called — backend processor handles this');
-  }
-
-  private async processQueueItem(item: any): Promise<void> {
-    // No-op: Backend DigestProcessor handles all queue processing.
-    // Previously, this method held a long HTTP connection to POST /digest/generate-digest
-    // which was fragile and caused 504 timeouts + race conditions.
-    logger.debug(`[DigestService] processQueueItem called for ${item.id} — backend processor handles this`);
-  }
-
-  private async generateDigestFromFindings(
-    queueItem: DigestQueueItem,
-    topic: Topic,
-    findings: ResearchFinding[],
-    timeframe: DigestTimeframe
-  ): Promise<SmartDigest> {
-    // No-op: Backend DigestProcessor handles digest generation directly.
-    // This method previously made a long HTTP request that was fragile.
-    throw new Error('Frontend digest generation disabled — backend processor handles this');
   }
 
   // ==================== Cache Operations ====================

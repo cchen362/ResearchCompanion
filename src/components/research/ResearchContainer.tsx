@@ -39,8 +39,6 @@ interface ResearchContainerProps {
   onFindingClick: (finding: ResearchFinding) => void;
   /** Callback to open source drawer */
   onViewSources: () => void;
-  /** Callback when theme clicked in digest */
-  onThemeClick: (themeId: string, themeName: string) => void;
   /** Callback when a finding is clicked in digest */
   onViewFinding?: (findingId: string) => void;
 }
@@ -53,7 +51,6 @@ export function ResearchContainer({
   topicId: propTopicId,
   onFindingClick,
   onViewSources,
-  onThemeClick,
   onViewFinding
 }: ResearchContainerProps) {
   // ============================================
@@ -196,7 +193,6 @@ export function ResearchContainer({
               topic={selectedTopic}
               findings={findings}
               digest={digest}
-              topicId={selectedTopicId}
             />
           </div>
         </CardHeader>
@@ -223,7 +219,6 @@ export function ResearchContainer({
         <DigestPanel
           topicId={selectedTopicId}
           onViewSources={onViewSources}
-          onThemeClick={onThemeClick}
           onViewFinding={onViewFinding}
         />
       ) : (
