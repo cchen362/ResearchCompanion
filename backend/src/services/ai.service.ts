@@ -3,7 +3,8 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { digestJSONSchema, SmartDigestSchema } from '../schemas/digest.schema.js';
+import { z } from 'zod';
+import { digestJSONSchema, SmartDigestSchema, ScoredFindingsResultSchema, ScoredFindingSchema } from '../schemas/digest.schema.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -53,34 +54,10 @@ export interface ScoredFindingsResult {
 const scoredFindingsSchema = {
   type: 'object' as const,
   properties: {
-    scoredFindings: {
-      type: 'array' as const,
-      items: {
-        type: 'object' as const,
-        properties: {
-          findingId: {
-            type: 'string' as const,
-            description: 'UUID of the finding being scored'
-          },
-          significanceScore: {
-            type: 'number' as const,
-            description: 'Clinical significance score from 1-10'
-          },
-          significanceReason: {
-            type: 'string' as const,
-            description: 'Justification for the assigned score'
-          },
-          researchCategory: {
-            type: 'string' as const,
-            description: 'Category: drug_approval, clinical_trial, gene_therapy, mechanism_research, treatment_guideline, patient_outcomes, safety_alert, diagnostic_advance, or other'
-          },
-          condensedSummary: {
-            type: 'string' as const,
-            description: 'Single sentence summary, max 150 characters'
-          }
-        },
-        required: ['findingId', 'significanceScore', 'significanceReason', 'researchCategory', 'condensedSummary']
-      }
+    // Metadata fields FIRST — if response truncates, these survive (Plan 021)
+    totalAnalyzed: {
+      type: 'number' as const,
+      description: 'Total number of findings scored'
     },
     categoryGroups: {
       type: 'array' as const,
@@ -108,12 +85,38 @@ const scoredFindingsSchema = {
       items: { type: 'string' as const },
       description: 'Top 30 finding UUIDs ranked by significance (most significant first)'
     },
-    totalAnalyzed: {
-      type: 'number' as const,
-      description: 'Total number of findings scored'
+    // Large array LAST — safe to truncate tail (Plan 021)
+    scoredFindings: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          findingId: {
+            type: 'string' as const,
+            description: 'UUID of the finding being scored'
+          },
+          significanceScore: {
+            type: 'number' as const,
+            description: 'Clinical significance score from 1-10'
+          },
+          significanceReason: {
+            type: 'string' as const,
+            description: 'Brief justification, max 40 characters'
+          },
+          researchCategory: {
+            type: 'string' as const,
+            description: 'Category: drug_approval, clinical_trial, gene_therapy, mechanism_research, treatment_guideline, patient_outcomes, safety_alert, diagnostic_advance, or other'
+          },
+          condensedSummary: {
+            type: 'string' as const,
+            description: 'Single sentence summary, max 150 characters'
+          }
+        },
+        required: ['findingId', 'significanceScore', 'significanceReason', 'researchCategory', 'condensedSummary']
+      }
     }
   },
-  required: ['scoredFindings', 'categoryGroups', 'topFindingIds', 'totalAnalyzed']
+  required: ['totalAnalyzed', 'categoryGroups', 'topFindingIds', 'scoredFindings']
 };
 
 /**
@@ -309,7 +312,28 @@ Remember: Return ONLY valid JSON, nothing else.`
  *
  * Cost: ~$0.03-0.12 per call | Time: ~10-30s | Context: within 200K limit
  */
+
+/** Batch threshold: 130 findings at ~100 tokens/finding safely fits in 16K token budget with 18% headroom */
+const HAIKU_BATCH_THRESHOLD = 130;
+const HAIKU_BATCH_SIZE = 75;
+
+/**
+ * Pass 1 entry point: Score and cluster ALL findings by clinical significance using Haiku.
+ * Auto-batches at 130+ findings for sustainable scaling.
+ */
 export async function scoreAndClusterFindings(
+  findings: any[],
+  topicName: string
+): Promise<ScoredFindingsResult> {
+  if (findings.length > HAIKU_BATCH_THRESHOLD) {
+    console.log(`[AI] Findings count (${findings.length}) > batch threshold (${HAIKU_BATCH_THRESHOLD}). Splitting into batches of ${HAIKU_BATCH_SIZE}...`);
+    return scoreFindingsInBatches(findings, topicName);
+  }
+  return scoreAndClusterFindingsSingle(findings, topicName);
+}
+
+/** Single-call scoring for ≤130 findings */
+async function scoreAndClusterFindingsSingle(
   findings: any[],
   topicName: string
 ): Promise<ScoredFindingsResult> {
@@ -322,9 +346,9 @@ Summary: ${f.summary?.substring(0, 300) || 'No summary'}
 Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
   ).join('\n\n');
 
-  // Dynamic token scaling: plan specifies 4000 but that truncates at 100+ findings.
-  // Formula: 4K min, 80 tokens/finding, 16K cap. See Plan 020 deviation note.
-  const maxTokens = Math.min(Math.max(4000, findings.length * 80), 16000);
+  // Dynamic token scaling (Plan 021): 150 tokens/finding accounts for 150-char condensedSummary + metadata.
+  // Cap at 16384. Auto-batching kicks in at 130+ findings (see HAIKU_BATCH_THRESHOLD).
+  const maxTokens = Math.min(Math.max(4000, findings.length * 150), 16384);
 
   try {
     const response = await anthropic.messages.create({
@@ -344,12 +368,14 @@ Classify each finding into one of: drug_approval, clinical_trial, gene_therapy, 
 
 CONDENSED SUMMARIES:
 Generate a single-sentence summary (max 150 characters) capturing the core finding.
+Keep significanceReason to max 40 characters — a brief phrase, not a full sentence.
 
 OUTPUT REQUIREMENTS:
 1. Score EVERY finding provided
 2. Group findings into categoryGroups with counts and headlines
 3. Identify the top 30 finding IDs ranked by significance (most significant first)
-4. Report totalAnalyzed count`,
+4. Report totalAnalyzed count
+CRITICAL: You MUST output ALL four top-level fields: totalAnalyzed, categoryGroups, topFindingIds, scoredFindings. Never omit any field.`,
       messages: [{
         role: 'user',
         content: `Score and cluster these ${findings.length} research findings:\n\n${findingsText}`
@@ -362,6 +388,12 @@ OUTPUT REQUIREMENTS:
       tool_choice: { type: 'tool', name: 'score_findings' }
     });
 
+    // Detect truncation and log response metadata (Plan 021)
+    if (response.stop_reason === 'max_tokens') {
+      console.warn(`[AI] Haiku scoring TRUNCATED (stop_reason=max_tokens). Budget: ${maxTokens}, findings: ${findings.length}, usage: ${JSON.stringify(response.usage)}`);
+    }
+    console.log(`[AI] Haiku response: stop_reason=${response.stop_reason}, blocks=${response.content.length}, output_tokens=${response.usage?.output_tokens}`);
+
     // Extract tool use result
     const toolUseBlock = response.content.find(
       (block: any) => block.type === 'tool_use'
@@ -372,11 +404,34 @@ OUTPUT REQUIREMENTS:
       return buildFallbackScoring(findings, 'Haiku scoring unavailable');
     }
 
-    const result = toolUseBlock.input as ScoredFindingsResult;
+    // Zod validation with graceful recovery (Plan 021)
+    const rawResult = toolUseBlock.input as Record<string, unknown>;
+    console.log(`[AI] Haiku raw keys: [${Object.keys(rawResult)}], scoredFindings: ${Array.isArray(rawResult.scoredFindings) ? (rawResult.scoredFindings as any[]).length : 'MISSING'}`);
 
-    console.log(`[AI] Haiku scored ${result.totalAnalyzed} findings, ${result.categoryGroups.length} categories, top ${result.topFindingIds.length} ranked`);
+    // Layer 1: Zod validation (defaults fill missing metadata fields)
+    const parseResult = ScoredFindingsResultSchema.safeParse(rawResult);
 
-    return result;
+    if (parseResult.success) {
+      const result = reconstructScoredResult(parseResult.data);
+      console.log(`[AI] Haiku scored ${result.totalAnalyzed} findings, ${result.categoryGroups.length} categories, top ${result.topFindingIds.length} ranked`);
+      return result;
+    }
+
+    // Layer 2: Partial recovery — Zod failed but scoredFindings array may be parseable
+    console.warn('[AI] Haiku Zod validation failed:', parseResult.error.issues.map(i => `${i.path}: ${i.message}`).join(', '));
+
+    if (Array.isArray(rawResult.scoredFindings) && rawResult.scoredFindings.length > 0) {
+      console.log(`[AI] Attempting partial recovery from ${rawResult.scoredFindings.length} scored findings...`);
+      const partialParse = z.array(ScoredFindingSchema).safeParse(rawResult.scoredFindings);
+      if (partialParse.success && partialParse.data.length > 0) {
+        const recovered = reconstructFromScoredFindings(partialParse.data);
+        console.log(`[AI] Partial recovery: ${recovered.totalAnalyzed} scored, ${recovered.categoryGroups.length} categories, top ${recovered.topFindingIds.length}`);
+        return recovered;
+      }
+    }
+
+    // Layer 3: Complete failure — use existing fallback
+    return buildFallbackScoring(findings, 'Zod validation and partial recovery both failed');
   } catch (error: any) {
     console.error('[AI] Haiku scoring failed:', error.message);
     return buildFallbackScoring(findings, error.message);
@@ -401,6 +456,144 @@ function buildFallbackScoring(findings: any[], reason: string): ScoredFindingsRe
     }],
     topFindingIds: findings.slice(0, 30).map(f => f.id),
     totalAnalyzed: findings.length
+  };
+}
+
+/** Reconstruct missing metadata from scoredFindings (when Zod defaults kicked in) */
+function reconstructScoredResult(validated: ScoredFindingsResult): ScoredFindingsResult {
+  const result = { ...validated };
+
+  // If totalAnalyzed was 0 (Zod default), set from actual data
+  if (result.totalAnalyzed === 0 && result.scoredFindings.length > 0) {
+    result.totalAnalyzed = result.scoredFindings.length;
+  }
+
+  // If categoryGroups is empty but we have scoredFindings, reconstruct
+  if (result.categoryGroups.length === 0 && result.scoredFindings.length > 0) {
+    const groups = new Map<string, number>();
+    for (const sf of result.scoredFindings) {
+      const cat = sf.researchCategory || 'other';
+      groups.set(cat, (groups.get(cat) || 0) + 1);
+    }
+    result.categoryGroups = Array.from(groups.entries()).map(([category, count]) => ({
+      category,
+      findingCount: count,
+      headline: `${count} finding${count > 1 ? 's' : ''} in ${category.replace(/_/g, ' ')}`
+    }));
+    console.log(`[AI] Reconstructed ${result.categoryGroups.length} category groups from scored findings`);
+  }
+
+  // If topFindingIds is empty but we have scoredFindings, derive from scores
+  if (result.topFindingIds.length === 0 && result.scoredFindings.length > 0) {
+    result.topFindingIds = [...result.scoredFindings]
+      .sort((a, b) => b.significanceScore - a.significanceScore)
+      .slice(0, 30)
+      .map(sf => sf.findingId);
+    console.log(`[AI] Reconstructed top ${result.topFindingIds.length} finding IDs from significance scores`);
+  }
+
+  return result;
+}
+
+/** Build complete ScoredFindingsResult from just the scoredFindings array (deepest recovery) */
+function reconstructFromScoredFindings(scoredFindings: ScoredFinding[]): ScoredFindingsResult {
+  const groups = new Map<string, number>();
+  for (const sf of scoredFindings) {
+    const cat = sf.researchCategory || 'other';
+    groups.set(cat, (groups.get(cat) || 0) + 1);
+  }
+
+  return {
+    scoredFindings,
+    categoryGroups: Array.from(groups.entries()).map(([category, count]) => ({
+      category,
+      findingCount: count,
+      headline: `${count} finding${count > 1 ? 's' : ''} in ${category.replace(/_/g, ' ')}`
+    })),
+    topFindingIds: [...scoredFindings]
+      .sort((a, b) => b.significanceScore - a.significanceScore)
+      .slice(0, 30)
+      .map(sf => sf.findingId),
+    totalAnalyzed: scoredFindings.length
+  };
+}
+
+/** Score findings in parallel batches when count exceeds threshold */
+async function scoreFindingsInBatches(
+  findings: any[],
+  topicName: string
+): Promise<ScoredFindingsResult> {
+  // Split into batches
+  const batches: any[][] = [];
+  for (let i = 0; i < findings.length; i += HAIKU_BATCH_SIZE) {
+    batches.push(findings.slice(i, i + HAIKU_BATCH_SIZE));
+  }
+
+  console.log(`[AI] Scoring ${findings.length} findings in ${batches.length} batches of ≤${HAIKU_BATCH_SIZE}...`);
+
+  // Run batches with concurrency limit of 3
+  const batchResults: ScoredFindingsResult[] = [];
+  for (let i = 0; i < batches.length; i += 3) {
+    const chunk = batches.slice(i, i + 3);
+    const results = await Promise.allSettled(
+      chunk.map(batch => scoreAndClusterFindingsSingle(batch, topicName))
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === 'fulfilled') {
+        batchResults.push(result.value);
+      } else {
+        console.error(`[AI] Batch ${i + j + 1} failed:`, result.reason?.message || result.reason);
+        // Fallback for failed batch only — other batches still contribute real scores
+        batchResults.push(buildFallbackScoring(chunk[j], `Batch ${i + j + 1} failed`));
+      }
+    }
+  }
+
+  return mergeScoredResults(batchResults, findings.length);
+}
+
+/** Merge results from multiple scoring batches into a single coherent result */
+function mergeScoredResults(
+  results: ScoredFindingsResult[],
+  totalFindings: number
+): ScoredFindingsResult {
+  // Concatenate all scored findings
+  const allScored = results.flatMap(r => r.scoredFindings);
+
+  // Merge category groups — aggregate counts per category across batches
+  const categoryMap = new Map<string, { count: number; headline: string }>();
+  for (const r of results) {
+    for (const g of r.categoryGroups) {
+      const existing = categoryMap.get(g.category);
+      if (existing) {
+        existing.count += g.findingCount;
+      } else {
+        categoryMap.set(g.category, { count: g.findingCount, headline: g.headline });
+      }
+    }
+  }
+  const categoryGroups = Array.from(categoryMap.entries()).map(([category, data]) => ({
+    category,
+    findingCount: data.count,
+    headline: data.headline
+  }));
+
+  // Global re-rank: sort ALL findings by significance, take top 30
+  // This mitigates cross-batch scoring drift by selecting the best across all batches
+  const topFindingIds = [...allScored]
+    .sort((a, b) => b.significanceScore - a.significanceScore)
+    .slice(0, 30)
+    .map(sf => sf.findingId);
+
+  console.log(`[AI] Merged ${results.length} batches: ${allScored.length} scored, ${categoryGroups.length} categories, top ${topFindingIds.length} ranked`);
+
+  return {
+    scoredFindings: allScored,
+    categoryGroups,
+    topFindingIds,
+    totalAnalyzed: totalFindings
   };
 }
 

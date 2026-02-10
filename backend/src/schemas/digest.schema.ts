@@ -111,6 +111,31 @@ export const SourceBreakdownSchema = z.object({
 
 export type SourceBreakdown = z.infer<typeof SourceBreakdownSchema>;
 
+// ============================================
+// Two-Pass Scoring Validation Schemas (Plan 021)
+// ============================================
+
+export const ScoredFindingSchema = z.object({
+  findingId: z.string(),
+  significanceScore: z.number().min(1).max(10).default(5),
+  significanceReason: z.string().default('Score assigned by AI triage'),
+  researchCategory: z.string().default('other'),
+  condensedSummary: z.string().default('')
+});
+
+export const CategoryGroupSchema = z.object({
+  category: z.string(),
+  findingCount: z.number(),
+  headline: z.string()
+});
+
+export const ScoredFindingsResultSchema = z.object({
+  scoredFindings: z.array(ScoredFindingSchema),            // REQUIRED — no default
+  categoryGroups: z.array(CategoryGroupSchema).default([]), // Reconstructible from scoredFindings
+  topFindingIds: z.array(z.string()).default([]),           // Reconstructible from scoredFindings
+  totalAnalyzed: z.number().default(0)                     // Reconstructible from scoredFindings
+});
+
 // Convert Zod schema to JSON Schema format for Claude API
 export const digestJSONSchema = {
   type: 'object' as const,
