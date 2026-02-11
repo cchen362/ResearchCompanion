@@ -577,6 +577,6 @@ Revert all frontend and backend files. User would need to regenerate digests.
 |--------|-----------|------|-------|
 | 1 - PubMed Fix | [x] | 2026-02-11 | Block-splitting parser + PubMedArticle interface + buildAIPrompt date fix |
 | 2 - Temporal Awareness | [x] | 2026-02-11 | previousDigestDate threading, [NEW] tags in Pass 1+2, TEMPORAL CONTEXT prompt, view tracking, countSince + updateLastDigestViewed infra. whatsNew enrichment deferred to Pillar 3. |
-| 3 - Section Consolidation | [ ] | | |
-| Deployment | [ ] | | |
-| Verification | [ ] | | |
+| 3 - Section Consolidation | [x] | 2026-02-11 | 12-layer pipeline complete: 6 sections (whatsNew, featuredDiscovery, keyTakeaways, notableFindings, forYourDoctor, sourceBreakdown). All sections expanded by default. TOC scroll offset fixed. |
+| Deployment | [x] | 2026-02-11 | Docker rebuild + migration SQL (3 new columns, 6+7 old columns dropped). Digest cache HIT working. |
+| Verification | [x] | 2026-02-11 | Logs clean (zero errors). Digest renders 5 sections. NEW chips on findings. Home dashboard shows whatsNew. Scheduled runs pending sanity check. |
