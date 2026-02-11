@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import {
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   Lightbulb,
   FileText,
@@ -63,37 +61,6 @@ export function DigestCard({
 }: DigestCardProps) {
   const [topFindingsFilter, setTopFindingsFilter] = useState<string>('all');
 
-  // Initialize with saved preferences or default
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('digestExpandedSections');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return new Set(parsed);
-      } catch {
-        return new Set(['takeaways', 'forYourDoctor']);
-      }
-    }
-    return new Set(['takeaways', 'forYourDoctor']);
-  });
-
-  // Save preferences whenever they change
-  useEffect(() => {
-    localStorage.setItem('digestExpandedSections', JSON.stringify(Array.from(expandedSections)));
-  }, [expandedSections]);
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(sectionId)) {
-        newSet.delete(sectionId);
-      } else {
-        newSet.add(sectionId);
-      }
-      return newSet;
-    });
-  };
-
   // Get cache status information
   const getCacheStatus = () => {
     const meta = digest.cacheMetadata;
@@ -146,7 +113,7 @@ export function DigestCard({
   return (
     <div className="space-y-4">
       {/* Header Card with What's New + Featured Discovery */}
-      <Card id={DIGEST_SECTION_IDS.header} className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-transparent">
+      <Card id={DIGEST_SECTION_IDS.header} className="scroll-mt-24 border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -262,7 +229,7 @@ export function DigestCard({
 
       {/* Notable Findings */}
       {digest.notableFindings && digest.notableFindings.length > 0 && (
-        <Card id={DIGEST_SECTION_IDS.notableFindings}>
+        <Card id={DIGEST_SECTION_IDS.notableFindings} className="scroll-mt-24">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Notable Findings</CardTitle>
@@ -322,62 +289,39 @@ export function DigestCard({
 
       {/* Key Takeaways */}
       {digest.keyTakeaways.length > 0 && (
-        <Card id={DIGEST_SECTION_IDS.takeaways}>
-          <CardHeader
-            className="cursor-pointer"
-            onClick={() => toggleSection('takeaways')}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Key Takeaways
-              </CardTitle>
-              {expandedSections.has('takeaways') ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </div>
+        <Card id={DIGEST_SECTION_IDS.takeaways} className="scroll-mt-24">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Key Takeaways
+            </CardTitle>
           </CardHeader>
-          {expandedSections.has('takeaways') && (
-            <CardContent>
-              <ul className="space-y-2">
-                {digest.keyTakeaways.map((takeaway, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-primary mt-1">•</span>
-                    <span className="text-sm">{resolveText(takeaway, explanationMode)}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          )}
+          <CardContent>
+            <ul className="space-y-2">
+              {digest.keyTakeaways.map((takeaway, index) => (
+                <li key={index} className="flex items-start gap-2">
+                  <span className="text-primary mt-1">•</span>
+                  <span className="text-sm">{resolveText(takeaway, explanationMode)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
       {/* For Your Doctor */}
       {hasForYourDoctor && (
-        <Card id={DIGEST_SECTION_IDS.forYourDoctor} className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-          <CardHeader
-            className="cursor-pointer"
-            onClick={() => toggleSection('forYourDoctor')}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Stethoscope className="h-5 w-5 text-blue-600" />
-                For Your Doctor
-                <Badge variant="secondary" className="ml-2">
-                  {forYourDoctor.questions.length + forYourDoctor.watchFor.length}
-                </Badge>
-              </CardTitle>
-              {expandedSections.has('forYourDoctor') ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </div>
+        <Card id={DIGEST_SECTION_IDS.forYourDoctor} className="scroll-mt-24 border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-blue-600" />
+              For Your Doctor
+              <Badge variant="secondary" className="ml-2">
+                {forYourDoctor.questions.length + forYourDoctor.watchFor.length}
+              </Badge>
+            </CardTitle>
           </CardHeader>
-          {expandedSections.has('forYourDoctor') && (
-            <CardContent className="space-y-6">
+          <CardContent className="space-y-6">
               {/* Questions to Ask */}
               {forYourDoctor.questions.length > 0 && (
                 <div>
@@ -458,12 +402,11 @@ export function DigestCard({
                 </div>
               )}
             </CardContent>
-          )}
         </Card>
       )}
 
       {/* View All Sources Button */}
-      <div id={DIGEST_SECTION_IDS.sources} className="flex justify-center">
+      <div id={DIGEST_SECTION_IDS.sources} className="scroll-mt-24 flex justify-center">
         <Button
           variant="outline"
           onClick={onViewSources}
