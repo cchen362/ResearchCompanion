@@ -11,6 +11,7 @@ export interface Topic {
   updated_at: Date;
   archived: boolean;
   sort_order: number;
+  last_digest_viewed_at?: Date;
 }
 
 export class TopicModel {
@@ -115,6 +116,14 @@ export class TopicModel {
        WHERE id = $2 AND user_id = $3
        RETURNING *`,
       [archived, id, userId]
+    );
+  }
+
+  // Track when user last viewed a digest for temporal awareness
+  static async updateLastDigestViewed(topicId: string, userId: string): Promise<void> {
+    await query(
+      'UPDATE topics SET last_digest_viewed_at = NOW() WHERE id = $1 AND user_id = $2',
+      [topicId, userId]
     );
   }
 

@@ -7,9 +7,7 @@ import {
   Brain,
   FileText,
   Lightbulb,
-  TrendingUp,
   Stethoscope,
-  AlertTriangle,
   BookOpen
 } from 'lucide-react';
 
@@ -32,28 +30,17 @@ export function DigestTOC({ digest, onViewSources }: DigestTOCProps) {
     // Header/Featured is always present
     result.push({ id: DIGEST_SECTION_IDS.header, label: 'Overview', icon: Brain });
 
-    if (digest.topFindings && digest.topFindings.length > 0) {
-      result.push({ id: DIGEST_SECTION_IDS.topFindings, label: 'Top Findings', icon: FileText });
+    if (digest.notableFindings && digest.notableFindings.length > 0) {
+      result.push({ id: DIGEST_SECTION_IDS.notableFindings, label: 'Notable Findings', icon: FileText });
     }
 
     if (digest.keyTakeaways.length > 0) {
       result.push({ id: DIGEST_SECTION_IDS.takeaways, label: 'Key Takeaways', icon: Lightbulb });
     }
 
-    if (digest.breakthroughs && digest.breakthroughs.length > 0) {
-      result.push({ id: DIGEST_SECTION_IDS.breakthroughs, label: 'Breakthroughs', icon: TrendingUp });
-    }
-
-    if (digest.questionsForDoctor && digest.questionsForDoctor.length > 0) {
-      result.push({ id: DIGEST_SECTION_IDS.questions, label: 'Questions for Doctor', icon: Stethoscope });
-    }
-
-    if (digest.warningSigns && digest.warningSigns.length > 0) {
-      result.push({ id: DIGEST_SECTION_IDS.warningSigns, label: 'Warning Signs', icon: AlertTriangle });
-    }
-
-    if (digest.contradictions && digest.contradictions.length > 0) {
-      result.push({ id: DIGEST_SECTION_IDS.contradictions, label: 'Conflicting Info', icon: AlertTriangle });
+    const forYourDoctor = digest.forYourDoctor || { questions: [], watchFor: [] };
+    if (forYourDoctor.questions.length > 0 || forYourDoctor.watchFor.length > 0) {
+      result.push({ id: DIGEST_SECTION_IDS.forYourDoctor, label: 'For Your Doctor', icon: Stethoscope });
     }
 
     result.push({ id: DIGEST_SECTION_IDS.sources, label: 'View Sources', icon: BookOpen });

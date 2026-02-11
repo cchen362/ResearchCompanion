@@ -96,61 +96,57 @@ class ExportService {
       }
     }
 
-    // Executive Summary (if digest exists)
+    // What's New Summary (if digest exists)
     if (digest) {
       yPosition += 20;
       pdf.setFontSize(16);
       pdf.setTextColor(...primaryColor);
-      pdf.text('Executive Summary', 20, yPosition);
+      pdf.text("What's New", 20, yPosition);
 
       yPosition += 10;
       pdf.setFontSize(11);
       pdf.setTextColor(...textColor);
-      yPosition += addWrappedText(digest.executiveSummary, 20, yPosition, 170);
+      yPosition += addWrappedText(digest.whatsNew?.technical || '', 20, yPosition, 170);
 
-      // Note: Removed Key Themes section as the theme structure has changed
-      // and may not have simple name/description fields anymore
-
-      // Contradictions - simplified to avoid missing field issues
-      if (digest.contradictions && digest.contradictions.length > 0) {
+      // Notable Findings
+      if (digest.notableFindings && digest.notableFindings.length > 0) {
         yPosition += 10;
         pdf.setFontSize(14);
         pdf.setTextColor(...primaryColor);
-        pdf.text('Important Contradictions', 20, yPosition);
+        pdf.text('Notable Findings', 20, yPosition);
 
         yPosition += 8;
         pdf.setFontSize(11);
         pdf.setTextColor(...textColor);
-        digest.contradictions.forEach(contradiction => {
+        digest.notableFindings.forEach(finding => {
           if (yPosition > 270) {
             pdf.addPage();
             yPosition = 20;
           }
-          const contradictionText = `• ${contradiction.topic.technical}: "${contradiction.findingA?.claim.technical || 'Finding A'}" vs "${contradiction.findingB?.claim.technical || 'Finding B'}"`;
-          yPosition += addWrappedText(contradictionText, 25, yPosition, 165);
+          const findingText = `• ${finding.technical.title}: ${finding.technical.summary}`;
+          yPosition += addWrappedText(findingText, 25, yPosition, 165);
           yPosition += 3;
         });
       }
 
-      // Breakthroughs - with safety checks for fields
-      if (digest.breakthroughs && digest.breakthroughs.length > 0) {
+      // For Your Doctor — Conflicts
+      const conflicts = digest.forYourDoctor?.conflicts || [];
+      if (conflicts.length > 0) {
         yPosition += 10;
         pdf.setFontSize(14);
         pdf.setTextColor(...primaryColor);
-        pdf.text('Recent Breakthroughs', 20, yPosition);
+        pdf.text('Conflicting Findings', 20, yPosition);
 
         yPosition += 8;
         pdf.setFontSize(11);
         pdf.setTextColor(...textColor);
-        digest.breakthroughs.forEach(breakthrough => {
+        conflicts.forEach(conflict => {
           if (yPosition > 270) {
             pdf.addPage();
             yPosition = 20;
           }
-          const breakthroughText = breakthrough.title && breakthrough.description
-            ? `• ${breakthrough.title.technical}: ${breakthrough.description.technical}`
-            : `• ${breakthrough.title?.technical || breakthrough.description?.technical || 'Breakthrough finding'}`;
-          yPosition += addWrappedText(breakthroughText, 25, yPosition, 165);
+          const conflictText = `• ${conflict.topic.technical}: ${conflict.explanation.technical}`;
+          yPosition += addWrappedText(conflictText, 25, yPosition, 165);
           yPosition += 3;
         });
       }
@@ -323,20 +319,33 @@ class ExportService {
 
     // Digest Summary Sheet
     if (digest) {
-      const summaryData = [
-        { 'Field': 'Executive Summary', 'Value': digest.executiveSummary },
+      const summaryData: { Field: string; Value: string }[] = [
+        { 'Field': "What's New", 'Value': digest.whatsNew?.technical || '' },
         { 'Field': 'Total Findings', 'Value': String(digest.statistics.totalFindings) },
-        { 'Field': 'Consensus Level', 'Value': `${digest.statistics.consensusLevel}/10` },
-        { 'Field': 'Average Evidence Quality', 'Value': `${digest.statistics.averageEvidenceQuality}/10` },
-        { 'Field': 'Knowledge Gaps', 'Value': digest.knowledgeGaps.join('; ') },
-        { 'Field': 'Next Steps', 'Value': digest.nextSteps.join('; ') }
+        { 'Field': 'New Findings', 'Value': String(digest.statistics.newFindings || 0) },
       ];
 
-      // Add breakthroughs
-      digest.breakthroughs.forEach((breakthrough, index) => {
+      // Add key takeaways
+      (digest.keyTakeaways || []).forEach((takeaway, index) => {
         summaryData.push({
-          'Field': `Breakthrough ${index + 1}`,
-          'Value': `${breakthrough.title.technical}: ${breakthrough.description.technical}`
+          'Field': `Key Takeaway ${index + 1}`,
+          'Value': takeaway.technical
+        });
+      });
+
+      // Add notable findings
+      (digest.notableFindings || []).forEach((finding, index) => {
+        summaryData.push({
+          'Field': `Notable Finding ${index + 1}`,
+          'Value': `${finding.technical.title}: ${finding.technical.summary}`
+        });
+      });
+
+      // Add questions for doctor
+      (digest.forYourDoctor?.questions || []).forEach((q, index) => {
+        summaryData.push({
+          'Field': `Question for Doctor ${index + 1}`,
+          'Value': q.technical
         });
       });
 

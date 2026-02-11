@@ -39,6 +39,17 @@ interface FindingSource {
   };
 }
 
+/** Parsed PubMed article from efetch XML */
+interface PubMedArticle {
+  id: string;
+  title: string;
+  abstract: string;
+  authors: string[];
+  journal: string;
+  publishedDate: string;
+  doi: string;
+}
+
 // Rate limiting configuration
 const RATE_LIMITS = {
   pubmed: { requestsPerSecond: 3, minDelay: 350 },
@@ -230,7 +241,7 @@ export class AgentExecutionService {
 
       // Parse XML response (simplified for this implementation)
       // In production, use a proper XML parser
-      return this.parsePubMedXML(fetchResponse.data, ids);
+      return this.parsePubMedXML(fetchResponse.data);
 
     } catch (error) {
       console.error('[AgentExecution] PubMed search error:', error);
@@ -294,39 +305,50 @@ export class AgentExecutionService {
   }
 
   /**
-   * Parse PubMed XML response (simplified)
+   * Parse PubMed XML response by splitting into per-article blocks.
+   * Reference: search.service.ts:112-170 (same proven approach)
    */
-  private parsePubMedXML(xml: string, ids: string[]): any[] {
-    const results: any[] = [];
+  private parsePubMedXML(xml: string): PubMedArticle[] {
+    const results: PubMedArticle[] = [];
+    const articleBlocks = xml.split('<PubmedArticle>');
 
-    // Simple regex parsing for demonstration
-    // In production, use a proper XML parser like xml2js
-    for (const id of ids) {
-      const article: any = { id };
+    for (const block of articleBlocks) {
+      const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
+      if (!pmidMatch) continue;
+      const pmid = pmidMatch[1];
 
-      // Extract title
-      const titleMatch = xml.match(new RegExp(`<ArticleTitle>([^<]+)</ArticleTitle>`));
-      if (titleMatch) {
-        article.title = titleMatch[1];
-      }
+      // Title — handle inline XML tags (e.g., <i>, <sup>)
+      const title = block.match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/)?.[1]
+        ?.replace(/<[^>]+>/g, '').trim() || 'Untitled';
 
-      // Extract abstract
-      const abstractMatch = xml.match(new RegExp(`<AbstractText[^>]*>([^<]+)</AbstractText>`));
-      if (abstractMatch) {
-        article.abstract = abstractMatch[1];
-      }
+      // Abstract — join all sections (Background, Methods, Results, Conclusions)
+      const abstractMatches = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+      const abstract = abstractMatches
+        ? abstractMatches.map(m => m.replace(/<\/?[^>]+(>|$)/g, '').trim()).join(' ')
+        : '';
 
-      // Extract authors
-      const authorMatches = xml.matchAll(/<LastName>([^<]+)<\/LastName>/g);
-      article.authors = Array.from(authorMatches).map(m => m[1]).slice(0, 3);
+      // Authors — first + last name per <Author> block
+      const authorBlocks = block.match(/<Author[\s\S]*?<\/Author>/g) || [];
+      const authors = authorBlocks.map(a => {
+        const last = a.match(/<LastName>(.*?)<\/LastName>/)?.[1] || '';
+        const fore = a.match(/<ForeName>(.*?)<\/ForeName>/)?.[1] || '';
+        return fore ? `${fore} ${last}` : last;
+      }).filter(Boolean).slice(0, 3);
 
-      // Extract publication date
-      const yearMatch = xml.match(/<PubDate[^>]*>.*?<Year>(\d{4})<\/Year>/);
-      if (yearMatch) {
-        article.publishedDate = `${yearMatch[1]}-01-01`;
-      }
+      // Journal
+      const journal = block.match(/<ISOAbbreviation>([\s\S]*?)<\/ISOAbbreviation>/)?.[1]?.trim()
+        || block.match(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/)?.[1]?.trim()
+        || 'Unknown Journal';
 
-      results.push(article);
+      // Publication date
+      const year = block.match(/<PubDate>[\s\S]*?<Year>(\d+)<\/Year>/)?.[1] || '';
+      const month = block.match(/<PubDate>[\s\S]*?<Month>(.*?)<\/Month>/)?.[1] || '';
+      const publishedDate = month ? `${year} ${month}` : (year || new Date().toISOString());
+
+      // DOI
+      const doi = block.match(/<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/)?.[1]?.trim() || '';
+
+      results.push({ id: pmid, title, abstract, authors, journal, publishedDate, doi });
     }
 
     return results;
@@ -578,7 +600,7 @@ Be concise. Each field must be ONE sentence maximum. If information for a field 
         const abstract = clean(result.abstract);
         const title = result.title || 'Unknown';
         const journal = result.journal || result.source || '';
-        const date = result.publishDate || result.pubdate || '';
+        const date = result.publishedDate || '';
         return `Analyze this PubMed research article and respond with structured JSON:
 Title: ${title}
 ${abstract ? `Abstract: ${abstract}` : '(No abstract available - analyze based on title and metadata)'}

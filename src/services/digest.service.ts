@@ -157,32 +157,22 @@ class DigestService {
 
     const digest: SmartDigest = {
       id: apiDigest.id,
-      topicId: apiDigest.topic_id || '',
+      topicId: apiDigest.topic_id || apiDigest.topicId || '',
       timeframe: apiDigest.type || 'weekly',
-      generatedAt: new Date(apiDigest.created_at).getTime(),
-      executiveSummary: apiDigest.executive_summary || '',
-      // FIX: Read from correct columns (backend aliases these in SQL)
-      laymanSummary: apiDigest.laymanSummary || apiDigest.layman_summary || '',
+      generatedAt: apiDigest.created_at ? new Date(apiDigest.created_at).getTime()
+        : apiDigest.createdAt ? new Date(apiDigest.createdAt).getTime()
+        : apiDigest.generatedAt || Date.now(),
+      whatsNew: apiDigest.whatsNew || apiDigest.whats_new || { technical: '', explained: '' },
       keyTakeaways: apiDigest.keyTakeaways || apiDigest.key_takeaways || [],
-      breakthroughs: apiDigest.breakthroughs || [],
-      contradictions: apiDigest.contradictions || [],
-      // NEW: Add mappings for additional sections
-      questionsForDoctor: apiDigest.questionsForDoctor || apiDigest.questions_for_doctor || [],
-      warningSigns: apiDigest.warningSigns || apiDigest.warning_signs || [],
-      clinicalImplications: apiDigest.clinicalImplications || apiDigest.clinical_implications || [],
       statistics: apiDigest.metadata?.statistics || {
         totalFindings: apiDigest.finding_ids?.length || 0,
         newFindings: 0
       },
       allFindingIds: apiDigest.finding_ids || [],
-      userEngagement: apiDigest.metadata?.userEngagement,
-      // Magazine editorial fields (triple fallback: camelCase alias → snake_case → metadata blob)
-      featuredDiscovery: apiDigest.featuredDiscovery || apiDigest.featured_discovery || apiDigest.metadata?.featuredDiscovery || undefined,
-      topFindings: apiDigest.topFindings || apiDigest.top_findings || apiDigest.metadata?.topFindings || [],
-      sourceBreakdown: apiDigest.sourceBreakdown || apiDigest.source_breakdown || apiDigest.metadata?.sourceBreakdown || undefined,
-      // Companion Intelligence fields (triple fallback: camelCase alias → snake_case → metadata blob)
-      researchPulse: apiDigest.researchPulse || apiDigest.research_pulse || apiDigest.metadata?.researchPulse || '',
-      worthRevisiting: apiDigest.worthRevisiting || apiDigest.worth_revisiting || apiDigest.metadata?.worthRevisiting || []
+      featuredDiscovery: apiDigest.featuredDiscovery || apiDigest.featured_discovery || undefined,
+      notableFindings: apiDigest.notableFindings || apiDigest.notable_findings || [],
+      forYourDoctor: apiDigest.forYourDoctor || apiDigest.for_your_doctor || { questions: [], watchFor: [], conflicts: [] },
+      sourceBreakdown: apiDigest.sourceBreakdown || apiDigest.source_breakdown || undefined,
     };
 
     if (responseContext) {
@@ -190,7 +180,7 @@ class DigestService {
         source: responseContext.source as 'postgresql' | 'indexeddb' | 'generated' || 'postgresql',
         isCached: responseContext.deduplicated || false,
         deduplicated: responseContext.deduplicated || false,
-        originalGeneratedAt: new Date(apiDigest.created_at).getTime(),
+        originalGeneratedAt: apiDigest.created_at ? new Date(apiDigest.created_at).getTime() : Date.now(),
         cacheRetrievedAt: Date.now()
       };
     }
@@ -205,26 +195,16 @@ class DigestService {
     return {
       topic_id: digest.topicId || null,
       type: digest.timeframe || 'weekly',
-      title: digest.executiveSummary?.substring(0, 100) || 'Research Digest',
-      executive_summary: digest.executiveSummary || '',
-      layman_summary: digest.laymanSummary || '',
-      contradictions: digest.contradictions || [],
-      breakthroughs: digest.breakthroughs || [],
-      knowledge_gaps: digest.knowledgeGaps || [],
-      next_steps: digest.recommendations || [],
+      title: (digest.whatsNew?.technical || '').substring(0, 100) || 'Research Digest',
+      whats_new: digest.whatsNew || { technical: '', explained: '' },
       key_takeaways: digest.keyTakeaways || [],
-      questions_for_doctor: digest.questionsForDoctor || [],
-      warning_signs: digest.warningSigns || [],
       finding_ids: digest.allFindingIds || [],
       featured_discovery: digest.featuredDiscovery || null,
-      top_findings: digest.topFindings || [],
+      notable_findings: digest.notableFindings || [],
       source_breakdown: digest.sourceBreakdown || null,
-      research_pulse: digest.researchPulse || '',
-      worth_revisiting: digest.worthRevisiting || [],
+      for_your_doctor: digest.forYourDoctor || { questions: [], watchFor: [], conflicts: [] },
       metadata: {
-        statistics: digest.statistics,
-        status: digest.status,
-        progress: digest.progress
+        statistics: digest.statistics
       }
     };
   }

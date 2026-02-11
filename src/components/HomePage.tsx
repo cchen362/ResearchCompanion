@@ -3,8 +3,6 @@ import { HeroSection } from './home/HeroSection';
 import { TopicFilter } from './home/TopicFilter';
 import { FindingsHighlights } from './home/FindingsHighlights';
 import { ResearchPulseCard } from './home/ResearchPulseCard';
-import { WorthRevisitingModal } from './home/WorthRevisitingModal';
-import type { WorthRevisiting } from '@/types';
 import { ContextualCTAs } from './home/ContextualCTAs';
 import { api } from '@/services/api';
 import { findingsService } from '@/services/findings.service';
@@ -32,10 +30,6 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
 
   const setChatPanelOpen = useUIStore(state => state.setChatPanelOpen);
-  const modals = useUIStore(state => state.modals);
-  const modalData = useUIStore(state => state.modalData);
-  const openModal = useUIStore(state => state.openModal);
-  const closeModal = useUIStore(state => state.closeModal);
 
   const loadStats = useCallback(async (topicId?: string | null) => {
     try {
@@ -84,7 +78,6 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
   const handleMarkAllRead = async () => {
     try {
       await findingsService.markFindingsAsRead(selectedTopicId || undefined);
-      // Refresh stats after marking as read
       await loadStats(selectedTopicId);
     } catch (error) {
       logger.error('[HomePage] Failed to mark all as read:', error);
@@ -95,23 +88,8 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
     setChatPanelOpen(true);
   };
 
-  const handleWorthRevisitingClick = (item: WorthRevisiting) => {
-    openModal('worthRevisiting', item);
-  };
-
   const handleOpenDigest = (topicId: string) => {
     setCurrentView('findings');
-  };
-
-  const handleViewFindingFromWR = async (findingId: string) => {
-    try {
-      const finding = await findingsService.getFinding(findingId);
-      if (finding?.source?.url) {
-        window.open(finding.source.url, '_blank', 'noopener,noreferrer');
-      }
-    } catch (error) {
-      logger.error('[HomePage] Failed to load finding from WR:', error);
-    }
   };
 
   if (loading && !stats) {
@@ -146,7 +124,7 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           />
         </div>
 
-        {/* CTAs — no wrapper hover (individual CTA buttons have their own hover) */}
+        {/* CTAs */}
         <div className="sm:col-span-2 lg:col-span-1">
           <ContextualCTAs
             topicCount={stats.topicCount}
@@ -168,25 +146,16 @@ export function HomePage({ topics, setCurrentView }: HomePageProps) {
           </div>
         )}
 
-        {/* Research Pulse — only when there are digests */}
+        {/* Research Companion — only when there are digests */}
         {stats.digestSignposts.length > 0 && (
           <div className="sm:col-span-2 lg:col-span-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-xl">
             <ResearchPulseCard
               signposts={stats.digestSignposts}
               onOpenDigest={handleOpenDigest}
-              onWorthRevisitingClick={handleWorthRevisitingClick}
             />
           </div>
         )}
       </div>
-
-      {/* Worth Revisiting Modal */}
-      <WorthRevisitingModal
-        item={modalData as WorthRevisiting | null}
-        isOpen={modals.worthRevisiting}
-        onClose={() => closeModal('worthRevisiting')}
-        onViewFinding={handleViewFindingFromWR}
-      />
     </div>
   );
 }

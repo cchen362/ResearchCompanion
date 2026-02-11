@@ -12,22 +12,14 @@ const CreateDigestSchema = z.object({
   topic_id: z.string().uuid().nullable().optional(),
   type: z.string().min(1).max(50),
   title: z.string().optional(),
-  executive_summary: z.string().optional(),
-  layman_summary: z.string().optional(),
-  contradictions: z.array(z.any()).optional(),
-  breakthroughs: z.array(z.any()).optional(),
-  knowledge_gaps: z.array(z.any()).optional(),
-  next_steps: z.array(z.any()).optional(),
+  whats_new: z.any().optional(),
   key_takeaways: z.array(z.any()).optional(),
-  questions_for_doctor: z.array(z.any()).optional(),
-  warning_signs: z.array(z.any()).optional(),
   finding_ids: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
   featured_discovery: z.any().optional(),
-  top_findings: z.array(z.any()).optional(),
+  notable_findings: z.array(z.any()).optional(),
   source_breakdown: z.any().optional(),
-  research_pulse: z.string().optional(),
-  worth_revisiting: z.array(z.any()).optional()
+  for_your_doctor: z.any().optional(),
 });
 
 const UpdateDigestSchema = CreateDigestSchema.partial();

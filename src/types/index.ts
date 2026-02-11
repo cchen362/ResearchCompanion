@@ -353,15 +353,34 @@ export interface SourceBreakdown {
   web: number;
 }
 
-export interface WorthRevisiting {
-  oldFindingId: string;
-  oldFindingTitle: string;
-  oldFindingSummary: DualModeText | string;
-  newBreakthroughId: string;
-  newBreakthroughTitle: string;
-  newBreakthroughSummary: DualModeText | string;
-  connectionExplanation: DualModeText | string;
-  connectionBasis: string;
+// Notable Finding - extends TopFinding with temporal awareness
+export interface NotableFinding {
+  findingId: string;
+  sourceType: DigestSourceType;
+  isNew: boolean;
+  technical: {
+    title: string;
+    summary: string;
+  };
+  explained: {
+    title: string;
+    summary: string;
+  };
+  metadata: string;
+}
+
+// Simplified conflict for For Your Doctor section
+export interface Conflict {
+  topic: DualModeText;
+  explanation: DualModeText;
+  sources: string[];
+}
+
+// For Your Doctor - combined section
+export interface ForYourDoctor {
+  questions: DualModeText[];
+  watchFor: DualModeText[];
+  conflicts?: Conflict[];
 }
 
 export interface SmartDigest {
@@ -370,20 +389,11 @@ export interface SmartDigest {
   generatedAt: number;
   timeframe: DigestTimeframe;
 
-  // Executive Summary - The most important takeaway in 2-3 sentences
-  executiveSummary: string;
-
-  // Simplified version for non-medical users
-  laymanSummary?: string;
+  // What's New - warm companion summary (replaces executiveSummary + laymanSummary + researchPulse)
+  whatsNew: DualModeText;
 
   // Key insights extracted from all findings (dual-mode: technical + explained)
   keyTakeaways: DualModeText[];
-
-  // Breakthrough discoveries if any
-  breakthroughs?: Breakthrough[];
-
-  // Conflicting or contradictory information
-  contradictions?: Contradiction[];
 
   // Statistical overview
   statistics: {
@@ -392,77 +402,24 @@ export interface SmartDigest {
     analyzedFindings?: number;
   };
 
-  // Legacy - no longer computed, kept for backward compat
-  topSources?: SourceSummary[];
-
   // Related finding IDs for drill-down
   allFindingIds: string[];
 
-  // User interaction data
-  userEngagement?: {
-    viewed: boolean;
-    viewedAt?: number;
-    followUpQuestions?: string[]; // Questions user asked
-  };
-
-  // Optional clinical sections (may be empty arrays)
-  questionsForDoctor?: DualModeText[];
-  warningSigns?: DualModeText[];
-  clinicalImplications?: string[];
-
   // Cache metadata for tracking digest source and freshness
   cacheMetadata?: {
-    source?: 'postgresql' | 'indexeddb' | 'generated'; // Where this digest came from
-    isCached?: boolean;                                 // Whether this is from cache or freshly generated
-    deduplicated?: boolean;                             // Whether backend returned existing digest instead of generating new
-    originalGeneratedAt?: number;                       // Original generation timestamp if from cache
-    cacheRetrievedAt?: number;                          // When retrieved from cache
-    cacheExpiresAt?: number;                            // When cache entry expires
+    source?: 'postgresql' | 'indexeddb' | 'generated';
+    isCached?: boolean;
+    deduplicated?: boolean;
+    originalGeneratedAt?: number;
+    cacheRetrievedAt?: number;
+    cacheExpiresAt?: number;
   };
 
-  // NEW fields for magazine editorial design
+  // 6-section digest fields
   featuredDiscovery?: FeaturedDiscovery;
-  topFindings?: TopFinding[];
+  notableFindings: NotableFinding[];
+  forYourDoctor: ForYourDoctor;
   sourceBreakdown?: SourceBreakdown;
-
-  // Companion Intelligence fields (Plan 015c)
-  researchPulse?: string;
-  worthRevisiting?: WorthRevisiting[];
-}
-
-export interface Breakthrough {
-  id: string;
-  title: DualModeText;
-  description: DualModeText;
-  impact: 'paradigm-shift' | 'major' | 'moderate';
-  findingIds: string[];
-  date: number;
-  source: string;
-}
-
-export interface Contradiction {
-  id: string;
-  topic: DualModeText;
-  findingA: {
-    id: string;
-    claim: DualModeText;
-    source: string;
-  };
-  findingB: {
-    id: string;
-    claim: DualModeText;
-    source: string;
-  };
-  explanation?: DualModeText;
-  requiresAttention: boolean;
-}
-
-export interface SourceSummary {
-  name: string;
-  type: 'journal' | 'fda' | 'clinical_trial' | 'medical_site' | 'community';
-  findingCount: number;
-  avgCredibility: number;
-  topContributions: string[];      // Brief descriptions
 }
 
 // ============= CONVERSATIONAL INTERFACE =============

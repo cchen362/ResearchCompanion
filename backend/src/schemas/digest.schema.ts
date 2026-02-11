@@ -8,56 +8,50 @@ export const DualModeTextSchema = z.object({
 
 export type DualModeText = z.infer<typeof DualModeTextSchema>;
 
-export const BreakthroughSchema = z.object({
-  id: z.string().default(() => `breakthrough-${Date.now()}`),
-  title: DualModeTextSchema,
-  description: DualModeTextSchema,
-  impact: z.enum(['paradigm-shift', 'major', 'moderate']).default('moderate'),
-  findingIndices: z.array(z.number()).default([]),
-  source: z.string().default('Unknown')
+// What's New — warm companion summary of temporal changes (dual-mode)
+export const WhatsNewSchema = z.object({
+  technical: z.string(),
+  explained: z.string()
 });
 
-export const ContradictionSchema = z.object({
-  id: z.string(),
+// Notable Finding — extends TopFinding with temporal awareness
+export const NotableFindingSchema = z.object({
+  findingId: z.string().describe('ID of the source finding - MUST exist in database'),
+  sourceType: z.enum(['pubmed', 'clinical_trial', 'fda', 'web']),
+  isNew: z.boolean().default(false),
+  technical: z.object({
+    title: z.string().describe('Finding title in medical terminology'),
+    summary: z.string().describe('2-3 sentence summary'),
+  }),
+  explained: z.object({
+    title: z.string().describe('Finding title with plain language'),
+    summary: z.string().describe('Summary with analogies/examples'),
+  }),
+  metadata: z.string().describe('Display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"'),
+});
+
+// Simplified conflict (no findingA/findingB indices)
+export const ConflictSchema = z.object({
   topic: DualModeTextSchema,
-  findingA: z.object({
-    index: z.number(),
-    claim: DualModeTextSchema,
-    source: z.string()
-  }),
-  findingB: z.object({
-    index: z.number(),
-    claim: DualModeTextSchema,
-    source: z.string()
-  }),
   explanation: DualModeTextSchema,
-  requiresAttention: z.boolean()
+  sources: z.array(z.string()).default([]),
 });
 
+// For Your Doctor — combined section
+export const ForYourDoctorSchema = z.object({
+  questions: z.array(DualModeTextSchema).default([]),
+  watchFor: z.array(DualModeTextSchema).default([]),
+  conflicts: z.array(ConflictSchema).optional().default([]),
+});
+
+// The consolidated 6-section digest schema (Plan 022 Pillar 3)
 export const SmartDigestSchema = z.object({
-  executiveSummary: z.string(),
-  laymanSummary: z.string(),
-  keyTakeaways: z.array(DualModeTextSchema).default([]),
-  questionsForDoctor: z.array(DualModeTextSchema).optional().default([]),
-  warningSigns: z.array(DualModeTextSchema).optional().default([]),
-  breakthroughs: z.array(BreakthroughSchema).optional().default([]),
-  contradictions: z.array(ContradictionSchema).optional().default([]),
-  // Magazine editorial fields (REQUIRED for new digests)
+  whatsNew: WhatsNewSchema,
   featuredDiscovery: z.lazy(() => FeaturedDiscoverySchema),
-  topFindings: z.array(z.lazy(() => TopFindingSchema)).max(12),
+  keyTakeaways: z.array(DualModeTextSchema).default([]),
+  notableFindings: z.array(NotableFindingSchema).max(12),
+  forYourDoctor: ForYourDoctorSchema,
   sourceBreakdown: z.lazy(() => SourceBreakdownSchema),
-  // Companion Intelligence fields (Plan 015c)
-  researchPulse: z.string().optional().default(''),
-  worthRevisiting: z.array(z.object({
-    oldFindingId: z.string(),
-    oldFindingTitle: z.string(),
-    oldFindingSummary: z.union([z.string(), DualModeTextSchema]),
-    newBreakthroughId: z.string(),
-    newBreakthroughTitle: z.string(),
-    newBreakthroughSummary: z.union([z.string(), DualModeTextSchema]),
-    connectionExplanation: z.union([z.string(), DualModeTextSchema]),
-    connectionBasis: z.string()
-  })).optional().default([]),
 });
 
 // Featured Discovery schema - the "hero" content of the digest
@@ -84,7 +78,7 @@ export const FeaturedDiscoverySchema = z.object({
 
 export type FeaturedDiscovery = z.infer<typeof FeaturedDiscoverySchema>;
 
-// Top Finding schema - secondary notable findings
+// Top Finding schema - kept for backward compatibility with FindingSummaryCard
 export const TopFindingSchema = z.object({
   findingId: z.string().describe('ID of the source finding - MUST exist in database'),
   sourceType: z.enum(['pubmed', 'clinical_trial', 'fda', 'web']),
@@ -140,13 +134,20 @@ export const ScoredFindingsResultSchema = z.object({
 export const digestJSONSchema = {
   type: 'object' as const,
   properties: {
-    executiveSummary: {
-      type: 'string',
-      description: '2-3 sentences: Most critical finding + Why it matters + Immediate action item'
-    },
-    laymanSummary: {
-      type: 'string',
-      description: 'Plain English explanation a family member would understand, with practical implications'
+    whatsNew: {
+      type: 'object',
+      description: 'A warm, companion-voice summary of what changed. 2-3 sentences. Address the user directly with "Your". For returning users, reference [NEW] finding counts. For first-time users, welcome them and summarize the landscape.',
+      properties: {
+        technical: {
+          type: 'string',
+          description: 'Summary using medical terminology, specific drug names, trial references, and clinical metrics'
+        },
+        explained: {
+          type: 'string',
+          description: 'Same facts in plain language with analogies. Warm companion tone.'
+        }
+      },
+      required: ['technical', 'explained']
     },
     keyTakeaways: {
       type: 'array',
@@ -164,101 +165,7 @@ export const digestJSONSchema = {
         },
         required: ['technical', 'explained']
       },
-      description: 'Actionable insights, each with a technical version (medical terminology) and an explained version (plain language)'
-    },
-    breakthroughs: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          title: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: 'Title using proper medical terminology and mechanisms' },
-              explained: { type: 'string', description: 'Title in everyday language anyone can understand' }
-            },
-            required: ['technical', 'explained']
-          },
-          description: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: 'Why this is significant, using clinical metrics and study references' },
-              explained: { type: 'string', description: 'Why this matters, explained with analogies and comparisons' }
-            },
-            required: ['technical', 'explained']
-          },
-          impact: {
-            type: 'string',
-            enum: ['paradigm-shift', 'major', 'moderate']
-          },
-          findingIndices: {
-            type: 'array',
-            items: { type: 'number' }
-          },
-          source: { type: 'string' }
-        },
-        required: ['id', 'title', 'description', 'impact', 'findingIndices', 'source']
-      }
-    },
-    contradictions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          topic: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: 'Contradiction topic using medical terminology' },
-              explained: { type: 'string', description: 'Contradiction topic in plain language' }
-            },
-            required: ['technical', 'explained']
-          },
-          findingA: {
-            type: 'object',
-            properties: {
-              index: { type: 'number' },
-              claim: {
-                type: 'object',
-                properties: {
-                  technical: { type: 'string', description: 'Claim in medical terminology' },
-                  explained: { type: 'string', description: 'Claim in plain language' }
-                },
-                required: ['technical', 'explained']
-              },
-              source: { type: 'string' }
-            },
-            required: ['index', 'claim', 'source']
-          },
-          findingB: {
-            type: 'object',
-            properties: {
-              index: { type: 'number' },
-              claim: {
-                type: 'object',
-                properties: {
-                  technical: { type: 'string', description: 'Claim in medical terminology' },
-                  explained: { type: 'string', description: 'Claim in plain language' }
-                },
-                required: ['technical', 'explained']
-              },
-              source: { type: 'string' }
-            },
-            required: ['index', 'claim', 'source']
-          },
-          explanation: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: 'Reason for contradiction using medical terminology' },
-              explained: { type: 'string', description: 'Reason in plain language' }
-            },
-            required: ['technical', 'explained']
-          },
-          requiresAttention: { type: 'boolean' }
-        },
-        required: ['id', 'topic', 'findingA', 'findingB', 'explanation', 'requiresAttention']
-      }
+      description: '5-8 actionable insights, each with a technical version (medical terminology) and an explained version (plain language)'
     },
     featuredDiscovery: {
       type: 'object',
@@ -324,20 +231,24 @@ export const digestJSONSchema = {
       },
       required: ['findingId', 'sourceType', 'technical', 'explained', 'sourceMetadata']
     },
-    topFindings: {
+    notableFindings: {
       type: 'array',
-      description: '12 additional notable findings',
+      description: 'Up to 12 notable findings ordered by clinical significance. Mark isNew=true for findings with [NEW] tag. Include at least 1 finding from each research category with 5+ findings.',
       maxItems: 12,
       items: {
         type: 'object',
         properties: {
           findingId: {
             type: 'string',
-            description: 'ID of the source finding - MUST exist in database'
+            description: 'ID of the source finding - MUST be exact UUID from the "ID:" field'
           },
           sourceType: {
             type: 'string',
             enum: ['pubmed', 'clinical_trial', 'fda', 'web']
+          },
+          isNew: {
+            type: 'boolean',
+            description: 'true if the finding has a [NEW] tag in the data'
           },
           technical: {
             type: 'object',
@@ -372,8 +283,82 @@ export const digestJSONSchema = {
             description: 'Display string like "PubMed • Jan 2026 • Meta-analysis (n=2,847)"'
           }
         },
-        required: ['findingId', 'sourceType', 'technical', 'explained', 'metadata']
+        required: ['findingId', 'sourceType', 'isNew', 'technical', 'explained', 'metadata']
       }
+    },
+    forYourDoctor: {
+      type: 'object',
+      description: 'Combined section for doctor discussions: questions to ask, signs to watch for, and any genuine conflicting findings.',
+      properties: {
+        questions: {
+          type: 'array',
+          description: '3-5 evidence-based questions to ask at the next appointment',
+          items: {
+            type: 'object',
+            properties: {
+              technical: {
+                type: 'string',
+                description: 'Question referencing specific biomarkers, drug interactions, or trial data'
+              },
+              explained: {
+                type: 'string',
+                description: 'Same question in conversational, approachable language'
+              }
+            },
+            required: ['technical', 'explained']
+          }
+        },
+        watchFor: {
+          type: 'array',
+          description: '2-4 symptoms or signs to monitor based on the research',
+          items: {
+            type: 'object',
+            properties: {
+              technical: {
+                type: 'string',
+                description: 'Warning sign with clinical terminology and specific thresholds'
+              },
+              explained: {
+                type: 'string',
+                description: 'Same sign in everyday terms anyone would recognize'
+              }
+            },
+            required: ['technical', 'explained']
+          }
+        },
+        conflicts: {
+          type: 'array',
+          description: 'ONLY include genuine contradictions supported by evidence from different findings. Return empty array if none exist. Do NOT force contradictions.',
+          items: {
+            type: 'object',
+            properties: {
+              topic: {
+                type: 'object',
+                properties: {
+                  technical: { type: 'string', description: 'Conflict topic in medical terminology' },
+                  explained: { type: 'string', description: 'Conflict topic in plain language' }
+                },
+                required: ['technical', 'explained']
+              },
+              explanation: {
+                type: 'object',
+                properties: {
+                  technical: { type: 'string', description: 'Why these findings conflict, using clinical references' },
+                  explained: { type: 'string', description: 'Same explanation in plain language' }
+                },
+                required: ['technical', 'explained']
+              },
+              sources: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Names of the conflicting sources'
+              }
+            },
+            required: ['topic', 'explanation', 'sources']
+          }
+        }
+      },
+      required: ['questions', 'watchFor', 'conflicts']
     },
     sourceBreakdown: {
       type: 'object',
@@ -397,106 +382,8 @@ export const digestJSONSchema = {
         }
       },
       required: ['pubmed', 'clinicalTrials', 'fda', 'web']
-    },
-    questionsForDoctor: {
-      type: 'array',
-      description: 'Evidence-based questions the patient should ask their doctor at their next appointment. Generate 3-5 questions.',
-      items: {
-        type: 'object',
-        properties: {
-          technical: {
-            type: 'string',
-            description: 'Question referencing specific biomarkers, drug interactions, or trial data. Example: "Should we monitor my IGF-1 levels given the Phase 3 data on pegvisomant dose adjustment?"'
-          },
-          explained: {
-            type: 'string',
-            description: 'Same question in conversational, approachable language. Example: "Based on the new research, should we check my hormone levels to see if my medication dose needs changing?"'
-          }
-        },
-        required: ['technical', 'explained']
-      }
-    },
-    warningSigns: {
-      type: 'array',
-      description: 'Symptoms or signs the patient should monitor based on the research findings. Generate 2-4 warning signs.',
-      items: {
-        type: 'object',
-        properties: {
-          technical: {
-            type: 'string',
-            description: 'Warning sign with clinical terminology and specific thresholds. Example: "New-onset peripheral edema or arthralgia persisting >72h may indicate GH receptor antagonist adverse effects"'
-          },
-          explained: {
-            type: 'string',
-            description: 'Same sign in everyday terms. Example: "Watch for unusual swelling in your hands/feet or joint pain lasting more than 3 days — this could be a side effect worth mentioning to your doctor"'
-          }
-        },
-        required: ['technical', 'explained']
-      }
-    },
-    researchPulse: {
-      type: 'string',
-      description: 'A single warm, companion-voice sentence summarizing the state of research for this topic. Address the user directly with "Your". Example: "Your Haemophilia research has 3 new breakthroughs this week, including a promising gene therapy trial that could change treatment approaches." Write in a caring, knowledgeable companion tone — not clinical, not overly casual. 1-2 sentences max.'
-    },
-    worthRevisiting: {
-      type: 'array',
-      description: 'Identify 0-3 meaningful connections between OLDER findings and RECENT breakthroughs. Only include genuinely significant connections with strong reasoning. Return empty array [] if no meaningful connections exist. Each connection MUST reference real finding IDs from the data.',
-      maxItems: 3,
-      items: {
-        type: 'object',
-        properties: {
-          oldFindingId: {
-            type: 'string',
-            description: 'UUID of the older finding — MUST be exact ID from the "ID:" field in the finding data'
-          },
-          oldFindingTitle: {
-            type: 'string',
-            description: 'Title of the older finding (for immediate display without DB lookup)'
-          },
-          oldFindingSummary: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: '1-2 sentence summary using medical terminology, mechanisms, and specific biomarkers' },
-              explained: { type: 'string', description: 'Same summary in plain everyday language anyone could understand, using analogies where helpful' }
-            },
-            required: ['technical', 'explained'],
-            description: 'Brief summary of the older finding in both technical and explained modes'
-          },
-          newBreakthroughId: {
-            type: 'string',
-            description: 'UUID of the recent breakthrough finding — MUST be exact ID from the "ID:" field in the finding data'
-          },
-          newBreakthroughTitle: {
-            type: 'string',
-            description: 'Title of the recent breakthrough (for immediate display)'
-          },
-          newBreakthroughSummary: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: '1-2 sentence summary using medical terminology, mechanisms, and specific biomarkers' },
-              explained: { type: 'string', description: 'Same summary in plain everyday language anyone could understand, using analogies where helpful' }
-            },
-            required: ['technical', 'explained'],
-            description: 'Brief summary of the recent breakthrough in both technical and explained modes'
-          },
-          connectionExplanation: {
-            type: 'object',
-            properties: {
-              technical: { type: 'string', description: 'WHY these findings connect, using medical terminology. Cite mechanism, pathway, or evidence.' },
-              explained: { type: 'string', description: 'Same explanation in plain language. Use analogies to explain the connection in everyday terms.' }
-            },
-            required: ['technical', 'explained'],
-            description: 'Explanation of why these findings are connected in both technical and explained modes'
-          },
-          connectionBasis: {
-            type: 'string',
-            description: 'Brief qualifier phrase (2-5 words). Examples: "Shared therapeutic target", "Same gene pathway", "Contradictory dosing evidence", "Complementary mechanisms"'
-          }
-        },
-        required: ['oldFindingId', 'oldFindingTitle', 'oldFindingSummary', 'newBreakthroughId', 'newBreakthroughTitle', 'newBreakthroughSummary', 'connectionExplanation', 'connectionBasis']
-      }
     }
   },
-  required: ['executiveSummary', 'laymanSummary', 'keyTakeaways', 'featuredDiscovery', 'topFindings', 'sourceBreakdown'],
+  required: ['whatsNew', 'featuredDiscovery', 'keyTakeaways', 'notableFindings', 'forYourDoctor', 'sourceBreakdown'],
   additionalProperties: false
 };

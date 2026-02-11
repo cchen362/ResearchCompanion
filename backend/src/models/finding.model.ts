@@ -303,6 +303,15 @@ export class FindingModel {
     };
   }
 
+  // Count findings created after a given date for a specific topic
+  static async countSince(userId: string, topicId: string, since: Date): Promise<number> {
+    const result = await queryOne<{ count: string }>(
+      'SELECT COUNT(*) as count FROM findings WHERE user_id = $1 AND topic_id = $2 AND created_at > $3',
+      [userId, topicId, since]
+    );
+    return parseInt(result?.count || '0', 10);
+  }
+
   // Search findings
   static async search(userId: string, searchTerm: string, topicId?: string): Promise<Finding[]> {
     const conditions = [

@@ -6,18 +6,14 @@ export interface Digest {
   topic_id?: string | null;
   type: string;
   title?: string;
-  executive_summary?: string;
-  contradictions?: any[];
-  breakthroughs?: any[];
-  knowledge_gaps?: any[];
-  next_steps?: any[];
+  whats_new?: any;
+  key_takeaways?: any[];
   finding_ids?: string[];
   metadata?: any;
   featured_discovery?: any;
-  top_findings?: any[];
+  notable_findings?: any[];
   source_breakdown?: any;
-  research_pulse?: string;
-  worth_revisiting?: any[];
+  for_your_doctor?: any;
   created_at: Date;
 }
 
@@ -25,18 +21,14 @@ export interface CreateDigestData {
   topic_id?: string | null;
   type: string;
   title?: string;
-  executive_summary?: string;
-  contradictions?: any[];
-  breakthroughs?: any[];
-  knowledge_gaps?: any[];
-  next_steps?: any[];
+  whats_new?: any;
+  key_takeaways?: any[];
   finding_ids?: string[];
   metadata?: any;
   featured_discovery?: any;
-  top_findings?: any[];
+  notable_findings?: any[];
   source_breakdown?: any;
-  research_pulse?: string;
-  worth_revisiting?: any[];
+  for_your_doctor?: any;
 }
 
 export class DigestModel {
@@ -85,31 +77,25 @@ export class DigestModel {
   static async create(userId: string, data: CreateDigestData): Promise<Digest> {
     const digest = await queryOne<Digest>(
       `INSERT INTO digests (
-         user_id, topic_id, type, title, executive_summary,
-         contradictions, breakthroughs, knowledge_gaps, next_steps,
-         finding_ids, metadata,
-         featured_discovery, top_findings, source_breakdown,
-         research_pulse, worth_revisiting
+         user_id, topic_id, type, title,
+         whats_new, key_takeaways, finding_ids, metadata,
+         featured_discovery, notable_findings, source_breakdown, for_your_doctor
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         userId,
         data.topic_id || null,
         data.type,
         data.title || null,
-        data.executive_summary || null,
-        JSON.stringify(data.contradictions || []),
-        JSON.stringify(data.breakthroughs || []),
-        JSON.stringify(data.knowledge_gaps || []),
-        JSON.stringify(data.next_steps || []),
+        JSON.stringify(data.whats_new || { technical: '', explained: '' }),
+        JSON.stringify(data.key_takeaways || []),
         data.finding_ids || [],
         JSON.stringify(data.metadata || {}),
         JSON.stringify(data.featured_discovery || null),
-        JSON.stringify(data.top_findings || []),
+        JSON.stringify(data.notable_findings || []),
         JSON.stringify(data.source_breakdown || null),
-        data.research_pulse || '',
-        JSON.stringify(data.worth_revisiting || [])
+        JSON.stringify(data.for_your_doctor || { questions: [], watchFor: [], conflicts: [] })
       ]
     );
 
@@ -123,17 +109,17 @@ export class DigestModel {
   // Update a digest
   static async update(id: string, userId: string, updates: Partial<Digest>): Promise<Digest | null> {
     const allowedFields = [
-      'title', 'executive_summary', 'contradictions',
-      'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata',
-      'research_pulse', 'worth_revisiting'
+      'title', 'whats_new', 'key_takeaways', 'metadata',
+      'notable_findings', 'for_your_doctor'
     ];
+    const jsonFields = ['whats_new', 'key_takeaways', 'metadata', 'notable_findings', 'for_your_doctor'];
     const setClause: string[] = [];
     const values: any[] = [];
     let paramCount = 1;
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
-        if (['contradictions', 'breakthroughs', 'knowledge_gaps', 'next_steps', 'metadata', 'worth_revisiting'].includes(key)) {
+        if (jsonFields.includes(key)) {
           setClause.push(`${key} = $${paramCount}`);
           values.push(JSON.stringify(value));
         } else {

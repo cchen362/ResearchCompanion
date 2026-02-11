@@ -21,7 +21,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 // ============================================
 
 type LoadingKey = 'topics' | 'findings' | 'digest' | 'agents' | 'chat' | 'export';
-type ModalKey = 'findingDetail' | 'sourceDrawer' | 'topicEdit' | 'topicCreate' | 'agentMonitor' | 'worthRevisiting';
+type ModalKey = 'findingDetail' | 'sourceDrawer' | 'topicEdit' | 'topicCreate' | 'agentMonitor';
 type ViewMode = 'digest' | 'list';
 type SortBy = 'date' | 'relevance' | 'source';
 type FilterBy = 'all' | 'pubmed' | 'clinical' | 'web';
@@ -54,7 +54,6 @@ interface ModalStates {
   topicEdit: boolean;
   topicCreate: boolean;
   agentMonitor: boolean;
-  worthRevisiting: boolean;
 }
 
 interface ProgressState {
@@ -175,8 +174,7 @@ const defaultModals: ModalStates = {
   sourceDrawer: false,
   topicEdit: false,
   topicCreate: false,
-  agentMonitor: false,
-  worthRevisiting: false
+  agentMonitor: false
 };
 
 export const useUIStore = create<UIStore>()(

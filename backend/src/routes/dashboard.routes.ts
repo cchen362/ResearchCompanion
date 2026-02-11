@@ -55,8 +55,7 @@ router.get('/dashboard/stats', async (req, res) => {
     const digestRows = await query(
       topicId
         ? `SELECT d.id, d.topic_id, t.name as topic_name,
-                  d.breakthroughs, d.contradictions, d.knowledge_gaps,
-                  d.research_pulse, d.worth_revisiting,
+                  d.whats_new, d.notable_findings, d.for_your_doctor,
                   d.created_at
            FROM digests d
            JOIN topics t ON t.id = d.topic_id
@@ -64,8 +63,7 @@ router.get('/dashboard/stats', async (req, res) => {
            ORDER BY d.created_at DESC LIMIT 1`
         : `SELECT DISTINCT ON (d.topic_id)
                   d.id, d.topic_id, t.name as topic_name,
-                  d.breakthroughs, d.contradictions, d.knowledge_gaps,
-                  d.research_pulse, d.worth_revisiting,
+                  d.whats_new, d.notable_findings, d.for_your_doctor,
                   d.created_at
            FROM digests d
            JOIN topics t ON t.id = d.topic_id
@@ -76,38 +74,17 @@ router.get('/dashboard/stats', async (req, res) => {
 
     const digestSignposts = digestRows.map((d: any) => {
       // Parse JSONB fields — they might be strings or already objects
-      const breakthroughs = typeof d.breakthroughs === 'string' ? JSON.parse(d.breakthroughs) : d.breakthroughs;
-      const contradictions = typeof d.contradictions === 'string' ? JSON.parse(d.contradictions) : d.contradictions;
-      const knowledgeGaps = typeof d.knowledge_gaps === 'string' ? JSON.parse(d.knowledge_gaps) : d.knowledge_gaps;
-
-      // Extract top 3 breakthrough titles for home page signpost enrichment
-      // Breakthrough.title is DualModeText: { technical: string, explained: string }
-      const topBreakthroughs: string[] = [];
-      if (Array.isArray(breakthroughs)) {
-        for (const bt of breakthroughs.slice(0, 3)) {
-          if (typeof bt === 'object' && bt !== null) {
-            const title = bt.title;
-            if (typeof title === 'string') {
-              topBreakthroughs.push(title);
-            } else if (typeof title === 'object' && title !== null && title.technical) {
-              topBreakthroughs.push(title.technical);
-            }
-          } else if (typeof bt === 'string') {
-            topBreakthroughs.push(bt);
-          }
-        }
-      }
+      const whatsNew = typeof d.whats_new === 'string' ? JSON.parse(d.whats_new) : (d.whats_new || {});
+      const notableFindings = typeof d.notable_findings === 'string' ? JSON.parse(d.notable_findings) : (d.notable_findings || []);
+      const forYourDoctor = typeof d.for_your_doctor === 'string' ? JSON.parse(d.for_your_doctor) : (d.for_your_doctor || {});
 
       return {
         id: d.id,
         topicId: d.topic_id,
         topicName: d.topic_name,
-        breakthroughCount: Array.isArray(breakthroughs) ? breakthroughs.length : 0,
-        contradictionCount: Array.isArray(contradictions) ? contradictions.length : 0,
-        knowledgeGapCount: Array.isArray(knowledgeGaps) ? knowledgeGaps.length : 0,
-        topBreakthroughs,
-        researchPulse: d.research_pulse || '',
-        worthRevisiting: typeof d.worth_revisiting === 'string' ? JSON.parse(d.worth_revisiting) : (d.worth_revisiting || []),
+        whatsNew,
+        notableFindingsCount: Array.isArray(notableFindings) ? notableFindings.length : 0,
+        hasConflicts: Array.isArray(forYourDoctor.conflicts) && forYourDoctor.conflicts.length > 0,
         createdAt: d.created_at
       };
     });

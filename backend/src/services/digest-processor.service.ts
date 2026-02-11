@@ -16,6 +16,7 @@ import { Pool } from 'pg';
 import DigestQueueServicePG from './digestQueue.service.pg.js';
 import { FindingModel } from '../models/finding.model.js';
 import { TopicModel } from '../models/topic.model.js';
+import { DigestModel } from '../models/digest.model.js';
 import { generateSmartDigest, scoreAndClusterFindings } from './ai.service.js';
 import { query } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -190,6 +191,15 @@ export class DigestProcessorService {
       throw new Error(`Topic ${item.topic_id} not found`);
     }
 
+    // Temporal context: when was the last digest generated for this topic?
+    const previousDigest = await DigestModel.getLatestByTopicId(item.user_id, item.topic_id);
+    const previousDigestDate: Date | null = previousDigest?.created_at || null;
+    if (previousDigestDate) {
+      console.log(`[DigestProcessor] Previous digest found from ${previousDigestDate.toISOString()}`);
+    } else {
+      console.log(`[DigestProcessor] No previous digest — first for topic ${item.topic_id}`);
+    }
+
     // 3. Prepare topic object for AI service (matches expected format)
     const topicForDigest = {
       id: topic.id,
@@ -204,7 +214,8 @@ export class DigestProcessorService {
       type: f.source?.type || 'unknown',
       title: f.title,
       summary: f.summary || f.content?.substring(0, 300),
-      source: f.source
+      source: f.source,
+      created_at: f.created_at
     }));
 
     // Capture real total before any filtering
@@ -212,7 +223,7 @@ export class DigestProcessorService {
 
     // PASS 1: Haiku scores and clusters ALL findings by significance
     console.log(`[DigestProcessor] Pass 1: Scoring ${totalFindingsCount} findings with Haiku...`);
-    const scoredResult = await scoreAndClusterFindings(findingsForAI, topicForDigest.name);
+    const scoredResult = await scoreAndClusterFindings(findingsForAI, topicForDigest.name, previousDigestDate);
 
     // Build tiered finding set for Sonnet based on Haiku's ranking
     const topFindingIds = new Set(scoredResult.topFindingIds);
@@ -226,7 +237,8 @@ export class DigestProcessorService {
       remainingFindings,
       scoredResult,
       topicForDigest,
-      totalFindingsCount
+      totalFindingsCount,
+      previousDigestDate
     );
 
     // 6. Store digest in database
@@ -236,20 +248,12 @@ export class DigestProcessorService {
     await query(
       `INSERT INTO digests (
         id, user_id, topic_id, type, title,
-        executive_summary, layman_summary, contradictions,
-        breakthroughs, knowledge_gaps, next_steps, key_takeaways,
-        clinical_implications, lifestyle_considerations,
-        questions_for_doctor, warning_signs, finding_ids, metadata,
-        featured_discovery, top_findings, source_breakdown,
-        research_pulse, worth_revisiting
+        whats_new, key_takeaways, finding_ids, metadata,
+        featured_discovery, notable_findings, source_breakdown, for_your_doctor
       ) VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8,
-        $9, $10, $11, $12,
-        $13, $14,
-        $15, $16, $17, $18,
-        $19, $20, $21,
-        $22, $23
+        $6, $7, $8, $9,
+        $10, $11, $12, $13
       )`,
       [
         digestId,
@@ -257,17 +261,8 @@ export class DigestProcessorService {
         item.topic_id,
         item.timeframe || item.digest_type || 'smart_digest',
         (digest as any).title || `${topic.name} Research Digest`,
-        (digest as any).executiveSummary,
-        (digest as any).laymanSummary,
-        JSON.stringify((digest as any).contradictions || []),
-        JSON.stringify((digest as any).breakthroughs || []),
-        JSON.stringify((digest as any).knowledgeGaps || []),
-        JSON.stringify((digest as any).nextSteps || []),
+        JSON.stringify((digest as any).whatsNew || { technical: '', explained: '' }),
         JSON.stringify((digest as any).keyTakeaways || []),
-        JSON.stringify((digest as any).clinicalImplications || []),
-        JSON.stringify((digest as any).lifestyleConsiderations || []),
-        JSON.stringify((digest as any).questionsForDoctor || []),
-        JSON.stringify((digest as any).warningSigns || []),
         findingIds,
         JSON.stringify({
           source: 'background-processor',
@@ -277,15 +272,16 @@ export class DigestProcessorService {
           timeframe: item.timeframe || 'all-time',
           statistics: (digest as any).statistics || {
             totalFindings: totalFindingsCount,
-            newFindings: 0,
+            newFindings: previousDigestDate
+              ? findings.filter(f => f.created_at && new Date(f.created_at) > previousDigestDate).length
+              : totalFindingsCount,
             analyzedFindings: totalFindingsCount
           }
         }),
         JSON.stringify((digest as any).featuredDiscovery || null),
-        JSON.stringify((digest as any).topFindings || []),
+        JSON.stringify((digest as any).notableFindings || []),
         JSON.stringify((digest as any).sourceBreakdown || countSourcesByType(findings)),
-        (digest as any).researchPulse || '',
-        JSON.stringify((digest as any).worthRevisiting || [])
+        JSON.stringify((digest as any).forYourDoctor || { questions: [], watchFor: [], conflicts: [] })
       ]
     );
 

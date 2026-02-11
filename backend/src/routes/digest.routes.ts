@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { generateSmartDigest, scoreAndClusterFindings } from '../services/ai.service.js';
 import { searchService } from '../services/search.service.js';
 import { pool } from '../db/database.js';
+import { TopicModel } from '../models/topic.model.js';
+import { FindingModel } from '../models/finding.model.js';
 
 const router = Router();
 
@@ -23,22 +25,13 @@ router.get('/by-topic/:topicId', async (req, res) => {
         id,
         user_id as "userId",
         topic_id as "topicId",
-        executive_summary as "executiveSummary",
-        layman_summary as "laymanSummary",
+        whats_new as "whatsNew",
         key_takeaways as "keyTakeaways",
-        contradictions,
-        breakthroughs,
-        knowledge_gaps as "knowledgeGaps",
-        next_steps as "nextSteps",
-        clinical_implications as "clinicalImplications",
-        lifestyle_considerations as "lifestyleConsiderations",
-        questions_for_doctor as "questionsForDoctor",
-        warning_signs as "warningSigns",
         featured_discovery as "featuredDiscovery",
-        top_findings as "topFindings",
+        notable_findings as "notableFindings",
         source_breakdown as "sourceBreakdown",
-        research_pulse as "researchPulse",
-        worth_revisiting as "worthRevisiting",
+        for_your_doctor as "forYourDoctor",
+        finding_ids,
         metadata,
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -67,6 +60,35 @@ router.get('/by-topic/:topicId', async (req, res) => {
         topicId, // Ensure topicId is included
         queueStatus: queueResult.rows[0] || null
       };
+
+      // Pillar 2 temporal enrichment: personalize whatsNew based on time away
+      try {
+        const topic = await TopicModel.getById(topicId, userId);
+        const lastViewed = topic?.last_digest_viewed_at;
+        if (lastViewed && digest.whatsNew) {
+          const daysAway = Math.floor((Date.now() - new Date(lastViewed).getTime()) / 86400000);
+          if (daysAway > 1) {
+            const newCount = await FindingModel.countSince(userId, topicId, new Date(lastViewed));
+            if (newCount > 0) {
+              const whatsNew = typeof digest.whatsNew === 'string' ? JSON.parse(digest.whatsNew) : digest.whatsNew;
+              const restTech = whatsNew.technical?.replace(/^[^.]+\./, '').trim() || '';
+              const restExpl = whatsNew.explained?.replace(/^[^.]+\./, '').trim() || '';
+              whatsNew.technical = `${newCount} new findings in your ${daysAway} days away. ${restTech}`;
+              whatsNew.explained = `${newCount} new findings in your ${daysAway} days away. ${restExpl}`;
+              digest.whatsNew = whatsNew;
+            }
+          }
+        }
+      } catch (temporalErr) {
+        console.error('[DigestRoute] Temporal enrichment failed:', temporalErr);
+      }
+
+      // Track that user viewed this digest
+      try {
+        await TopicModel.updateLastDigestViewed(topicId, userId);
+      } catch (trackErr) {
+        console.error('[DigestRoute] Failed to track digest view:', trackErr);
+      }
 
       res.json(digest);
     } else {

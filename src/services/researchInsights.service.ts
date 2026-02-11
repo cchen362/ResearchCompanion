@@ -54,18 +54,8 @@ export interface ResearchMetrics {
 
 export interface DigestInsights {
   latestDigest: SmartDigest | null;
-  breakthroughs: Array<{
-    id: string;
-    finding: string;
-    significance: string;
-  }>;
-  knowledgeGaps: string[];
-  contradictions: Array<{
-    id: string;
-    topic: string;
-    claimA: string;
-    claimB: string;
-  }>;
+  notableFindingsCount: number;
+  conflictsCount: number;
 }
 
 export interface ResearchActivity {
@@ -217,36 +207,15 @@ class ResearchInsightsService {
     if (!latestDigest) {
       return {
         latestDigest: null,
-        breakthroughs: [],
-        knowledgeGaps: [],
-        contradictions: []
+        notableFindingsCount: 0,
+        conflictsCount: 0,
       };
     }
 
-    // Extract breakthroughs
-    const breakthroughs = (latestDigest.breakthroughs || []).map(b => ({
-      id: b.id,
-      finding: b.title.technical,
-      significance: b.description.technical,
-      impact: b.impact
-    }));
-
-    // Extract knowledge gaps
-    const knowledgeGaps = latestDigest.knowledgeGaps || [];
-
-    // Extract contradictions
-    const contradictions = (latestDigest.contradictions || []).map(c => ({
-      id: c.id,
-      topic: c.topic.technical,
-      claimA: c.findingA.claim.technical,
-      claimB: c.findingB.claim.technical
-    }));
-
     return {
       latestDigest,
-      breakthroughs,
-      knowledgeGaps,
-      contradictions
+      notableFindingsCount: latestDigest.notableFindings?.length || 0,
+      conflictsCount: latestDigest.forYourDoctor?.conflicts?.length || 0,
     };
   }
 

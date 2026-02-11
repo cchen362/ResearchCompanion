@@ -32,6 +32,7 @@ Each implementation plan includes:
 | 019 | [Dead Digest Field Cleanup & Button Consolidation](./019_SOURCECOUNT_CLEANUP_AND_BUTTON_CONSOLIDATION.md) | **Complete** | Phase 1: Remove dead sourceCount, highRelevanceCount, avgConfidence, DigestTheme system, trends (~217 lines). Phase 2: Consolidate 3 redundant digest buttons into 1 with tooltip |
 | 020 | [Two-Pass Digest Architecture](./020_TWO_PASS_DIGEST_ARCHITECTURE.md) | **Complete** | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts. Includes Future Focus: Chat citation enhancement. |
 | 021 | [Haiku Scoring Fix & Scaling](./021_HAIKU_SCORING_FIX_AND_SCALING.md) | **Complete** | Fix Haiku Pass 1 token truncation, add Zod validation + reconstruction, auto-batching at 130+ findings |
+| 022 | [Product Readiness](./022_PRODUCT_READINESS.md) | **Ready** | PubMed parser fix, temporal digest awareness, section consolidation (12→5) |
 
 ## How to Use
 
@@ -53,4 +54,4 @@ When creating a new implementation plan:
 ---
 
 *Last Updated: February 11, 2026*
-*Latest Plan: 021 - Haiku Scoring Fix & Scaling*
+*Latest Plan: 022 - Product Readiness*
