@@ -31,7 +31,7 @@
  * ```
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useResearchStore } from '@/stores/researchStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useStoreHydration } from './useStoreHydration';
@@ -160,16 +160,16 @@ export function useTopics(autoLoad = true): UseTopicsReturn {
     }
   }, [selectedTopicId, selectTopic, loadTopicsFromStore]);
 
-  // Auto-load topics on mount if enabled
+  // Auto-load topics on mount if enabled (once only)
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
     if (!autoLoad) return;
-    if (!isHydrated) return; // Wait for hydration
+    if (!isHydrated) return;
+    if (hasLoadedRef.current) return;
 
-    // Only load if we don't have topics yet
-    if (topics.length === 0 && !loading.topics) {
-      loadTopics();
-    }
-  }, [autoLoad, isHydrated, topics.length, loading.topics, loadTopics]);
+    hasLoadedRef.current = true;
+    loadTopics();
+  }, [autoLoad, isHydrated, loadTopics]);
 
   return {
     // Data
