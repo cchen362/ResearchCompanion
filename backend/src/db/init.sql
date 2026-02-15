@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS topics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     archived BOOLEAN DEFAULT false,
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    last_digest_viewed_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Research agents configuration
@@ -88,61 +89,52 @@ CREATE TABLE IF NOT EXISTS digests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL, -- 'smart_digest', 'executive_summary'
+    type VARCHAR(50) NOT NULL,
     title VARCHAR(500),
-    executive_summary TEXT,
-    contradictions JSONB DEFAULT '[]',
-    breakthroughs JSONB DEFAULT '[]',
-    knowledge_gaps JSONB DEFAULT '[]',
-    next_steps JSONB DEFAULT '[]',
-    finding_ids UUID[], -- References to findings used
+    whats_new JSONB DEFAULT '{}'::jsonb,
+    key_takeaways JSONB DEFAULT '[]'::jsonb,
+    featured_discovery JSONB DEFAULT NULL,
+    notable_findings JSONB DEFAULT '[]'::jsonb,
+    source_breakdown JSONB DEFAULT NULL,
+    for_your_doctor JSONB DEFAULT '{}'::jsonb,
+    finding_ids UUID[],
     metadata JSONB DEFAULT '{}',
-    layman_summary TEXT, -- Simplified summary for non-medical users
-    key_takeaways JSONB DEFAULT '[]'::jsonb, -- Array of key points
-    clinical_implications JSONB DEFAULT '[]'::jsonb, -- Clinical relevance
-    lifestyle_considerations JSONB DEFAULT '[]'::jsonb, -- Lifestyle recommendations
-    questions_for_doctor JSONB DEFAULT '[]'::jsonb, -- Questions for healthcare provider
-    warning_signs JSONB DEFAULT '[]'::jsonb, -- Warning signs to watch for
-    featured_discovery JSONB DEFAULT NULL, -- Hero content with technical/explained versions
-    top_findings JSONB DEFAULT '[]'::jsonb, -- Up to 5 secondary findings with dual versions
-    source_breakdown JSONB DEFAULT NULL, -- Finding counts by source type
-    research_pulse TEXT,                          -- AI companion pulse sentence (Plan 015c)
-    worth_revisiting JSONB DEFAULT '[]'::jsonb,   -- AI-identified finding connections (Plan 015c)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Timeline events (appointments, symptoms, treatments)
-CREATE TABLE IF NOT EXISTS timeline_events (
+-- Digest generation queue
+CREATE TABLE IF NOT EXISTS digest_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    topic_id UUID NOT NULL,
+    digest_type VARCHAR(50) NOT NULL DEFAULT 'smart',
+    timeframe VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+    priority INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    error TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    result_id UUID REFERENCES digests(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}',
+    CONSTRAINT unique_active_queue UNIQUE (user_id, topic_id, digest_type, timeframe)
+);
+
+-- Notifications
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-    event_type VARCHAR(50) NOT NULL, -- 'appointment', 'symptom', 'treatment', 'test', 'note'
+    type VARCHAR(50) NOT NULL,
     title VARCHAR(500) NOT NULL,
-    description TEXT,
-    event_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    severity INTEGER CHECK (severity >= 1 AND severity <= 5),
-    metadata JSONB DEFAULT '{}',
-    attachments JSONB DEFAULT '[]',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Audio recordings (doctor visits)
-CREATE TABLE IF NOT EXISTS audio_recordings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
-    file_name VARCHAR(500),
-    file_size BIGINT,
-    duration INTEGER, -- seconds
-    mime_type VARCHAR(100),
-    storage_path TEXT, -- S3 or local file path
-    transcription TEXT,
-    transcription_status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    processed_at TIMESTAMP WITH TIME ZONE
+    message TEXT,
+    priority VARCHAR(20) DEFAULT 'normal',
+    data JSONB DEFAULT '{}',
+    read_at TIMESTAMP WITH TIME ZONE,
+    dismissed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Chat conversations (using 'chats' table as per actual application code)
@@ -187,18 +179,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- API usage tracking (for rate limiting and analytics)
-CREATE TABLE IF NOT EXISTS api_usage (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    endpoint VARCHAR(255) NOT NULL,
-    method VARCHAR(10) NOT NULL,
-    status_code INTEGER,
-    response_time INTEGER, -- milliseconds
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Session management for authentication
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -224,10 +204,6 @@ CREATE INDEX idx_findings_is_starred ON findings(is_starred) WHERE is_starred = 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_unique_source_url
 ON findings (user_id, topic_id, (source->>'url'))
 WHERE source->>'url' IS NOT NULL AND source->>'url' <> '#';
-CREATE INDEX idx_timeline_user_id ON timeline_events(user_id);
-CREATE INDEX idx_timeline_topic_id ON timeline_events(topic_id);
-CREATE INDEX idx_timeline_event_date ON timeline_events(event_date DESC);
-CREATE INDEX idx_audio_user_id ON audio_recordings(user_id);
 CREATE INDEX idx_chats_user_id ON chats(user_id);
 CREATE INDEX idx_chats_topic_id ON chats(user_id, topic_id);
 CREATE INDEX idx_chats_last_message ON chats(last_message_at DESC);
@@ -235,8 +211,22 @@ CREATE INDEX idx_chat_messages_chat_id ON chat_messages(chat_id, created_at);
 CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX idx_sessions_token_hash ON user_sessions(token_hash);
 CREATE INDEX idx_sessions_expires_at ON user_sessions(expires_at);
-CREATE INDEX idx_api_usage_user_id ON api_usage(user_id);
-CREATE INDEX idx_api_usage_created_at ON api_usage(created_at DESC);
+
+-- Digest queue indexes
+CREATE INDEX idx_digest_queue_user_topic ON digest_queue(user_id, topic_id);
+CREATE INDEX idx_digest_queue_status ON digest_queue(status) WHERE status IN ('pending', 'processing');
+CREATE INDEX idx_digest_queue_created_at ON digest_queue(created_at DESC);
+CREATE INDEX idx_digest_queue_topic_timeframe ON digest_queue(topic_id, timeframe);
+
+-- Notification indexes
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX idx_notifications_unread ON notifications(user_id) WHERE read_at IS NULL;
+
+-- Composite indexes for common query patterns
+CREATE INDEX idx_findings_user_topic ON findings(user_id, topic_id);
+CREATE INDEX idx_digests_user_topic ON digests(user_id, topic_id);
+CREATE INDEX idx_digests_created_at ON digests(created_at DESC);
 
 -- Create update triggers for updated_at columns
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -257,9 +247,6 @@ CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_findings_updated_at BEFORE UPDATE ON findings
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_timeline_updated_at BEFORE UPDATE ON timeline_events
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_chats_updated_at BEFORE UPDATE ON chats
@@ -286,6 +273,51 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_chat_timestamp
 AFTER INSERT ON chat_messages
 FOR EACH ROW EXECUTE FUNCTION update_chat_updated_at();
+
+-- Digest queue helper functions
+CREATE OR REPLACE FUNCTION cancel_stale_digest_queue_items()
+RETURNS void AS $$
+BEGIN
+  UPDATE digest_queue
+  SET
+    status = 'cancelled',
+    completed_at = CURRENT_TIMESTAMP,
+    error = 'Cancelled due to timeout (stale queue item)'
+  WHERE
+    status = 'pending'
+    AND created_at < CURRENT_TIMESTAMP - INTERVAL '1 hour';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_active_queue_for_topic(
+  p_user_id UUID,
+  p_topic_id UUID,
+  p_timeframe VARCHAR(50)
+)
+RETURNS TABLE (
+  queue_id UUID,
+  status VARCHAR(50),
+  created_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ
+) AS $$
+BEGIN
+  PERFORM cancel_stale_digest_queue_items();
+  RETURN QUERY
+  SELECT
+    id as queue_id,
+    digest_queue.status,
+    digest_queue.created_at,
+    digest_queue.started_at
+  FROM digest_queue
+  WHERE
+    user_id = p_user_id
+    AND topic_id = p_topic_id
+    AND timeframe = p_timeframe
+    AND digest_queue.status IN ('pending', 'processing')
+  ORDER BY digest_queue.created_at DESC
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Create default admin user (optional, remove in production)
 -- Password: admin123 (change this!)

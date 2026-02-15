@@ -5,41 +5,50 @@ import { logger } from '@/utils/logger';
 import type { Topic, DiseaseProfile, PatientContext } from '@/types';
 
 interface TopicManagerProps {
-  onTopicsChange?: () => void;
+  topics: Topic[];
+  setTopics: (topics: Topic[]) => void;
+  selectedTopic: Topic | null;
+  setSelectedTopic: (topic: Topic | null) => void;
 }
 
-export default function TopicManager({ onTopicsChange }: TopicManagerProps = {}) {
-  const [topics, setTopics] = useState<Topic[]>([]);
+export default function TopicManager({ topics, setTopics, selectedTopic, setSelectedTopic }: TopicManagerProps) {
   const [showNewTopicForm, setShowNewTopicForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
-  const [loading, setLoading] = useState(true);
   const [agentCounts, setAgentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    loadTopics();
-  }, []);
+    if (topics.length > 0) {
+      const loadAgentCounts = async () => {
+        const counts: Record<string, number> = {};
+        const results = await Promise.all(
+          topics.map(async (topic) => {
+            const agents = await agentsService.getAgents(topic.id);
+            return { topicId: topic.id, count: agents.length };
+          })
+        );
+        results.forEach(({ topicId, count }) => { counts[topicId] = count; });
+        setAgentCounts(counts);
+      };
+      loadAgentCounts();
+    }
+  }, [topics]);
 
   const loadTopics = async () => {
     try {
       const allTopics = await topicsService.getTopics();
       setTopics(allTopics);
 
-      // Fetch agent counts for each topic
       const counts: Record<string, number> = {};
-      for (const topic of allTopics) {
-        const agents = await agentsService.getAgents(topic.id);
-        counts[topic.id] = agents.length;
-      }
+      const results = await Promise.all(
+        allTopics.map(async (topic) => {
+          const agents = await agentsService.getAgents(topic.id);
+          return { topicId: topic.id, count: agents.length };
+        })
+      );
+      results.forEach(({ topicId, count }) => { counts[topicId] = count; });
       setAgentCounts(counts);
-
-      // Notify parent component about topics change
-      if (onTopicsChange) {
-        onTopicsChange();
-      }
     } catch (error) {
       logger.error('[TopicManager] Error loading topics:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -55,12 +64,6 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
         // Reload topics to reflect the deletion
         await loadTopics();
 
-        // Notify parent component if callback provided
-        if (onTopicsChange) {
-          onTopicsChange();
-        }
-
-        // Show success message (if you have a toast system)
         logger.debug(`[TopicManager] Successfully deleted topic ${id}`);
       } catch (error) {
         logger.error('[TopicManager] Failed to delete topic:', error);
@@ -68,14 +71,6 @@ export default function TopicManager({ onTopicsChange }: TopicManagerProps = {})
       }
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

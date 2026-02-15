@@ -3,6 +3,8 @@ import { DigestModel } from '../models/digest.model.js';
 import { z } from 'zod';
 import DigestQueueServicePG from '../services/digestQueue.service.pg.js';
 import { pool } from '../db/database.js';
+import { TopicModel } from '../models/topic.model.js';
+import { FindingModel } from '../models/finding.model.js';
 
 const router = express.Router();
 const queueService = new DigestQueueServicePG(pool);
@@ -135,6 +137,38 @@ router.get('/digests/latest/:topicId', async (req, res) => {
         isGenerating: false,
         queueStatus: null
       });
+    }
+
+    // Temporal enrichment: personalize whats_new based on time away
+    if (digest) {
+      try {
+        const topic = await TopicModel.getById(topicId, userId);
+        const lastViewed = topic?.last_digest_viewed_at;
+        if (lastViewed && digest.whats_new) {
+          const daysAway = Math.floor((Date.now() - new Date(lastViewed).getTime()) / 86400000);
+          if (daysAway > 1) {
+            const newCount = await FindingModel.countSince(userId, topicId, new Date(lastViewed));
+            if (newCount > 0) {
+              const whatsNew = typeof digest.whats_new === 'string'
+                ? JSON.parse(digest.whats_new) : digest.whats_new;
+              const restTech = whatsNew.technical?.replace(/^[^.]+\./, '').trim() || '';
+              const restExpl = whatsNew.explained?.replace(/^[^.]+\./, '').trim() || '';
+              whatsNew.technical = `${newCount} new findings in your ${daysAway} days away. ${restTech}`;
+              whatsNew.explained = `${newCount} new findings in your ${daysAway} days away. ${restExpl}`;
+              digest.whats_new = whatsNew;
+            }
+          }
+        }
+      } catch (temporalErr) {
+        console.error('[DIGEST] Temporal enrichment failed:', temporalErr);
+      }
+
+      // Track that user viewed this digest
+      try {
+        await TopicModel.updateLastDigestViewed(topicId, userId);
+      } catch (trackErr) {
+        console.error('[DIGEST] Failed to track digest view:', trackErr);
+      }
     }
 
     // Return digest with queue status included

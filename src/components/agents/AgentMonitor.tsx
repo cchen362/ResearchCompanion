@@ -5,7 +5,7 @@ import AgentConfigModal from './AgentConfigModal';
 import { notificationService } from '@/services/notification.service';
 import { SourceIcon } from '@/components/digest/SourceIcon';
 import { logger } from '@/utils/logger';
-import type { Agent, DigestSourceType } from '@/types';
+import type { Agent, DigestSourceType, Topic } from '@/types';
 
 const AGENT_TYPE_CONFIG: Record<string, {
   sourceTypes: DigestSourceType[];
@@ -29,7 +29,12 @@ const AGENT_TYPE_CONFIG: Record<string, {
   },
 };
 
-export default function AgentMonitor() {
+interface AgentMonitorProps {
+  topics?: Topic[];
+  selectedTopic?: Topic | null;
+}
+
+export default function AgentMonitor({ topics: passedTopics, selectedTopic }: AgentMonitorProps = {}) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [topics, setTopics] = useState<Map<string, string>>(new Map()); // topicId -> topic name
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
@@ -54,15 +59,19 @@ export default function AgentMonitor() {
       const uniqueTopicIds = [...new Set(allAgents.map(a => a.topicId).filter(Boolean))];
       const topicMap = new Map<string, string>();
 
-      for (const topicId of uniqueTopicIds) {
-        try {
-          const topic = await topicsService.getTopic(topicId);
-          if (topic) {
-            topicMap.set(topicId, topic.name);
-          }
-        } catch (error) {
-          logger.error(`Error loading topic ${topicId}:`, error);
+      if (passedTopics && passedTopics.length > 0) {
+        for (const t of passedTopics) {
+          topicMap.set(t.id, t.name);
         }
+      } else {
+        await Promise.all(uniqueTopicIds.map(async (topicId) => {
+          try {
+            const topic = await topicsService.getTopic(topicId);
+            if (topic) topicMap.set(topicId, topic.name);
+          } catch (error) {
+            logger.error(`Error loading topic ${topicId}:`, error);
+          }
+        }));
       }
 
       setTopics(topicMap);

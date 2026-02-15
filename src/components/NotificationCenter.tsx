@@ -25,10 +25,13 @@ export default function NotificationCenter() {
       }
     });
 
-    // Refresh every 2 seconds for more responsive updates
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 2000);
+    // Refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Listen for custom notification events
     const handleNotificationCreated = () => {
@@ -39,7 +42,7 @@ export default function NotificationCenter() {
     window.addEventListener('agent-complete', handleNotificationCreated);
 
     return () => {
-      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('notification-created', handleNotificationCreated);
       window.removeEventListener('agent-complete', handleNotificationCreated);
     };

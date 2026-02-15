@@ -236,7 +236,7 @@ export class FindingModel {
   // Delete a finding
   static async delete(id: string, userId: string): Promise<boolean> {
     const result = await query(
-      'DELETE FROM findings WHERE id = $1 AND user_id = $2',
+      'DELETE FROM findings WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, userId]
     );
     return result.length > 0;
@@ -245,7 +245,7 @@ export class FindingModel {
   // Delete multiple findings
   static async deleteBulk(ids: string[], userId: string): Promise<number> {
     const result = await query(
-      'DELETE FROM findings WHERE id = ANY($1) AND user_id = $2',
+      'DELETE FROM findings WHERE id = ANY($1) AND user_id = $2 RETURNING id',
       [ids, userId]
     );
     return result.length;

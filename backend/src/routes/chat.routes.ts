@@ -781,8 +781,8 @@ async function enrichFindingsContext(
     // This ensures we have complete context for the user's questions
     if (topicId) {
       const allTopicFindings = await FindingModel.getFiltered(userId, {
-        topic_id: topicId
-        // No limit - get all findings for complete context
+        topic_id: topicId,
+        limit: 50
       });
 
       for (const finding of allTopicFindings) {

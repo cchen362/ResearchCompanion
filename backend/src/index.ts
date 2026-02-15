@@ -23,7 +23,6 @@ import dashboardRoutes from './routes/dashboard.routes.js';
 
 // Import middleware and database
 import { authenticate } from './middleware/auth.js';
-import { userDatabase } from './database/users.db.js';
 import { testConnection, pool } from './db/database.js';
 
 // Import scheduler for autonomous agents
@@ -40,14 +39,10 @@ const PORT = process.env.PORT || 3001;
 // Initialize databases on startup
 const initializeDatabases = async () => {
   try {
-    // Initialize PostgreSQL connection
     const pgConnected = await testConnection();
     if (!pgConnected) {
       console.error('⚠️ PostgreSQL connection failed - some features may not work');
     }
-
-    // Initialize legacy user database (for backward compatibility)
-    await userDatabase.initialize();
   } catch (error) {
     console.error('Failed to initialize databases:', error);
   }
