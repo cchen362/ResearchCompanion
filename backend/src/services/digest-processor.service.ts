@@ -38,7 +38,7 @@ function countSourcesByType(findings: any[]): {
 
     if (sourceType.includes('pubmed') || sourceType.includes('research') || sourceType === 'academic') {
       breakdown.pubmed++;
-    } else if (sourceType.includes('clinical') || sourceType.includes('trial')) {
+    } else if (sourceType.includes('clinical') || sourceType.includes('trial') || sourceType === 'medical_site') {
       breakdown.clinicalTrials++;
     } else if (sourceType.includes('fda')) {
       breakdown.fda++;

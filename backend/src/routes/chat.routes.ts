@@ -479,7 +479,7 @@ Available research findings with their assigned citation numbers:`;
       const title = finding.title || 'Untitled';
       const content = finding.content || finding.summary || '';
 
-      prompt += `\n\n[${citationNumber}] - Finding ID: ${finding.id}`;
+      prompt += `\n\n[${citationNumber}]`;
       prompt += `\nSource: ${sourceInfo}`;
       prompt += `\nTitle: ${title}`;
       if (content) {
@@ -563,6 +563,10 @@ function extractCitations(
       // Use the citation map to find the correct finding
       findingId = reverseMap.get(citationNum)!;
       finding = findings.find(f => f.id === findingId);
+
+      if (!finding) {
+        logger.warn(`[chat.routes] extractCitations: Citation [${citationNum}] mapped to findingId ${findingId.substring(0, 8)}... but finding not in current context (stale map or deleted finding)`);
+      }
 
       logger.debug(`[chat.routes] extractCitations: Using citation map: [${citationNum}] => ${findingId.substring(0, 8)}...`);
     } else if (!mapAsMap) {

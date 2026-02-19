@@ -7,7 +7,6 @@ import { dirname, join } from 'path';
 // Import routes
 import searchRoutes from './routes/search.js';
 import digestRoutes from './routes/digest.routes.js';
-import agentRoute from './routes/agent.js';
 import chatRoutes from './routes/chat.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import topicsRoutes from './routes/topics.routes.js';
@@ -115,7 +114,6 @@ app.use('/api', versionRoutes);
 // Protected routes (authentication required)
 app.use('/api', authenticate, searchRoutes);
 app.use('/api/digest', authenticate, digestRoutes);
-app.use('/api', authenticate, agentRoute);
 app.use('/api/chat', authenticate, chatRoutes);
 app.use('/api', authenticate, topicsRoutes);
 app.use('/api', authenticate, findingsRoutes);
@@ -183,8 +181,6 @@ const server = app.listen(PORT, () => {
   console.log('  - POST /api/pubmed-search');
   console.log('  - POST /api/summarize');
   console.log('  - POST /api/generate-digest (⏱️ 30-90s for AI processing)');
-  console.log('  - POST /api/simplify-digest');
-  console.log('  - POST /api/run-agent');
   console.log('  - POST /api/chat/complete');
   console.log('  - POST /api/chat/stream (Server-Sent Events)');
   console.log('  - POST /api/chat/generate-title');

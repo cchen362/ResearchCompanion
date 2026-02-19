@@ -158,6 +158,24 @@ export class FindingModel {
     return !!existing;
   }
 
+  // Check if a finding with this title and source name already exists for this user+topic.
+  // Fallback dedup for findings that lack URLs.
+  static async existsByTitleAndSource(
+    userId: string,
+    topicId: string,
+    title: string,
+    sourceName: string
+  ): Promise<boolean> {
+    const result = await queryOne(
+      `SELECT 1 FROM findings
+       WHERE user_id = $1 AND topic_id = $2
+       AND LOWER(title) = LOWER($3)
+       AND LOWER(source->>'name') = LOWER($4)`,
+      [userId, topicId, title, sourceName]
+    );
+    return !!result;
+  }
+
   // Create multiple findings in bulk
   static async createBulk(userId: string, findings: Partial<Finding>[]): Promise<Finding[]> {
     if (findings.length === 0) return [];

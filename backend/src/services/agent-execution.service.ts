@@ -12,12 +12,12 @@
  * - Returns results for notification and digest generation
  */
 
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { FindingModel } from '../models/finding.model.js';
 import { aiService } from './ai.service.js';
 import type { Agent } from '../models/agent.model.js';
 import type { Finding } from '../models/finding.model.js';
+import { searchService } from './search.service.js';
 
 // Define FindingSource interface locally
 interface FindingSource {
@@ -39,29 +39,11 @@ interface FindingSource {
   };
 }
 
-/** Parsed PubMed article from efetch XML */
-interface PubMedArticle {
-  id: string;
-  title: string;
-  abstract: string;
-  authors: string[];
-  journal: string;
-  publishedDate: string;
-  doi: string;
-}
-
 // Rate limiting configuration
 const RATE_LIMITS = {
   pubmed: { requestsPerSecond: 3, minDelay: 350 },
   clinical: { requestsPerSecond: 2, minDelay: 500 },
   web: { requestsPerSecond: 1, minDelay: 1000 }
-};
-
-// API endpoints
-const API_ENDPOINTS = {
-  pubmed: 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
-  clinical: 'https://clinicaltrials.gov/api/v2',
-  brave: 'https://api.search.brave.com/res/v1/web/search'
 };
 
 export class AgentExecutionService {
@@ -154,6 +136,17 @@ export class AgentExecutionService {
       if (sourceUrl) {
         const exists = await FindingModel.existsBySourceUrl(userId, topicId, sourceUrl);
         if (exists) continue;
+      } else {
+        // Fallback: dedup by title + source name when URL is missing
+        const title = result.title || '';
+        const sourceName = result.source?.name || '';
+        if (title && sourceName) {
+          const exists = await FindingModel.existsByTitleAndSource(userId, topicId, title, sourceName);
+          if (exists) {
+            console.log(`[AgentExecution] Skipping duplicate (title match): "${title.substring(0, 60)}..."`);
+            continue;
+          }
+        }
       }
       newResults.push(result);
     }
@@ -225,156 +218,80 @@ export class AgentExecutionService {
   }
 
   /**
-   * Search PubMed for research articles
+   * Search PubMed for research articles via searchService delegation
    */
   private async searchPubMed(query: string, maxResults: number): Promise<any[]> {
     await this.enforceRateLimit('pubmed');
-
     try {
-      // First, search for IDs
-      const searchUrl = `${API_ENDPOINTS.pubmed}/esearch.fcgi`;
-      const searchParams = {
-        db: 'pubmed',
-        term: query,
-        retmax: maxResults,
-        retmode: 'json',
-        sort: 'relevance'
-      };
-
-      const searchResponse = await axios.get(searchUrl, { params: searchParams });
-      const ids = searchResponse.data.esearchresult?.idlist || [];
-
-      if (ids.length === 0) {
-        return [];
-      }
-
-      // Fetch article details
-      await this.enforceRateLimit('pubmed');
-      const fetchUrl = `${API_ENDPOINTS.pubmed}/efetch.fcgi`;
-      const fetchParams = {
-        db: 'pubmed',
-        id: ids.join(','),
-        retmode: 'xml',
-        rettype: 'abstract'
-      };
-
-      const fetchResponse = await axios.get(fetchUrl, { params: fetchParams });
-
-      // Parse XML response (simplified for this implementation)
-      // In production, use a proper XML parser
-      return this.parsePubMedXML(fetchResponse.data);
-
+      const results = await searchService.searchPubMed(query, maxResults);
+      // Adapt searchService output → raw PubMedArticle shape for downstream consumers
+      return results.map((r: any) => ({
+        id: r.metadata?.pmid || r.id?.replace('pubmed_', '') || r.id,
+        title: r.title,
+        abstract: r.summary || '',
+        authors: r.metadata?.authors || [],
+        journal: r.source?.journal || r.source?.name || 'Unknown Journal',
+        publishedDate: r.publishedAt || new Date().toISOString(),
+        doi: r.metadata?.doi || ''
+      }));
     } catch (error) {
       console.error('[AgentExecution] PubMed search error:', error);
-      throw new Error(`PubMed search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return [];
     }
   }
 
   /**
-   * Search ClinicalTrials.gov for clinical trials
+   * Search ClinicalTrials.gov for clinical trials via searchService delegation
    */
   private async searchClinicalTrials(query: string, maxResults: number): Promise<any[]> {
     await this.enforceRateLimit('clinical');
-
     try {
-      const url = `${API_ENDPOINTS.clinical}/studies`;
-      const params: Record<string, string | number> = {
-        'query.cond': query,
-        'filter.overallStatus': 'RECRUITING',
-        pageSize: maxResults,
-        format: 'json'
-      };
-
-      const response = await axios.get(url, { params });
-      return response.data.studies || [];
-
+      // query = topic name (no modifiers for clinical trials), maps to condition param
+      const results = await searchService.searchClinicalTrials(query);
+      // Adapt searchService output → raw ClinicalTrials.gov nested shape for downstream consumers
+      return results.map((r: any) => ({
+        protocolSection: {
+          identificationModule: {
+            briefTitle: r.title || 'Untitled Trial',
+            nctId: r.metadata?.nctId || r.id?.replace('trial_', '') || ''
+          },
+          statusModule: {
+            overallStatus: r.metadata?.status || 'Unknown',
+            statusVerifiedDate: r.publishedAt || new Date().toISOString()
+          },
+          designModule: {
+            phases: r.metadata?.phase ? r.metadata.phase.split(', ') : []
+          },
+          descriptionModule: {
+            briefSummary: r.summary || ''
+          }
+        }
+      }));
     } catch (error) {
       console.error('[AgentExecution] Clinical Trials search error:', error);
-      throw new Error(`Clinical Trials search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return [];
     }
   }
 
   /**
-   * Search web using Brave Search API
+   * Search web using Brave Search API via searchService delegation
    */
   private async searchWeb(query: string, maxResults: number): Promise<any[]> {
     await this.enforceRateLimit('web');
-
-    const braveApiKey = process.env.BRAVE_API_KEY;
-    if (!braveApiKey) {
-      console.warn('[AgentExecution] Brave Search API key not configured (BRAVE_API_KEY)');
-      return [];
-    }
-
     try {
-      const response = await axios.get(API_ENDPOINTS.brave, {
-        params: {
-          q: query + ' medical research',
-          count: maxResults
-        },
-        headers: {
-          'X-Subscription-Token': braveApiKey
-        }
-      });
-
-      return response.data.web?.results || [];
-
+      const results = await searchService.searchWeb(query, maxResults);
+      // Adapt searchService output → raw Brave API shape for downstream consumers
+      return results.map((r: any) => ({
+        url: r.source?.url || '',
+        title: r.title || '',
+        description: r.summary || r.snippet || '',
+        site: r.source?.name || r.source?.displayName || 'Web',
+        publishedDate: r.publishedAt || new Date().toISOString()
+      }));
     } catch (error: any) {
-      const status = error?.response?.status;
-      console.error(`[AgentExecution] Web search error (HTTP ${status}):`, error.message || error);
-      // Don't throw for web search failures, just return empty
+      console.error(`[AgentExecution] Web search error:`, error.message || error);
       return [];
     }
-  }
-
-  /**
-   * Parse PubMed XML response by splitting into per-article blocks.
-   * Reference: search.service.ts:112-170 (same proven approach)
-   */
-  private parsePubMedXML(xml: string): PubMedArticle[] {
-    const results: PubMedArticle[] = [];
-    const articleBlocks = xml.split('<PubmedArticle>');
-
-    for (const block of articleBlocks) {
-      const pmidMatch = block.match(/<PMID[^>]*>(\d+)<\/PMID>/);
-      if (!pmidMatch) continue;
-      const pmid = pmidMatch[1];
-
-      // Title — handle inline XML tags (e.g., <i>, <sup>)
-      const title = block.match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/)?.[1]
-        ?.replace(/<[^>]+>/g, '').trim() || 'Untitled';
-
-      // Abstract — join all sections (Background, Methods, Results, Conclusions)
-      const abstractMatches = block.match(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
-      const abstract = abstractMatches
-        ? abstractMatches.map(m => m.replace(/<\/?[^>]+(>|$)/g, '').trim()).join(' ')
-        : '';
-
-      // Authors — first + last name per <Author> block
-      const authorBlocks = block.match(/<Author[\s\S]*?<\/Author>/g) || [];
-      const authors = authorBlocks.map(a => {
-        const last = a.match(/<LastName>(.*?)<\/LastName>/)?.[1] || '';
-        const fore = a.match(/<ForeName>(.*?)<\/ForeName>/)?.[1] || '';
-        return fore ? `${fore} ${last}` : last;
-      }).filter(Boolean).slice(0, 3);
-
-      // Journal
-      const journal = block.match(/<ISOAbbreviation>([\s\S]*?)<\/ISOAbbreviation>/)?.[1]?.trim()
-        || block.match(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/)?.[1]?.trim()
-        || 'Unknown Journal';
-
-      // Publication date
-      const year = block.match(/<PubDate>[\s\S]*?<Year>(\d+)<\/Year>/)?.[1] || '';
-      const month = block.match(/<PubDate>[\s\S]*?<Month>(.*?)<\/Month>/)?.[1] || '';
-      const publishedDate = month ? `${year} ${month}` : (year || new Date().toISOString());
-
-      // DOI
-      const doi = block.match(/<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/)?.[1]?.trim() || '';
-
-      results.push({ id: pmid, title, abstract, authors, journal, publishedDate, doi });
-    }
-
-    return results;
   }
 
   /**
