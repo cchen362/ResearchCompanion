@@ -33,6 +33,8 @@ Each implementation plan includes:
 | 020 | [Two-Pass Digest Architecture](./020_TWO_PASS_DIGEST_ARCHITECTURE.md) | **Complete** | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts. Includes Future Focus: Chat citation enhancement. |
 | 021 | [Haiku Scoring Fix & Scaling](./021_HAIKU_SCORING_FIX_AND_SCALING.md) | **Complete** | Fix Haiku Pass 1 token truncation, add Zod validation + reconstruction, auto-batching at 130+ findings |
 | 022 | [Product Readiness](./022_PRODUCT_READINESS.md) | **Complete** | PubMed parser fix, temporal digest awareness, section consolidation (12→6). Deployed 2026-02-11. |
+| 023 | [Backend Refactor & Dead Code Cleanup](./023_BACKEND_REFACTOR_AND_DEAD_CODE_CLEANUP.md) | **Complete** | Bug fixes (userId accessor, finding delete), dead code removal (6 files, ~1,050 lines), endpoint consolidation, polling → visibility. Deployed 2026-02-15. |
+| 024 | [Data Integrity & Code Path Consolidation](./024_DATA_INTEGRITY_AND_CODE_PATH_CONSOLIDATION.md) | **Complete** | Chat citation hardening, source type parity, API parameter consolidation (agent-execution → search.service delegation), dead route removal, finding dedup hardening. Deployed 2026-02-19. |
 
 ## How to Use
 
@@ -53,5 +55,5 @@ When creating a new implementation plan:
 
 ---
 
-*Last Updated: February 11, 2026*
-*Latest Plan: 022 - Product Readiness*
+*Last Updated: February 19, 2026*
+*Latest Plan: 024 - Data Integrity & Code Path Consolidation*

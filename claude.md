@@ -40,7 +40,9 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 019 | Dead Digest Field Cleanup & Button Consolidation | Complete | Remove dead sourceCount, highRelevanceCount, avgConfidence, DigestTheme system, trends (~217 lines). Consolidate 3 digest buttons into 1 |
 | 020 | Two-Pass Digest Architecture | Complete | Two-pass digest (Haiku scoring + Sonnet generation), remove 50-finding cap, fix count mismatch, clean up timeframe artifacts |
 | 021 | Haiku Scoring Fix & Scaling | Ready | Fix Haiku Pass 1 token truncation, Zod validation + reconstruction, auto-batching at 130+ findings |
-| 022 | Product Readiness | Ready | PubMed parser fix, temporal digest awareness, section consolidation (12→5) |
+| 022 | Product Readiness | Complete | PubMed parser fix, temporal digest awareness, section consolidation (12→5) |
+| 023 | Backend Refactor & Dead Code Cleanup | Complete | Bug fixes, dead code removal (6 files), endpoint consolidation, polling → visibility |
+| 024 | Data Integrity & Code Path Consolidation | Complete | Chat citation hardening, source type parity, API param consolidation, dead route removal, dedup hardening. Deployed 2026-02-19. |
 
 ### Agent Instructions
 
