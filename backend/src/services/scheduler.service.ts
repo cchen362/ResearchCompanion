@@ -205,7 +205,8 @@ class SchedulerService {
       const executionPromise = this.executionService.runAgentsForTopic(
         topicId,
         userId,
-        agents
+        agents,
+        topicName
       );
 
       const findings = await Promise.race([executionPromise, timeoutPromise]);

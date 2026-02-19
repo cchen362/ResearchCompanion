@@ -61,7 +61,7 @@ const RATE_LIMITS = {
 const API_ENDPOINTS = {
   pubmed: 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
   clinical: 'https://clinicaltrials.gov/api/v2',
-  brave: 'https://api.brave.com/res/v1/web/search'
+  brave: 'https://api.search.brave.com/res/v1/web/search'
 };
 
 export class AgentExecutionService {
@@ -73,7 +73,8 @@ export class AgentExecutionService {
   async runAgentsForTopic(
     topicId: string,
     userId: string,
-    agents: Agent[]
+    agents: Agent[],
+    topicName?: string
   ): Promise<Finding[]> {
     const allFindings: Finding[] = [];
     const errors: string[] = [];
@@ -88,7 +89,8 @@ export class AgentExecutionService {
         const findings = await this.runSingleAgent(
           agent,
           topicId,
-          userId
+          userId,
+          topicName
         );
 
         allFindings.push(...findings);
@@ -115,10 +117,11 @@ export class AgentExecutionService {
   private async runSingleAgent(
     agent: Agent,
     topicId: string,
-    userId: string
+    userId: string,
+    topicName?: string
   ): Promise<Finding[]> {
-    // Build search query from agent parameters
-    const searchQuery = this.buildSearchQuery(agent, topicId);
+    // Build search query from topic name + agent type modifiers
+    const searchQuery = this.buildSearchQuery(agent, topicName);
 
     // Execute search based on agent type
     let searchResults: any[] = [];
@@ -179,27 +182,43 @@ export class AgentExecutionService {
   /**
    * Build search query from agent parameters
    */
-  private buildSearchQuery(agent: Agent, topicId: string): string {
+  private buildSearchQuery(agent: Agent, topicName?: string): string {
     const params = agent.config || {};
 
-    // Start with base query
-    let query = params.query || agent.name;
+    // If agent has explicit query configured, use it as-is
+    if (params.query) {
+      return params.query;
+    }
 
-    // Add keywords if specified
+    // Base query: topic name (the medical condition), NOT agent display name
+    const baseQuery = topicName || agent.name;
+    const modifiers: string[] = [];
+
+    // Type-specific modifiers (matches frontend agents.service.ts pattern)
+    switch (agent.type) {
+      case 'treatment_breakthrough':
+      case 'web':
+        modifiers.push('treatment', 'therapy', 'drug');
+        break;
+      case 'clinical_trial':
+      case 'clinical_trials':
+        modifiers.push('clinical trial', 'recruiting', 'study');
+        break;
+      case 'medical_literature':
+      case 'pubmed':
+        modifiers.push('review', 'meta-analysis');
+        break;
+    }
+
+    // Add custom keywords if configured
     if (params.keywords && Array.isArray(params.keywords)) {
-      query += ' ' + params.keywords.join(' ');
+      modifiers.push(...params.keywords);
     }
 
-    // Add filters based on agent type
-    if (agent.type === 'pubmed' && params.filters) {
-      if (params.filters.yearRange) {
-        query += ` AND ${params.filters.yearRange}[pdat]`;
-      }
-      if (params.filters.publicationType) {
-        query += ` AND ${params.filters.publicationType}[pt]`;
-      }
-    }
+    // DO NOT add year or "latest"/"recent" - these break PubMed searches (Plan 006)
 
+    const query = `${baseQuery} ${modifiers.join(' ')}`.trim();
+    console.log(`[AgentExecution] Built query for ${agent.name}: "${query}"`);
     return query;
   }
 
@@ -297,8 +316,9 @@ export class AgentExecutionService {
 
       return response.data.web?.results || [];
 
-    } catch (error) {
-      console.error('[AgentExecution] Web search error:', error);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      console.error(`[AgentExecution] Web search error (HTTP ${status}):`, error.message || error);
       // Don't throw for web search failures, just return empty
       return [];
     }
