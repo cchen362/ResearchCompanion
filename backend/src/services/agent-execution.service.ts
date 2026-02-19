@@ -194,19 +194,21 @@ export class AgentExecutionService {
     const baseQuery = topicName || agent.name;
     const modifiers: string[] = [];
 
-    // Type-specific modifiers (matches frontend agents.service.ts pattern)
+    // Type-specific modifiers
+    // Clinical trials: NO modifiers — query.cond already searches the condition field
+    // PubMed: keep modifiers focused on article quality, not generic filler
     switch (agent.type) {
       case 'treatment_breakthrough':
       case 'web':
-        modifiers.push('treatment', 'therapy', 'drug');
+        modifiers.push('treatment', 'therapy');
         break;
       case 'clinical_trial':
       case 'clinical_trials':
-        modifiers.push('clinical trial', 'recruiting', 'study');
+        // No modifiers — searchClinicalTrials uses query.cond which is condition-specific
         break;
       case 'medical_literature':
       case 'pubmed':
-        modifiers.push('review', 'meta-analysis');
+        modifiers.push('review');
         break;
     }
 
@@ -276,8 +278,9 @@ export class AgentExecutionService {
 
     try {
       const url = `${API_ENDPOINTS.clinical}/studies`;
-      const params = {
-        'query.term': query,
+      const params: Record<string, string | number> = {
+        'query.cond': query,
+        'filter.overallStatus': 'RECRUITING',
         pageSize: maxResults,
         format: 'json'
       };
