@@ -125,7 +125,7 @@ const scoredFindingsSchema = {
 export async function parseSearchQuery(query: string) {
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929', // Using Claude Sonnet 4.5 for superior quality
+      model: 'claude-sonnet-4-6', // Using Claude Sonnet 4.6
       max_tokens: 500,
       temperature: 0.3,
       system: `You are a health research query parser for a personal medical research assistant app.
@@ -206,7 +206,7 @@ Previous context: ${context}`
       : `You are a medical research assistant. Summarize the following search results into clear, organized sections.`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 3000,  // Increased from 2000 to handle more search results
       temperature: 0.5,
       system: systemPrompt,
@@ -249,7 +249,7 @@ async function generateSimpleDigest(
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 3000,
       temperature: 0.3,
       system: `You are a medical research analyst. Create a structured digest in valid JSON format.
@@ -649,7 +649,7 @@ Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})${f.creat
 
     // Using tools to encourage structured output (without beta header for compatibility)
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',  // Using Claude Sonnet 4.5 for superior quality
+      model: 'claude-sonnet-4-6',  // Using Claude Sonnet 4.6
       max_tokens: 12000,
       temperature: 0.3,
       tools: [

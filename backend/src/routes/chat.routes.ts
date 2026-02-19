@@ -92,7 +92,7 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     // Get AI response with built-in retry from SDK
     const response = await aiService.client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       temperature: 0.7,
       system: systemPrompt,
@@ -211,7 +211,7 @@ router.post('/stream', async (req: Request, res: Response) => {
 
     // Create streaming response
     const stream = await aiService.client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       temperature: 0.7,
       system: systemPrompt,
@@ -325,7 +325,7 @@ router.post('/generate-title', async (req: Request, res: Response) => {
     const validated = TitleGenerationSchema.parse(req.body);
 
     const response = await aiService.client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 50,
       temperature: 0.5,
       system: 'Generate a warm, concise title (max 50 characters) for a conversation where a caregiver is exploring medical research. Use natural language like "Understanding treatment options" rather than clinical labels like "Query: Treatment modalities". Return only the title, no quotes or formatting.',
@@ -634,7 +634,7 @@ Last response summary: ${lastResponse.substring(0, 200)}
 Return only a JSON array of question strings, no other formatting.`;
 
     const response = await aiService.client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 200,
       temperature: 0.7,
       system: 'You are a caring medical research companion helping caregivers and families explore research findings. Suggest questions that are warm, practical, and grounded in the available research.',
