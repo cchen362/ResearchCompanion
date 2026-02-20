@@ -196,6 +196,9 @@ class SchedulerService {
 
     console.log(`[Scheduler] Starting background execution for topic "${topicName}"`);
 
+    // Capture trigger time BEFORE execution so schedule doesn't drift
+    const triggerTime = new Date();
+
     try {
       // Wrap execution with timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -215,12 +218,18 @@ class SchedulerService {
       console.log(`[Scheduler] Topic "${topicName}": Found ${findings.length} findings in ${duration}ms`);
 
       // Update last_run and next_run for all executed agents
+      // Use previous last_run as anchor so schedule doesn't drift
       for (const agent of agents) {
         try {
-          const now = new Date();
-          const nextRun = this.calculateNextRun(agent.schedule || 'daily', now);
+          const anchor = agent.last_run ? new Date(agent.last_run) : triggerTime;
+          const interval = this.getScheduleInterval(agent.schedule || 'daily');
+          // Advance anchor by interval(s) until it's in the future
+          let nextRun = new Date(anchor.getTime() + interval);
+          while (nextRun.getTime() <= triggerTime.getTime()) {
+            nextRun = new Date(nextRun.getTime() + interval);
+          }
           await AgentModel.update(agent.id, userId, {
-            last_run: now,
+            last_run: triggerTime,
             next_run: nextRun
           });
         } catch (updateError) {
@@ -296,24 +305,23 @@ class SchedulerService {
   }
 
   /**
+   * Get schedule interval in milliseconds
+   */
+  private getScheduleInterval(schedule: string): number {
+    switch (schedule) {
+      case 'hourly':  return 60 * 60 * 1000;
+      case 'daily':   return 24 * 60 * 60 * 1000;
+      case 'weekly':  return 7 * 24 * 60 * 60 * 1000;
+      case 'monthly': return 30 * 24 * 60 * 60 * 1000;
+      default:        return 365 * 24 * 60 * 60 * 1000;
+    }
+  }
+
+  /**
    * Calculate the next run time based on schedule
    */
   private calculateNextRun(schedule: string, from: Date = new Date()): Date {
-    const baseTime = from.getTime();
-
-    switch (schedule) {
-      case 'hourly':
-        return new Date(baseTime + 60 * 60 * 1000); // 1 hour
-      case 'daily':
-        return new Date(baseTime + 24 * 60 * 60 * 1000); // 24 hours
-      case 'weekly':
-        return new Date(baseTime + 7 * 24 * 60 * 60 * 1000); // 7 days
-      case 'monthly':
-        return new Date(baseTime + 30 * 24 * 60 * 60 * 1000); // 30 days
-      default:
-        // For manual or unknown schedules, set far in the future
-        return new Date(baseTime + 365 * 24 * 60 * 60 * 1000);
-    }
+    return new Date(from.getTime() + this.getScheduleInterval(schedule));
   }
 
   /**
