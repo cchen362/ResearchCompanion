@@ -43,6 +43,7 @@ These documents are **strict actionable blueprints** that agents MUST follow exa
 | 022 | Product Readiness | Complete | PubMed parser fix, temporal digest awareness, section consolidation (12→5) |
 | 023 | Backend Refactor & Dead Code Cleanup | Complete | Bug fixes, dead code removal (6 files), endpoint consolidation, polling → visibility |
 | 024 | Data Integrity & Code Path Consolidation | Complete | Chat citation hardening, source type parity, API param consolidation, dead route removal, dedup hardening. Deployed 2026-02-19. |
+| 025 | Search Query Resolution & Agent Execution Consolidation | Ready | Fix scheduler using topic.name instead of diseaseProfile.name for search queries. Consolidate frontend "Run Now" to backend endpoint. ~410 net lines removed. |
 
 ### Agent Instructions
 

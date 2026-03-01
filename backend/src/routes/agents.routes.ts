@@ -1,5 +1,6 @@
 import express from 'express';
 import { AgentModel, Agent } from '../models/agent.model.js';
+import { agentExecutionService } from '../services/agent-execution.service.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -180,6 +181,67 @@ router.post('/agents/repair/:topicId', async (req, res) => {
       success: false,
       error: 'Failed to repair agents'
     });
+  }
+});
+
+// POST /api/agents/run/:topicId - Execute all enabled agents for a topic
+// CRITICAL: Must be BEFORE /agents/:id routes to avoid Express matching "run" as :id
+router.post('/agents/run/:topicId', async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const { topicId } = req.params;
+
+    const agents = await AgentModel.getByTopicId(userId, topicId);
+    const enabledAgents = agents.filter((a: Agent) => a.enabled);
+
+    if (enabledAgents.length === 0) {
+      return res.json({ success: true, findingsCount: 0, agentsRun: 0 });
+    }
+
+    console.log(`[agents.routes] Executing ${enabledAgents.length} agents for topic ${topicId}`);
+
+    const findings = await agentExecutionService.runAgentsForTopic(
+      topicId,
+      userId,
+      enabledAgents
+    );
+
+    // Update last_run for executed agents
+    for (const agent of enabledAgents) {
+      try {
+        await AgentModel.updateLastRun(agent.id, userId);
+      } catch (err) {
+        console.error(`[agents.routes] Failed to update last_run for ${agent.name}:`, err);
+      }
+    }
+
+    // Queue digest if findings were found
+    if (findings.length > 0) {
+      try {
+        const { pool } = await import('../db/database.js');
+        const DigestQueueServicePG = (await import('../services/digestQueue.service.pg.js')).default;
+        const queueService = new DigestQueueServicePG(pool);
+        await queueService.createQueueItem({
+          userId,
+          topicId,
+          timeframe: 'weekly',
+          digestType: 'smart',
+          priority: 5,
+          metadata: { source: 'manual-run-now', findingsCount: findings.length }
+        });
+      } catch (queueError) {
+        console.error('[agents.routes] Failed to queue digest:', queueError);
+      }
+    }
+
+    res.json({
+      success: true,
+      findingsCount: findings.length,
+      agentsRun: enabledAgents.length
+    });
+  } catch (error) {
+    console.error('Error executing agents:', error);
+    res.status(500).json({ success: false, error: 'Failed to execute agents' });
   }
 });
 

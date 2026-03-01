@@ -18,6 +18,7 @@ import { aiService } from './ai.service.js';
 import type { Agent } from '../models/agent.model.js';
 import type { Finding } from '../models/finding.model.js';
 import { searchService } from './search.service.js';
+import { TopicModel } from '../models/topic.model.js';
 
 // Define FindingSource interface locally
 interface FindingSource {
@@ -56,12 +57,33 @@ export class AgentExecutionService {
     topicId: string,
     userId: string,
     agents: Agent[],
-    topicName?: string
+    topicName?: string  // Display/logging only — NOT used for search queries
   ): Promise<Finding[]> {
     const allFindings: Finding[] = [];
     const errors: string[] = [];
 
-    console.log(`[AgentExecution] Running ${agents.length} agents for topic ${topicId}`);
+    // Resolve the actual medical condition from topic metadata (single source of truth for queries)
+    let searchBaseName = '';
+    try {
+      const topic = await TopicModel.getById(topicId, userId);
+      if (topic) {
+        const metadata = typeof topic.metadata === 'string' ? JSON.parse(topic.metadata) : (topic.metadata || {});
+        searchBaseName = (metadata?.diseaseProfile?.name || '').trim();
+      }
+    } catch (error) {
+      console.warn(`[AgentExecution] Failed to look up topic ${topicId}, falling back to topicName`);
+    }
+
+    // Fallback chain: diseaseProfile.name → topicName → abort
+    searchBaseName = searchBaseName || (topicName || '').trim();
+    const displayName = topicName || searchBaseName || topicId;
+
+    if (!searchBaseName) {
+      console.error(`[AgentExecution] No disease name available for topic ${topicId}, aborting`);
+      return [];
+    }
+
+    console.log(`[AgentExecution] Running ${agents.length} agents for "${displayName}" (searching: "${searchBaseName}")`);
 
     // Run agents sequentially to respect rate limits
     for (const agent of agents) {
@@ -72,7 +94,7 @@ export class AgentExecutionService {
           agent,
           topicId,
           userId,
-          topicName
+          searchBaseName
         );
 
         allFindings.push(...findings);
@@ -661,3 +683,5 @@ ${description ? `Description: ${description}` : '(No description available)'}`;
     this.lastRequestTime[service] = Date.now();
   }
 }
+
+export const agentExecutionService = new AgentExecutionService();

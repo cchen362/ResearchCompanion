@@ -36,7 +36,7 @@ function countSourcesByType(findings: any[]): {
   for (const finding of findings) {
     const sourceType = (finding.source?.type || '').toLowerCase();
 
-    if (sourceType.includes('pubmed') || sourceType.includes('research') || sourceType === 'academic') {
+    if (sourceType.includes('pubmed') || sourceType.includes('research') || sourceType.includes('journal') || sourceType === 'academic') {
       breakdown.pubmed++;
     } else if (sourceType.includes('clinical') || sourceType.includes('trial') || sourceType === 'medical_site') {
       breakdown.clinicalTrials++;

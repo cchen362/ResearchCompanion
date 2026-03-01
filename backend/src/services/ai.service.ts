@@ -318,6 +318,27 @@ const HAIKU_BATCH_THRESHOLD = 130;
 const HAIKU_BATCH_SIZE = 75;
 
 /**
+ * Normalize raw DB source types to the 4 canonical digest types.
+ * Must stay in sync with:
+ *   - frontend: src/utils/sourceCategory.ts → getSourceCategory()
+ *   - backend:  digest-processor.service.ts → countSourcesByType()
+ */
+function normalizeSourceType(rawType?: string): 'pubmed' | 'clinical_trial' | 'fda' | 'web' {
+  const s = (rawType || '').toLowerCase();
+
+  if (s.includes('pubmed') || s.includes('research') || s.includes('journal') || s === 'academic') {
+    return 'pubmed';
+  }
+  if (s.includes('clinical') || s.includes('trial') || s === 'medical_site') {
+    return 'clinical_trial';
+  }
+  if (s.includes('fda')) {
+    return 'fda';
+  }
+  return 'web';
+}
+
+/**
  * Pass 1 entry point: Score and cluster ALL findings by clinical significance using Haiku.
  * Auto-batches at 130+ findings for sustainable scaling.
  */
@@ -348,7 +369,7 @@ async function scoreAndClusterFindingsSingle(
     return `[${idx + 1}] ${isNew ? '[NEW] ' : ''}ID: ${f.id}
 Title: ${f.title}
 Summary: ${f.summary?.substring(0, 300) || 'No summary'}
-Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`;
+Source: ${f.source?.name || 'Unknown'} (${normalizeSourceType(f.source?.type)})`;
   }).join('\n\n');
 
   // Dynamic token scaling (Plan 021): 150 tokens/finding accounts for 150-char condensedSummary + metadata.
@@ -629,7 +650,7 @@ export async function generateSmartDigest(
 Type: ${f.type}
 Title: ${f.title}
 Summary: ${f.summary?.substring(0, 300) || 'No summary'}
-Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})${f.created_at ? `\nAdded: ${new Date(f.created_at).toISOString().split('T')[0]}` : ''}`;
+Source: ${f.source?.name || 'Unknown'} (${normalizeSourceType(f.source?.type)})${f.created_at ? `\nAdded: ${new Date(f.created_at).toISOString().split('T')[0]}` : ''}`;
     }).join('\n\n');
 
     // REMAINING FINDINGS: Haiku's condensed summary (150 chars)
@@ -819,20 +840,33 @@ Focus on practical, actionable information that helps with treatment decisions.`
 
       // Try to use what we have, with defaults for missing fields
       try {
-        // Ensure all required fields have at least default values
+        // Sanitize sourceType fields before re-validating — this is the most common Zod failure
+        const sanitizedNotable = Array.isArray(digestData.notableFindings)
+          ? digestData.notableFindings.map((nf: any) => ({
+              ...nf,
+              sourceType: normalizeSourceType(nf.sourceType)
+            }))
+          : [];
+        const sanitizedFeatured = digestData.featuredDiscovery
+          ? {
+              ...digestData.featuredDiscovery,
+              sourceType: normalizeSourceType(digestData.featuredDiscovery.sourceType)
+            }
+          : undefined;
+
         const recoveredData = {
           whatsNew: digestData.whatsNew || { technical: 'Analysis completed.', explained: 'Research findings compiled.' },
-          featuredDiscovery: digestData.featuredDiscovery || undefined,
+          featuredDiscovery: sanitizedFeatured,
           keyTakeaways: Array.isArray(digestData.keyTakeaways) ? digestData.keyTakeaways : [],
-          notableFindings: Array.isArray(digestData.notableFindings) ? digestData.notableFindings : [],
+          notableFindings: sanitizedNotable,
           forYourDoctor: digestData.forYourDoctor || { questions: [], watchFor: [], conflicts: [] },
           sourceBreakdown: digestData.sourceBreakdown || undefined,
         };
 
-        // Try to validate the recovered data with defaults
+        // Try to validate the recovered data with sanitized fields
         const validated = SmartDigestSchema.parse(recoveredData);
         digestData = validated;
-        console.log('✓ Graceful recovery successful with partial data and defaults');
+        console.log('✓ Graceful recovery successful with sanitized sourceType fields');
       } catch (recoveryError) {
         console.error('Recovery failed:', recoveryError);
         // Don't throw - continue with minimal data
@@ -909,7 +943,7 @@ Focus on practical, actionable information that helps with treatment decisions.`
 Type: ${f.type}
 Title: ${f.title}
 Summary: ${f.summary}
-Source: ${f.source?.name || 'Unknown'} (${f.source?.type || 'unknown'})`
+Source: ${f.source?.name || 'Unknown'} (${normalizeSourceType(f.source?.type)})`
       ).join('\n\n───────────\n\n');
 
       const simpleDigest = await generateSimpleDigest(fallbackAllFindings, topic, 'all-time', fallbackFindingsText);
