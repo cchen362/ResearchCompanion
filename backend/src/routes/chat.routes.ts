@@ -20,7 +20,8 @@ const ChatRequestSchema = z.object({
       source: z.string(),
       type: z.string().optional(),
       createdAt: z.string().optional(),
-      priority: z.string().optional()
+      priority: z.string().optional(),
+      tier: z.enum(['full', 'index']).optional()
     })).optional(),
     previousMessages: z.array(z.object({
       role: z.string(),
@@ -474,7 +475,16 @@ Available research findings with their assigned citation numbers:`;
       citationNumber: citationMap.get(finding.id) || 999
     })).sort((a: any, b: any) => a.citationNumber - b.citationNumber);
 
-    findingsWithNumbers.forEach(({ finding, citationNumber }: any) => {
+    // Separate full-detail and index-only findings
+    const fullDetailFindings = findingsWithNumbers.filter(
+      ({ finding }: any) => finding.tier !== 'index'
+    );
+    const indexOnlyFindings = findingsWithNumbers.filter(
+      ({ finding }: any) => finding.tier === 'index'
+    );
+
+    // Full-detail: existing format (Source/Title/Content)
+    fullDetailFindings.forEach(({ finding, citationNumber }: any) => {
       const sourceInfo = finding.source || 'Unknown Source';
       const title = finding.title || 'Untitled';
       const content = finding.content || finding.summary || '';
@@ -483,12 +493,20 @@ Available research findings with their assigned citation numbers:`;
       prompt += `\nSource: ${sourceInfo}`;
       prompt += `\nTitle: ${title}`;
       if (content) {
-        // Limit content preview to reduce token usage (200 chars max)
         prompt += `\nContent: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`;
       }
     });
 
-    prompt += `\n\nREMINDER: You have exactly ${citationMap.size} findings available with citation numbers from [1] to [${citationMap.size}].`;
+    // Index-only: compact one-line format
+    if (indexOnlyFindings.length > 0) {
+      prompt += `\n\n--- Additional Research Index (${indexOnlyFindings.length} findings, title only) ---`;
+      prompt += `\nYou may cite these by number. Note when detailed information is limited.\n`;
+      indexOnlyFindings.forEach(({ finding, citationNumber }: any) => {
+        prompt += `\n[${citationNumber}] ${finding.title || 'Untitled'} (${finding.source || 'Unknown'})`;
+      });
+    }
+
+    prompt += `\n\nREMINDER: You have ${fullDetailFindings.length} detailed findings and ${indexOnlyFindings.length} indexed findings (${citationMap.size} total). Use citation numbers shown above.`;
     prompt += `\nUSE ONLY THE CITATION NUMBERS SHOWN ABOVE. Never create new citation numbers.`;
   } else {
     prompt += '\n\nNo research findings are currently available for citation.';
@@ -722,25 +740,26 @@ async function enrichFindingsContext(
 
     // Always try to fetch findings for the topic, but with a reasonable limit
     if (findingIds.length < 5 || contextFindings.length === 0) {
-      // Fetch recent findings for the topic with a limit to prevent API overload
-      // 50 findings provides good context without overwhelming the AI and matches frontend limit
+      // Fetch recent findings for the topic — tiering handled by buildSystemPrompt
       const topicFindings = await FindingModel.getFiltered(userId, {
         topic_id: topicId,
-        limit: 50  // CRITICAL: This must match the frontend limit in ChatPanel.tsx
+        limit: 200
       });
 
       if (topicFindings.length > 0) {
-        logger.info(`[chat.routes] Loaded ${topicFindings.length} recent findings (max 50) for context`);
+        const FULL_DETAIL_CAP = 100;
+        logger.info(`[chat.routes] Loaded ${topicFindings.length} findings (max 200) for context`);
         return {
           ...context,
-          findings: topicFindings.map(f => ({
+          findings: topicFindings.map((f, index) => ({
             id: f.id,
             title: f.title,
-            content: f.content || f.summary || '',
+            content: index < FULL_DETAIL_CAP ? (f.content || f.summary || '').substring(0, 250) : '',
             source: f.source?.displayName || f.source?.name || 'Unknown Source',
             type: f.category || 'research',
             createdAt: f.created_at,
-            priority: f.relevance_score ? (f.relevance_score > 0.7 ? 'high' : f.relevance_score > 0.4 ? 'medium' : 'low') : 'medium'
+            priority: f.relevance_score ? (f.relevance_score > 0.7 ? 'high' : f.relevance_score > 0.4 ? 'medium' : 'low') : 'medium',
+            ...(index >= FULL_DETAIL_CAP ? { tier: 'index' as const } : {})
           }))
         };
       }
@@ -751,7 +770,7 @@ async function enrichFindingsContext(
     }
 
     // Fetch full details for each finding from database
-    const enrichedFindings = [];
+    const enrichedFindings: any[] = [];
     for (const findingId of findingIds) {
       const dbFinding = await FindingModel.getById(findingId, userId);
 
@@ -786,19 +805,22 @@ async function enrichFindingsContext(
     if (topicId) {
       const allTopicFindings = await FindingModel.getFiltered(userId, {
         topic_id: topicId,
-        limit: 50
+        limit: 200
       });
 
+      const FULL_DETAIL_CAP = 100;
       for (const finding of allTopicFindings) {
         if (!enrichedFindings.find((f: any) => f.id === finding.id)) {
+          const isIndex = enrichedFindings.length >= FULL_DETAIL_CAP;
           enrichedFindings.push({
             id: finding.id,
             title: finding.title,
-            content: finding.content || finding.summary || '',
+            content: isIndex ? '' : (finding.content || finding.summary || '').substring(0, 250),
             source: finding.source?.displayName || finding.source?.name || 'Unknown Source',
             type: finding.category || 'research',
             createdAt: finding.created_at,
-            priority: finding.relevance_score ? (finding.relevance_score > 0.7 ? 'high' : finding.relevance_score > 0.4 ? 'medium' : 'low') : 'medium'
+            priority: finding.relevance_score ? (finding.relevance_score > 0.7 ? 'high' : finding.relevance_score > 0.4 ? 'medium' : 'low') : 'medium',
+            ...(isIndex ? { tier: 'index' as const } : {})
           });
         }
       }

@@ -146,28 +146,37 @@ export function ChatPanel({ topicId, topicName, className = '', onClose, onToggl
         prev.map(m => m.id === userMessage.id ? savedUserMsg : m)
       );
 
-      // 2. Load findings for AI context
-      let topicFindings: any[] = [];
+      // 2. Load findings for AI context (all findings, tiered for >200)
+      let transformedFindings: any[] = [];
       try {
         const allFindings = await findingsService.getFindings(topicId);
-        topicFindings = allFindings.slice(0, 50);
+        const FULL_DETAIL_CAP = 100;
+        const TOTAL_CAP = 200;
+
+        const findingsToUse = allFindings.length > TOTAL_CAP
+          ? allFindings.slice(0, TOTAL_CAP)
+          : allFindings;
+
+        transformedFindings = findingsToUse.map((f: any, index: number) => ({
+          id: f.id,
+          title: f.title || '',
+          // Pre-truncate: backend only uses 200 chars; index-only findings send empty
+          content: index < FULL_DETAIL_CAP
+            ? (f.details || f.summary || '').substring(0, 250)
+            : '',
+          source: f.source?.displayName || f.source?.name || 'Unknown Source',
+          type: f.type || 'research',
+          createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
+          priority: f.priority || 'medium',
+          ...(index >= FULL_DETAIL_CAP ? { tier: 'index' } : {})
+        }));
       } catch (e) {
         logger.warn('[ChatPanel] Could not load findings for context');
       }
 
-      const transformedFindings = topicFindings.map((f: any) => ({
-        id: f.id,
-        title: f.title || '',
-        content: f.details || f.summary || '',
-        source: f.source?.displayName || f.source?.name || 'Unknown Source',
-        type: f.type || 'research',
-        createdAt: f.timestamp ? new Date(f.timestamp).toISOString() : new Date().toISOString(),
-        priority: f.priority || 'medium'
-      }));
-
       const context = {
         findings: transformedFindings,
-        currentFindings: topicFindings.map((f: any) => f.id),
+        currentFindings: transformedFindings.map((f: any) => f.id),
         previousMessages: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
         citationMap
       };
