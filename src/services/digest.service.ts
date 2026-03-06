@@ -43,6 +43,7 @@ interface DigestResponse {
   digest: any;
   deduplicated?: boolean;
   message?: string;
+  lastAgentRun?: string;
 }
 
 interface DeleteResponse {
@@ -149,7 +150,7 @@ class DigestService {
 
   // ==================== Transformation Functions ====================
 
-  private transformToFrontend(apiDigest: any, responseContext?: { deduplicated?: boolean; source?: string }): SmartDigest {
+  private transformToFrontend(apiDigest: any, responseContext?: { deduplicated?: boolean; source?: string; lastAgentRun?: string }): SmartDigest {
     // Safety check: throw meaningful error if called with null/undefined
     if (!apiDigest) {
       throw new Error('Cannot transform null or undefined digest');
@@ -181,7 +182,10 @@ class DigestService {
         isCached: responseContext.deduplicated || false,
         deduplicated: responseContext.deduplicated || false,
         originalGeneratedAt: apiDigest.created_at ? new Date(apiDigest.created_at).getTime() : Date.now(),
-        cacheRetrievedAt: Date.now()
+        cacheRetrievedAt: Date.now(),
+        lastAgentRun: responseContext.lastAgentRun
+          ? new Date(responseContext.lastAgentRun).getTime()
+          : undefined
       };
     }
 
@@ -250,7 +254,8 @@ class DigestService {
         // Only transform if digest exists (might be null if still generating)
         const digest = this.transformToFrontend(response.data.digest, {
           deduplicated: response.data.deduplicated,
-          source: 'postgresql'
+          source: 'postgresql',
+          lastAgentRun: response.data.lastAgentRun
         });
         await this.cacheDigest(digest);
         return digest;

@@ -2,7 +2,7 @@ import express from 'express';
 import { DigestModel } from '../models/digest.model.js';
 import { z } from 'zod';
 import DigestQueueServicePG from '../services/digestQueue.service.pg.js';
-import { pool } from '../db/database.js';
+import { pool, query } from '../db/database.js';
 import { TopicModel } from '../models/topic.model.js';
 import { FindingModel } from '../models/finding.model.js';
 
@@ -130,6 +130,19 @@ router.get('/digests/latest/:topicId', async (req, res) => {
       // Don't fail the request if queue check fails
     }
 
+    // Fetch latest agent scan time for this topic
+    let lastAgentRun: string | null = null;
+    try {
+      const rows = await query(
+        `SELECT MAX(last_run) as last_agent_run
+         FROM agents WHERE user_id = $1 AND topic_id = $2 AND enabled = true`,
+        [userId, topicId]
+      );
+      lastAgentRun = rows[0]?.last_agent_run || null;
+    } catch (agentErr) {
+      console.error('[DIGEST] Error fetching agent last_run:', agentErr);
+    }
+
     if (!digest && !queueStatus) {
       return res.status(404).json({
         success: false,
@@ -176,7 +189,8 @@ router.get('/digests/latest/:topicId', async (req, res) => {
       success: true,
       digest,
       isGenerating,
-      queueStatus
+      queueStatus,
+      lastAgentRun
     });
   } catch (error) {
     console.error('Error fetching latest digest:', error);

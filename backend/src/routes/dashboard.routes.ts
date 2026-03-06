@@ -72,6 +72,22 @@ router.get('/dashboard/stats', async (req, res) => {
       topicId ? [userId, topicId] : [userId]
     );
 
+    // 5b. Agent last scan time per topic (for freshness communication)
+    const agentLastRunRows = await query(
+      topicId
+        ? `SELECT topic_id, MAX(last_run) as last_agent_run
+           FROM agents WHERE user_id = $1 AND topic_id = $2 AND enabled = true
+           GROUP BY topic_id`
+        : `SELECT topic_id, MAX(last_run) as last_agent_run
+           FROM agents WHERE user_id = $1 AND enabled = true
+           GROUP BY topic_id`,
+      topicId ? [userId, topicId] : [userId]
+    );
+    const agentLastRunMap = new Map<string, string>();
+    for (const row of agentLastRunRows) {
+      agentLastRunMap.set(row.topic_id, row.last_agent_run);
+    }
+
     const digestSignposts = digestRows.map((d: any) => {
       // Parse JSONB fields — they might be strings or already objects
       const whatsNew = typeof d.whats_new === 'string' ? JSON.parse(d.whats_new) : (d.whats_new || {});
@@ -85,7 +101,8 @@ router.get('/dashboard/stats', async (req, res) => {
         whatsNew,
         notableFindingsCount: Array.isArray(notableFindings) ? notableFindings.length : 0,
         hasConflicts: Array.isArray(forYourDoctor.conflicts) && forYourDoctor.conflicts.length > 0,
-        createdAt: d.created_at
+        createdAt: d.created_at,
+        lastAgentRun: agentLastRunMap.get(d.topic_id) || null
       };
     });
 

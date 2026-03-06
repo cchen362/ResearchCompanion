@@ -146,6 +146,14 @@ export function DigestCard({
                   </span>
                 )}
               </p>
+              {digest.cacheMetadata?.lastAgentRun && digest.cacheMetadata.lastAgentRun > digest.generatedAt && (
+                <p className="text-xs text-[var(--color-text-muted)] mb-2 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
+                  Agents last scanned {formatDistanceToNow(digest.cacheMetadata.lastAgentRun, { addSuffix: true })}
+                  <span className="mx-1">·</span>
+                  No new research found
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <Button

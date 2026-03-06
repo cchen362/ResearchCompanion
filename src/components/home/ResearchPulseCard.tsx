@@ -1,4 +1,5 @@
 import { Brain, ArrowRight } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 interface WhatsNewSignpost {
   id: string;
@@ -8,6 +9,7 @@ interface WhatsNewSignpost {
   notableFindingsCount: number;
   hasConflicts: boolean;
   createdAt: string;
+  lastAgentRun?: string;
 }
 
 interface WhatsNewCardProps {
@@ -51,9 +53,15 @@ export function ResearchPulseCard({ signposts, onOpenDigest }: WhatsNewCardProps
               {signpost.whatsNew.explained || signpost.whatsNew.technical || ''}
             </p>
 
-            {/* Timestamp */}
+            {/* Timestamp + agent scan freshness */}
             <div className="mt-2 text-xs text-[var(--color-text-muted)]">
               Updated {new Date(signpost.createdAt).toLocaleDateString()}
+              {signpost.lastAgentRun && new Date(signpost.lastAgentRun) > new Date(signpost.createdAt) && (
+                <span className="ml-2">
+                  · <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 align-middle mr-1" />
+                  Scanned {formatDistanceToNow(new Date(signpost.lastAgentRun), { addSuffix: true })}
+                </span>
+              )}
             </div>
           </div>
         ))}

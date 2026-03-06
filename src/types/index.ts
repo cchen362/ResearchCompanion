@@ -413,6 +413,7 @@ export interface SmartDigest {
     originalGeneratedAt?: number;
     cacheRetrievedAt?: number;
     cacheExpiresAt?: number;
+    lastAgentRun?: number;
   };
 
   // 6-section digest fields
